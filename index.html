@@ -50,6 +50,7 @@
 <div id="abilitybar" class="panel"></div>
 <div id="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
 <div id="overlay"></div>
+<script src="assets/manifest.js"></script>
 <script>
 'use strict';
 // ============================== CONFIG ==============================
@@ -179,6 +180,8 @@ function newGame(seed, race) {
   S.ai = { thinkT: 1, attacks: 0, attackCd: CFG.ai.attackCooldown, trainQ: 0 };
 
   genMap();
+  S.biome = S.playerRace === 'sioux' ? 'olive' : 'ochre'; // preria ochrowa; mapy Sioux oliwkowo-żółte (screeny oryginału)
+  if (ART === 'prerender') buildGround();
   const hq = addBuilding('hq', 33, 33, 'player');
   addBuilding('hq', 2, 2, 'enemy');
   // start per frakcja: Osadnicy 4 robotników, Sioux 2 squawy i 2 wojowników (asymetria ekonomii od pierwszej sekundy)
@@ -2251,7 +2254,47 @@ function makeWaterTile(seed) {
 SPR.fog = makeFogTile();
 SPR.water0 = makeWaterTile(3);
 SPR.water1 = makeWaterTile(4);
-function blitSpr(s, px, py) { ctx.drawImage(s.c, Math.round(px - s.ax), Math.round(py - s.ay)); }
+function blitSpr(s, px, py) { ctx.imageSmoothingEnabled = false; ctx.drawImage(s.c, Math.round(px - s.ax), Math.round(py - s.ay)); }
+// ============================== ZASOBY GRAFICZNE (G2: pre-render 3D + painted, kafel 128 px rysowany w połowie rozmiaru) ==============================
+// Przełącznik: ?art=prerender (nowy zestaw) albo domyślnie 'retro' (stary zestaw inline) do czasu kompletu zasobów; zestawów nie mieszamy w jednej scenie.
+let ART = new URLSearchParams(location.search).get('art') === 'prerender' ? 'prerender' : 'retro';
+const AK = 0.5;                       // skala zasobów 128 px -> świat 64 px (ZOOM=2 daje na ekranie 1:1)
+const GL_W = 2624, GL_H = 1312, GL_OX = 1312;   // warstwa terenu w px świata: romb 40x40 kafli + margines
+function loadAssets() {
+  return new Promise(resolve => {
+    const man = window.ASSETS; if (!man) { resolve(false); return; }
+    let pending = 0, failed = 0, started = false; const imgs = {};
+    const check = () => { if (started && pending === 0) resolve(failed === 0); };
+    const img = src => { if (!src) return null; if (imgs[src]) return imgs[src]; const im = new Image(); pending++; im.onload = () => { pending--; check(); }; im.onerror = () => { failed++; pending--; check(); }; im.src = src; return imgs[src] = im; };
+    for (const k in man) { const e = man[k]; e._img = img(e.file); e._sh = img(e.shadow); e._mk = img(e.mask); }
+    started = true; check();
+  });
+}
+// statyczny sprite z warstwą cienia; kotwica w px zasobu, rysowanie w połowie rozmiaru
+function drawStatic(key, px, py) {
+  const e = window.ASSETS && window.ASSETS[key]; if (!e) return;
+  const x = Math.round(px - e.ax * AK), y = Math.round(py - e.ay * AK);
+  ctx.imageSmoothingEnabled = true;
+  if (e._sh) ctx.drawImage(e._sh, x, y, e.w * AK, e.h * AK);
+  ctx.drawImage(e._img, x, y, e.w * AK, e.h * AK);
+}
+// kafel gruntu z atlasu okresowego 6x6: (x mod 6, -(y+1) mod 6) daje ciągłą powierzchnię; romb powiększony o 1 px, żeby sąsiednie kafle się nakładały
+function drawGroundTile(ctx2, name, x, y, cx, cy) {
+  const e = window.ASSETS['ground_' + name], P = e.period;
+  const i = ((x % P) + P) % P, j = ((((-(y + 1)) % P) + P) % P);
+  ctx2.drawImage(e._img, i * e.tw, j * e.th, e.tw, e.th, cx - 33, cy - 17, 66, 34);
+}
+function buildGround() {
+  const c = document.createElement('canvas'); c.width = GL_W; c.height = GL_H;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = true;
+  g.fillStyle = S.biome === 'olive' ? '#2a4a56' : '#2a4a56';   // tło warstwy = kolor krawędzi wody: pominięte kafle wody nie mają szwów
+  g.fillRect(0, 0, GL_W, GL_H);
+  for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
+    if (S.terrain[idx(x, y)] === T_WATER) continue;
+    drawGroundTile(g, S.biome, x, y, (x - y) * CFG.tileW / 2 + GL_OX, (x + y) * CFG.tileH / 2 + CFG.tileH / 2);
+  }
+  S.groundLayer = c;
+}
 function sprNoise(x, y, seed) {
   let n = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(seed, 1442695041)) | 0;
   n = Math.imul(n ^ (n >>> 13), 1274126177); n ^= n >>> 16;
@@ -2407,8 +2450,32 @@ const UNIT_SPR = { worker: 'worker', piechota: 'soldier', desperado: 'bandit', b
   squaw: 'worker', wojownik: 'bandit', lucznik: 'soldier', medicine: 'leader', wodz: 'leader' };
 // warianty sprite'ów dla wroga (odróżnienie frakcji bez palety kontekstu)
 const ENEMY_UNIT_SPR = { worker: 'worker_red' };
-function drawTileShape(sx, sy, fill) {
-  const w = CFG.tileW / 2, h = CFG.tileH / 2;
+// grunt kafla: w trybie retro sprite trawy, w prerender zrobiła to już warstwa terenu
+// mgła w trybie prerender: jedna mała mapa alfa (1 piksel = 1 kafel) rozciągnięta przekształceniem izometrycznym z wygładzaniem, czyli miękkie brzegi zamiast rombów
+function drawFog() {
+  if (!S.fogC) { S.fogC = document.createElement('canvas'); S.fogC.width = S.fogC.height = MAP; S.fogCtx = S.fogC.getContext('2d'); S.fogImg = S.fogCtx.createImageData(MAP, MAP); }
+  const d = S.fogImg.data;
+  for (let i = 0; i < MAP * MAP; i++) {
+    const o = i * 4;
+    if (!S.explored[i]) { d[o] = 20; d[o + 1] = 16; d[o + 2] = 10; d[o + 3] = 255; }
+    else if (!S.visible[i]) { d[o] = 10; d[o + 1] = 8; d[o + 2] = 6; d[o + 3] = 115; }
+    else { d[o] = 10; d[o + 1] = 8; d[o + 2] = 6; d[o + 3] = 0; }
+  }
+  S.fogCtx.putImageData(S.fogImg, 0, 0);
+  ctx.save();
+  ctx.transform(CFG.tileW / 2, CFG.tileH / 2, -CFG.tileW / 2, CFG.tileH / 2, cam.x, cam.y);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(S.fogC, 0, 0, MAP, MAP);
+  ctx.restore();
+}
+function drawGround(x, y, sx, sy) { if (ART !== 'prerender') blitSpr(SPR['grass' + Math.floor(sprNoise(x, y, 1) * 4)], sx, sy + CFG.tileH / 2); }
+function drawDirt(x, y, sx, sy) {
+  if (ART === 'prerender') { ctx.imageSmoothingEnabled = true; drawGroundTile(ctx, 'dirt', x, y, sx, sy + CFG.tileH / 2); }
+  else blitSpr(SPR['dirt' + (sprNoise(x, y, 5) < 0.5 ? 0 : 1)], sx, sy + CFG.tileH / 2);
+}
+function drawTileShape(sx, sy, fill, grow = 0) {
+  const w = CFG.tileW / 2 + grow, h = CFG.tileH / 2 + grow;
+  sy -= grow;
   ctx.beginPath();
   ctx.moveTo(sx, sy); ctx.lineTo(sx + w, sy + h); ctx.lineTo(sx, sy + 2 * h); ctx.lineTo(sx - w, sy + h);
   ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
@@ -2437,24 +2504,25 @@ function render() {
   ctx.scale(ZOOM, ZOOM); // cały świat w skali: sprite'y, teren, mgła, efekty rosną jednolicie
   const VW = canvasW / ZOOM, VH = canvasH / ZOOM; // widoczny fragment w px świata (do kullingu)
   const items = [];
-  // teren
+  // teren: w trybie prerender grunt to jedna warstwa rysowana raz na partię, pętla niżej nakłada tylko to, co dynamiczne
+  if (ART === 'prerender' && S.groundLayer) { ctx.imageSmoothingEnabled = false; ctx.drawImage(S.groundLayer, Math.round(cam.x - GL_OX), Math.round(cam.y)); }
   for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
     const i = idx(x, y);
-    if (!S.explored[i]) continue;
     const [sx, sy] = tileToScreen(x, y);
     if (sx < -80 || sx > VW + 80 || sy < -60 || sy > VH + 80) continue;
+    if (!S.explored[i]) continue;
     const t = S.terrain[i];
     if (t === T_WATER) {
       blitSpr(SPR['water' + (sprNoise(x, y, 6) < 0.5 ? 0 : 1)], sx, sy + CFG.tileH / 2);
     } else if (t === T_GOLD) {
-      blitSpr(SPR['dirt' + (sprNoise(x, y, 5) < 0.5 ? 0 : 1)], sx, sy + CFG.tileH / 2);
+      drawDirt(x, y, sx, sy);
       items.push({ d: x + y, kind: 'gold', sx, sy: sy + CFG.tileH / 2 });
     } else if (t === T_MEAT) {
-      blitSpr(SPR['dirt' + (sprNoise(x, y, 5) < 0.5 ? 0 : 1)], sx, sy + CFG.tileH / 2);
+      drawDirt(x, y, sx, sy);
       items.push({ d: x + y, kind: 'meat', sx, sy: sy + CFG.tileH / 2 });
     } else if (t === T_THICK) {
       // gęsty las: ciemniejszy nalot i dwa drzewa na kafel zamiast jednego, czytelny tuneł
-      blitSpr(SPR['grass' + Math.floor(sprNoise(x, y, 1) * 4)], sx, sy + CFG.tileH / 2);
+      drawGround(x, y, sx, sy);
       ctx.globalAlpha = 0.45;
       drawTileShape(sx, sy, '#1c240c');
       ctx.globalAlpha = 1;
@@ -2465,9 +2533,9 @@ function render() {
         items.push({ d: x + y + k * 0.01, kind: 'tree', sx: sx + jx, sy: sy + CFG.tileH / 2 + jy, v });
       }
     } else {
-      blitSpr(SPR['grass' + Math.floor(sprNoise(x, y, 1) * 4)], sx, sy + CFG.tileH / 2);
+      drawGround(x, y, sx, sy);
       if (t === T_FOREST) {
-        ctx.globalAlpha = 0.3;
+        ctx.globalAlpha = ART === 'prerender' ? 0.1 : 0.3;
         drawTileShape(sx, sy, '#262a10');
         ctx.globalAlpha = 1;
         // jitter: każde drzewo lekko przesunięte deterministycznie, las nie jest szpalerem
@@ -2501,7 +2569,7 @@ function render() {
   items.sort((a, b) => a.d - b.d);
   for (const it of items) {
     if (it.kind === 'tree') drawTree(it.sx, it.sy, it.v || 0);
-    else if (it.kind === 'gold') blitSpr(SPR.gold, it.sx, it.sy);
+    else if (it.kind === 'gold') { if (ART === 'prerender') drawStatic('gold_vein' + (sprNoise(Math.round(it.sx), Math.round(it.sy), 3) < 0.5 ? 0 : 1), it.sx, it.sy); else blitSpr(SPR.gold, it.sx, it.sy); }
     else if (it.kind === 'meat') drawCarcass(it.sx, it.sy);
     else if (it.kind === 'storm') drawStorm(it.o, it.sx, it.sy);
     else if (it.kind === 'b') drawBuilding(it.o);
@@ -2562,7 +2630,8 @@ function render() {
     ctx.globalAlpha = 1;
   }
   // mgła: przyciemnienie obszarów poza widokiem
-  for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
+  if (ART === 'prerender') drawFog();
+  else for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
     const i = idx(x, y);
     if (!S.explored[i] || S.visible[i]) continue;
     const [sx, sy] = tileToScreen(x, y);
@@ -2658,10 +2727,17 @@ function render() {
 }
 const TREE_KINDS = ['tree0', 'pine', 'dead', 'tree1'];
 function drawTree(sx, sy, v) {
+  if (ART === 'prerender') { drawStatic(['tree_oak0', 'tree_pine', 'tree_dead', 'tree_oak1'][v || 0], sx, sy); return; }
   blitSpr(SPR[TREE_KINDS[v || 0]], sx, sy);
 }
 // rekwizyt terenowy: pozycja deterministyczna z pozycji kafla, zawsze wewnątrz rombu (max |ox|/32+|oy|/16 = 0.875 < 1)
 function drawProp(x, y, cx, cy) {
+  if (ART === 'prerender') {   // rzadsze niż w trybie retro: sprite'y są większe
+    const r = sprNoise(x, y, 11); if (r >= 0.11) return;
+    const ox = (sprNoise(x, y, 12) - 0.5) * 28, oy = (sprNoise(x, y, 13) - 0.5) * 14, v = sprNoise(x, y, 14) < 0.5 ? 0 : 1;
+    drawStatic((r < 0.03 ? 'prop_rock' : r < 0.06 ? 'prop_bush' : 'prop_tuft') + v, cx + ox, cy + oy);
+    return;
+  }
   const r = sprNoise(x, y, 11);
   if (r >= 0.155) return;
   const ox = (sprNoise(x, y, 12) - 0.5) * 28, oy = (sprNoise(x, y, 13) - 0.5) * 14;
@@ -2712,6 +2788,7 @@ function drawBuilding(b) {
 }
 // padlina po zwierzynie: ciemna bryła mięsa z jaśniejszym rozłupem i kreską kości
 function drawCarcass(sx, sy) {
+  if (ART === 'prerender') { drawStatic('carcass', sx, sy); return; }
   ctx.fillStyle = '#6e3a26';
   ctx.beginPath(); ctx.ellipse(sx, sy - 4, 14, 6, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#8a4a2e';
@@ -2825,10 +2902,15 @@ function frame(now) {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) prevTime = performance.now(); });
 
 resize();
-newGame((Date.now() % 2147483647) >>> 0);
-updateTopbar(); updatePanels();
-showMenu();
-requestAnimationFrame(t => { prevTime = t; requestAnimationFrame(frame); });
+overlay.style.display = 'flex'; overlay.innerHTML = '<div class="box"><h2>Ładowanie…</h2></div>';
+(ART === 'prerender' ? loadAssets() : Promise.resolve(true)).then(ok => {
+  if (!ok) { console.warn('Brak kompletu zasobów graficznych: tryb retro'); ART = 'retro'; }
+  newGame((Date.now() % 2147483647) >>> 0);
+  updateTopbar(); updatePanels();
+  showMenu();
+  window.GAME_READY = true;
+  requestAnimationFrame(t => { prevTime = t; requestAnimationFrame(frame); });
+});
 </script>
 </body>
 </html>

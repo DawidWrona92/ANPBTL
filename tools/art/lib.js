@@ -1,0 +1,114 @@
+// Wspólny kod generatora grafiki: ładowanie skilli, własne tekstury w palecie oryginału, modele, zapis zasobów i manifest.
+// Skille: SKILLS_DIR (domyślnie ścieżka z tej maszyny). Backend rts-prerender-3d: przenośny JS (Mitsuba niepotrzebna).
+const fs = require('fs'), path = require('path');
+const SK = process.env.SKILLS_DIR || '/root/.claude/skills/synced/3f48fc38-d005-456a-896a-d33cbff9e6e1_f8d362e6-5cd9-406f-ad0d-703fa9bc0f31';
+const rt = require(SK + '/rts-prerender-3d/scripts/portable/rtcore.js');
+const pt = require(SK + '/painted-rts-sprites/scripts/painter.js');
+const TILE = 128;                                   // piksele szerokości kafla w zasobach; gra rysuje je w połowie (ZOOM=2, CFG.tileW=64)
+const ROOT = path.join(__dirname, '..', '..'), ASSETS = path.join(ROOT, 'assets');
+const clamp = x => Math.min(1, Math.max(0, x)), mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+
+// ---------- tekstury własne (paleta z oryginału: ochra, szare i brązowe deski, jesienne liście, skóra tepee)
+function paint(size, fn) { const tex = rt.newTexture(size); for (let i = 0; i < size * size; i++) { const c = fn(i); for (let k = 0; k < 3; k++) tex.data[i * 3 + k] = clamp(c[k]); } return tex; }
+function texOchre(size, seed, dim = 1) {   // wypalona, spękana preria
+  const big = rt.fbm(size, seed, [4, 14]), mid = rt.fbm(size, seed + 1, [1.5, 4]), fine = rt.fbm(size, seed + 2, [0.6, 1.6]), crk = rt.fbm(size, seed + 3, [3, 8]);
+  const dark = [0.42, 0.26, 0.09], base = [0.64, 0.43, 0.15], light = [0.77, 0.55, 0.22];
+  return paint(size, i => {
+    const t = clamp(0.5 + 0.26 * big[i] + 0.12 * mid[i]);
+    let c = t < 0.5 ? mix(dark, base, t * 2) : mix(base, light, (t - 0.5) * 2);
+    const cr = Math.abs(crk[i]); if (cr < 0.09) c = mix(c, [0.30, 0.17, 0.06], 0.75 * (0.09 - cr) / 0.09);
+    const f = (1 + 0.06 * fine[i]) * dim; return [c[0] * f, c[1] * f, c[2] * f];
+  });
+}
+function texOlive(size, seed) {   // oliwkowo-żółta trawa
+  const big = rt.fbm(size, seed, [5, 16]), mid = rt.fbm(size, seed + 1, [1.2, 3]), blade = rt.fbm(size, seed + 2, [0.5, 1.4], [0.4, 1.6]);
+  const dark = [0.30, 0.32, 0.09], base = [0.48, 0.48, 0.15], light = [0.62, 0.59, 0.22], ochre = [0.60, 0.42, 0.16];
+  return paint(size, i => {
+    const t = clamp(0.5 + 0.25 * big[i] + 0.15 * mid[i]);
+    let c = t < 0.5 ? mix(dark, base, t * 2) : mix(base, light, (t - 0.5) * 2);
+    if (big[i] > 1.5) c = mix(c, ochre, clamp((big[i] - 1.5) * 0.8));
+    const f = 1 + 0.10 * blade[i]; return [c[0] * f, c[1] * f, c[2] * f];
+  });
+}
+function texAutumnLeaf(size, seed) {
+  const n = rt.fbm(size, seed, [1.0, 2.5]), m = rt.fbm(size, seed + 1, [0.6, 1.5]);
+  const pal = [[0.55, 0.26, 0.08], [0.72, 0.38, 0.11], [0.84, 0.52, 0.15], [0.46, 0.22, 0.08]];
+  return paint(size, i => { const k = clamp(0.5 + 0.35 * n[i] + 0.25 * m[i]); const f = k * (pal.length - 1), a = Math.floor(f); return mix(pal[a], pal[Math.min(pal.length - 1, a + 1)], f - a); });
+}
+function texRustNeedle(size, seed) {
+  const n = rt.fbm(size, seed, [1.0, 2.5]), m = rt.fbm(size, seed + 1, [0.5, 1.2]);
+  return paint(size, i => { const t = clamp(0.5 + 0.3 * n[i] + 0.2 * m[i]); const c = mix(mix([0.36, 0.30, 0.10], [0.52, 0.40, 0.15], t), [0.66, 0.38, 0.13], clamp((m[i] - 0.3) * 0.9)); return [c[0] * 1.4, c[1] * 1.35, c[2] * 1.1]; });   // jaśniejsze i cieplejsze: ciemna tekstura łapała szary odcień nieba
+}
+function texHide(size, seed) {
+  const n = rt.fbm(size, seed, [3, 9]), s = rt.fbm(size, seed + 1, [0.8, 3], [0.6, 5]);
+  return paint(size, i => { const f = 1 + 0.07 * n[i] + 0.04 * s[i]; return [0.86 * f, 0.77 * f, 0.58 * f]; });
+}
+function texPattern(size, seed) {
+  const n = rt.fbm(size, seed, [1, 3]);
+  return paint(size, i => { const stripe = ((i % size) / size * 8) % 1 < 0.5 ? 1 : 0.8; const f = (1 + 0.1 * n[i]) * stripe; return [0.55 * f, 0.22 * f, 0.14 * f]; });
+}
+function texWhite(size, seed) { const n = rt.fbm(size, seed, [2, 6]), f = rt.fbm(size, seed + 1, [0.7, 1.8]); return paint(size, i => { const k = 1 + 0.025 * n[i] + 0.02 * f[i]; return [0.90 * k, 0.86 * k, 0.77 * k]; }); }
+function texGold(size, seed) { const n = rt.fbm(size, seed, [1.5, 4]); return paint(size, i => { const k = 1 + 0.18 * n[i]; return [0.92 * k, 0.70 * k, 0.12 * k]; }); }
+const T = rt.standardTextures();
+const TX = {
+  ochre: texOchre(1024, 11), dirt: texOchre(1024, 41, 0.72), olive: texOlive(1024, 21),
+  leaf: texAutumnLeaf(256, 5), needle: texRustNeedle(256, 8), hide: texHide(256, 3), pattern: texPattern(256, 4), gold: texGold(128, 2),
+  grayPlanks: rt.adjustTexture(T.planks, { saturation: 0.28, brightness: 1.95 }), grayTimber: rt.adjustTexture(T.timber, { saturation: 0.35, brightness: 1.5 }), grayRoof: rt.adjustTexture(T.planks, { saturation: 0.22, brightness: 1.6 }),
+  freshPlanks: rt.adjustTexture(T.planks, { saturation: 1.0, brightness: 1.35, contrast: 0.9 }), freshTimber: rt.adjustTexture(T.timber, { saturation: 0.95, brightness: 1.15 }), freshRoof: rt.adjustTexture(T.planks, { saturation: 0.8, brightness: 0.95 }),
+  whitePlanks: (() => { const w = texWhite(256, 14), p = rt.adjustTexture(T.planks, { saturation: 0.0, brightness: 1.0 }); return paint(256, i => { const g = (p.data[i * 3] + p.data[i * 3 + 1] + p.data[i * 3 + 2]) / 3; const k = 0.85 + 0.45 * g; return [w.data[i * 3] * k, w.data[i * 3 + 1] * k, w.data[i * 3 + 2] * k]; }); })(),
+  bark: rt.adjustTexture(T.bark, { saturation: 0.7, brightness: 0.55 }), plaster: texWhite(256, 9), clay: rt.adjustTexture(T.roof, { saturation: 0.95, brightness: 1.4, contrast: 0.7 }),
+};
+// style budynków (dok. zrodla.md, pamięć gracza): 'ruin' = szare, zniszczone (Desperado, magazyn USA); 'fresh' = brązowe świeże deski (domy USA); 'white' = deski malowane na biało (główna baza USA)
+const STYLE = {
+  ruin: { planks: TX.grayPlanks, timber: TX.grayTimber, roof: TX.grayRoof, trim: [0.85, 0.68, 0.12] },
+  fresh: { planks: TX.freshPlanks, timber: TX.freshTimber, roof: TX.freshRoof, trim: [0.16, 0.32, 0.62] },
+  white: { planks: TX.whitePlanks, timber: TX.freshTimber, roof: TX.freshRoof, trim: [0.16, 0.32, 0.62] },
+};
+function model(style) {
+  const m = rt.standardModel(T);
+  const st = STYLE[style];
+  if (st) {
+    m.material('planks', { texture: st.planks, worldSize: 1.2 }); m.material('timber', { texture: st.timber, worldSize: 1.6 }); m.material('roof', { texture: st.roof, worldSize: 1.5 });
+    // wykończenia budynków to stały element stylu, nie kolor właściciela (zrodla.md): materiały 'team*' nadpisane stałymi barwami bez maski drużyny
+    m.material('team', { color: st.trim, team: false }); m.material('team_dark', { color: st.trim.map(c => c * 0.8), team: false }); m.material('team_light', { color: st.trim.map(c => Math.min(1, c * 1.2)), team: false });
+  }
+  m.material('hide', { texture: TX.hide, worldSize: 1.6 }); m.material('pattern', { texture: TX.pattern, worldSize: 1.2 });
+  m.material('leaf', { texture: TX.leaf, worldSize: 1.0 }); m.material('needle', { texture: TX.needle, worldSize: 1.0 });
+  m.material('bark', { texture: TX.bark, worldSize: 1.2 }); m.material('foliage_core', { color: [0.30, 0.20, 0.08] });   // domyślny rdzeń korony przebijał zielono-niebieski
+  m.material('plaster', { texture: TX.plaster, worldSize: 2.4 }); m.material('gold', { texture: TX.gold, worldSize: 0.6 });
+  return m;
+}
+const cam = (half, target, scale = 1) => new rt.Camera({ tilePx: TILE * scale, halfExtent: half, target });
+
+// ---------- zapis zasobów i manifest
+const entries = {};
+function ensureDir(d) { fs.mkdirSync(d, { recursive: true }); }
+function writePng(rel, image) { const f = path.join(ASSETS, rel); ensureDir(path.dirname(f)); fs.writeFileSync(f, rt.encodePng(image)); return 'assets/' + rel.replace(/\\/g, '/'); }
+// statyczny sprite (wynik renderSprite): sprite + cień jako osobne PNG, kotwica = rzut (0,0,0) w pikselach zasobu
+function saveStatic(key, res, group) {
+  if (res.frameClipped) console.warn('UWAGA: kadr uciął', key);
+  if (res.shadow.width !== res.sprite.width || res.shadow.height !== res.sprite.height) console.warn("UWAGA: cień ma inny rozmiar niż sprite", key);
+  const w = res.sprite.width, h = res.sprite.height;
+  entries[key] = { file: writePng(group + '/' + key + '.png', res.sprite), shadow: writePng(group + '/' + key + '_shadow.png', res.shadow), w, h, ax: Math.round(res.anchor[0]), ay: Math.round(res.anchor[1]) };
+  return entries[key];
+}
+// arkusz klatek (jednostki): kierunki × fazy; maska drużyny jako osobny PNG (przebarwiana w grze)
+function saveSheet(key, frames, group, opts) {
+  const sheet = pt.packSheet(frames, { columns: opts.columns, padding: 1 });
+  const m = sheet.meta, fw = m.frame_size[0], fh = m.frame_size[1];
+  entries[key] = { file: writePng(group + '/' + key + '.png', sheet.rgba), shadow: writePng(group + '/' + key + '_shadow.png', sheet.shadow), mask: opts.team ? writePng(group + '/' + key + '_team.png', sheet.team) : null,
+    fw, fh, cols: opts.columns, rows: Math.ceil(frames.length / opts.columns), pad: m.padding || 1, ax: Math.round(m.anchor[0]), ay: Math.round(m.anchor[1]), dirs: opts.dirs, phases: opts.phases };
+  return entries[key];
+}
+function writeManifest(extra) {
+  const file = path.join(ASSETS, 'manifest.json');
+  let all = {}; try { all = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { /* pierwszy przebieg */ }
+  Object.assign(all, entries, extra || {});
+  ensureDir(ASSETS);
+  fs.writeFileSync(file, JSON.stringify(all, null, 1));
+  // manifest jako skrypt: fetch/XHR na file:// jest blokowany w Chromium, <script src> działa
+  fs.writeFileSync(path.join(ASSETS, 'manifest.js'), '// Wygenerowane przez tools/art/build_assets.js, nie edytować ręcznie.\nwindow.ASSETS = ' + JSON.stringify(all) + ';\n');
+  return all;
+}
+const timer = () => { const t0 = Date.now(); return n => console.log(n, ((Date.now() - t0) / 1000).toFixed(1) + ' s'); };
+module.exports = { rt, pt, fs, path, TILE, ROOT, ASSETS, clamp, mix, paint, T, TX, STYLE, model, cam, saveStatic, saveSheet, writeManifest, entries, writePng, timer };

@@ -31,6 +31,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   // GAME_FILE pozwala uruchomić te same testy na starszej wersji (sprawdzenie, że testy łapią błędy)
   await page.goto('file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html')));
   await page.waitForTimeout(300);
+  await page.waitForFunction(() => window.GAME_READY, null, { timeout: 3000 }).catch(() => {});   // starsze wersje gry nie mają flagi
 
   // pomocnik w stronie: świeża, deterministyczna partia z wyczyszczonym terenem testowym (bez wrogów, AI bierne)
   await page.evaluate(() => {
@@ -53,6 +54,21 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await test('F1: ścieżki jednostek nie zapętlają się', async () => {
     const r = await page.evaluate(() => { T.fresh(); const u = addUnit('worker', 'player', 20.5, 20.5); return [uPath(u, 25, 20).length, pathToBuildingU(u, S.buildings[0]).length >= 0]; });
     ok(r[0] > 0 && r[1], 'uPath/pathToBuildingU');
+  });
+
+  console.log('Grafika (G2)');
+  await test('G2: tryb prerender ładuje zasoby, rysuje teren i drzewa bez błędów', async () => {
+    const p2 = await browser.newPage({ viewport: { width: 1280, height: 720 } }), errs = []; p2.on('pageerror', e => errs.push(String(e).slice(0, 200)));
+    await p2.goto('file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html')) + '?art=prerender');
+    await p2.waitForFunction(() => window.GAME_READY, null, { timeout: 20000 });
+    const r = await p2.evaluate(() => {
+      startRace('settler'); document.getElementById('overlay').style.display = 'none'; S.menuOpen = false; S.explored.fill(1);
+      for (let i = 0; i < 300; i++) update(1 / 60); render();
+      const man = window.ASSETS, broken = Object.keys(man).filter(k => man[k]._img && !(man[k]._img.complete && man[k]._img.naturalWidth > 0));
+      return { art: ART, layer: !!S.groundLayer, assets: Object.keys(man).length, broken };
+    });
+    await p2.close();
+    eq(errs, [], 'błędy strony'); eq(r.art, 'prerender', 'tryb'); ok(r.layer && r.assets > 10, 'warstwa terenu i manifest'); eq(r.broken, [], 'niezaładowane obrazy');
   });
 
   console.log('Walka i ruch');
