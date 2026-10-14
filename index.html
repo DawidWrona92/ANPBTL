@@ -134,6 +134,8 @@ function mulberry32(seed) {
   };
 }
 let rng = mulberry32(1);
+// osobny strumień na rzuty w walce: kolejność rozstrzygania trafień nie przesuwa losowań mapy i zwierzyny, a partia z tym samym seedem i rozkazami da ten sam przebieg
+let rngCombat = mulberry32(2);
 
 // ============================== STATE ==============================
 const MAP = CFG.map;
@@ -147,6 +149,7 @@ const inMap = (x, y) => x >= 0 && y >= 0 && x < MAP && y < MAP;
 function newGame(seed, race) {
   S.playerRace = race || S.playerRace || 'settler';
   rng = mulberry32(seed >>> 0);
+  rngCombat = mulberry32((seed >>> 0) ^ 0x9E3779B9);
   S.time = 0; S.nextId = 1;
   S.res = { ...CFG.startRes };
   S.techs = { player: {}, enemy: {} };
@@ -716,6 +719,8 @@ function stepToward(u, tx, ty, dt) {
 }
 
 function updateUnit(u, dt) {
+  // killUnit podmienia S.units, a pętla update dalej iteruje po starej tablicy: zabity w tym ticku nie może już działać
+  if (u.dead) return;
   if (u.type === 'horse') { updateHorse(u, dt); return; }
   if (CFG.units[u.type] && CFG.units[u.type].animal) { updateAnimal(u, dt); return; }
   const def = CFG.units[u.type];
@@ -871,7 +876,7 @@ function updateUnit(u, dt) {
         const tdef = CFG.units[t.type];
         // strzał płoszy zwierzynę w promieniu 5 od celu [Ź 19.6], cios wręcz tylko trafione zwierzę
         if (def.range > 1) scareAnimals(t.x, t.y, 5); else if (tdef && tdef.animal) scareAnimal(t, u.x, u.y);
-        if (Math.random() < hitChance(u.lvl, t.lvl, flankBonus(t))) {
+        if (rngCombat() < hitChance(u.lvl, t.lvl, flankBonus(t))) {
           addHitFx(t.x, t.y, { melee: def.range <= 1 });
           t.hp -= rollDamage(def.dmg, u.lvl, typeMult(def, tdef, false), 0);
           t.morale = Math.max(0, t.morale - CFG.morale.hitPenalty);
@@ -1109,6 +1114,7 @@ function startFlee(u) {
   u.state = 'flee';
 }
 function killUnit(u) {
+  u.dead = true;
   sfx('death', u.x, u.y);
   addHitFx(u.x, u.y, { death: true });
   // wstrząs morale sojuszników w promieniu śmierci
