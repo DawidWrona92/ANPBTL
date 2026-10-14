@@ -169,7 +169,8 @@ function newGame(seed, race) {
   S.storms = [];  // aktywne burze: { x, y, fac, t }
   S.shots = [];
   S.hits = [];
-  S.muted = false;
+  S.muted = !!S.muted; // wyciszenie to ustawienie gracza, nie część partii
+  S.paused = false;
   S.testMode = false;
   S.menuOpen = false;
   // gospodarka bandytów: własne zasoby i kontroler AI (fale zastąpione realną produkcją)
@@ -651,7 +652,7 @@ function tryResearch(b, techId) {
 // ============================== UPDATE ==============================
 function update(dt) {
   if (S.gameOver) return;
-  if (S.menuOpen) return; // menu startowe: symulacja stoi, kamera i render żyją
+  if (S.menuOpen || S.paused) return; // menu startowe i pomoc w grze: symulacja stoi, kamera i render żyją
   S.time += dt;
   processCmds();
   for (const u of S.units) updateUnit(u, dt);
@@ -1536,9 +1537,14 @@ function computeFog() {
 
 function endGame(result, msg) {
   S.gameOver = result;
-  showOverlay(result === 'win'
-    ? { title: 'Zwycięstwo!', body: msg }
-    : { title: 'Porażka', body: msg });
+  showOverlay({
+    title: result === 'win' ? 'Zwycięstwo!' : 'Porażka', body: msg,
+    buttons: [
+      { label: 'Jeszcze raz', cb: () => { newGame(Date.now()); updatePanels(); } },
+      // świeża partia pod menu: setupTest działa na bieżącym stanie, a ten ma jeszcze gameOver
+      { label: 'Menu', cb: () => { newGame(Date.now()); updatePanels(); showMenu(); } },
+    ],
+  });
 }
 
 // ============================== WEJŚCIE ==============================
@@ -1925,13 +1931,15 @@ function showOverlay(o) {
   } else {
     const btn = document.createElement('button');
     btn.textContent = o.btn || 'Zaczynamy';
-    btn.onclick = () => { overlay.style.display = 'none'; if (S.menuOpen) { showMenu(); return; } if (S.gameOver) { newGame(Date.now()); updatePanels(); } };
+    btn.onclick = () => { overlay.style.display = 'none'; S.paused = false; if (S.menuOpen) { showMenu(); return; } if (S.gameOver) { newGame(Date.now()); updatePanels(); } };
     box.appendChild(btn);
   }
   overlay.appendChild(box);
 }
 document.getElementById('helpbtn').onclick = () => showHelp();
 function showHelp() {
+  if (!S.menuOpen && !S.gameOver) S.paused = true; // pomoc w trakcie gry zatrzymuje symulację
+
   showOverlay({ title: 'America: No Peace Beyond the Line (prototyp)', body: 'Dzikie czasy po wojnie secesyjnej. Zbuduj osadę, wystaw piechotę i rozbij obóz bandytów na północy. Farma konsumuje drewno, fabryka konsumuje złoto: łańcuchy dostaw jak w oryginale.',
     list: [
       'LPM: zaznacz jednostkę lub przeciągnij ramkę. PPM: rozkaz (ruch, zbieranie, atak).',
@@ -1940,7 +1948,7 @@ function showHelp() {
       'Przerwana budowa: PPM własnej nieukończonej budowli z robotnikami wznawia prace, albo kliknij budowę i użyj przycisku Kontynuuj.',
       'Fabryka produkuje broń za drewno i złoto. Piechota wymaga żywności, złota i broni.',
       'Klawisze budowy: H Dom, F Farma, M Magazyn, K Koszary, B Fabryka, Z Zagroda. Strzałki/WSAD: kamera. C: dźwięk wł/wył. Minimapa: skok kamery.',
-      'Bandyty atakują falami. Zwycięstwo: zniszcz obóz wroga. Porażka: utrata obozu albo całkowita zagłada osady.',
+      'Bandyci budują własną osadę i ruszają na łupieżcze wyprawy (pierwsza po ok. 8 minutach, kolejne co 2,5 minuty). Zwycięstwo: zniszcz obóz wroga. Porażka: utrata obozu albo całkowita zagłada osady.',
       'Morale: rany i straty w pobliżu zbijają morale. Poniżej 30 jednostka panikuje i ucieka, nie przyjmuje rozkazów. Odpoczynek z dala od walki i aura obozu odbudowują odwagę. Niskie morale zwalnia też pracę: zbieranie, budowę i farmę.',
       'Doświadczenie: jednostki zdobywają XP nie tylko w walce, także z czasu pracy (zbieranie, budowa, farma). Awans podnosi trafienie i obrażenia w walce.',
       'Postawy: G Agresywna (goni bez ograniczeń), N Neutralna (atakuje w zasięgu broni, goni do promienia agresji), O Obronna (nie rusza się z miejsca), T Trzymaj (ignoruje prowokacje, walczy tylko z rozkazanymi celami). Rozkaz wydany ręcznie zawsze goni.',
@@ -1948,7 +1956,7 @@ function showHelp() {
       'Dzikie konie wędrują po mapie. PPM na koniu: jednostka podchodzi i chwyta go przez 5 s. Jeździec w koszarach wymaga żywności, złota, broni i konia; strzela z konia (karabinek, zasięg 4). Zabity jeździec zostawia konia na mapie, każda strona może go schwycić. Konne bandy bandytów atakują wręcz.',
       'Zagroda koni hoduje konie za żywność i złoto (włącz Produkcję w panelu budynku): stabilne zaopatrzenie bez gonienia stad po mapie.',
       'Technologie: zaznacz Obóz (Ostrzone siekiery +20% wycinki, Pług +30% plonów), Zagrodę (Selekcja koni, hodowla 24 s) albo Koszary (Kowbojska sztauga, jeźdźcy +10% HP) i kliknij przycisk badania. Jeden projekt na budynek naraz.',
-      'Frakcja Sioux: squawy budują i prowadzą farmy (nie rąbią lasu ani nie kopią), wojownicy rąbią las, kopią złoto i polują, łucznik kosztuje 5 drewna zamiast broni.',
+      'Frakcja Sioux: squawy budują i prowadzą farmy (nie rąbią lasu ani nie kopią, nie walczą: uciekają przed wrogiem), wojownicy rąbią las, kopią złoto, polują i sami się bronią, łucznik kosztuje 5 drewna zamiast broni.',
       'Sioux: Tepee (klawisz E) daje +5 populacji i jest tańsze od domu. Obóz produkuje squawę, wojownika i wodza (limit 1, aura +20 morale, jego śmierć zbija morale armii), koszary łucznika i medicine mana.',
       'Sioux nie mają fabryki broni ani zagrody koni: piechota z bronią palnej jest niedostępna, siła to łuk i liczba. Sztauga kowbojska nie dotyczy obozu Indian.',
       'Pływanie i gęsty las: jednostki Sioux płyną przez rzekę (koszt 0.5) i przechodzą gęsty las tunelem (1.5), ale z wody nie atakują. Osadnikom pieszym rzeka jest zablokowana, gęsty las kosztuje ich 2.0, konni i zwierzyna nie wejdą w gąszcz.',
