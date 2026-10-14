@@ -668,6 +668,26 @@ function followPath(u, dt) {
   return false;
 }
 
+// zasięg wręcz 1 to cios z sąsiedniego kafla, także po skosie: środki kafli dzieli tam 1.41, a cel stoi gdziekolwiek na swoim kaflu
+function reachOf(def) { return def.range <= 1 ? 1.5 : def.range; }
+// odległość punktu od prostokąta budynku (0 w środku)
+function rectDist(x, y, b) {
+  const dx = Math.max(b.tx - x, 0, x - (b.tx + b.w)), dy = Math.max(b.ty - y, 0, y - (b.ty + b.h));
+  return Math.hypot(dx, dy);
+}
+// krok wprost do punktu; nie wchodzi na kafel, którego jednostka nie może zająć
+function stepToward(u, tx, ty, dt) {
+  const def = CFG.units[u.type];
+  const dx = tx - u.x, dy = ty - u.y, d = Math.hypot(dx, dy);
+  if (d < 0.001) return;
+  const step = Math.min(d, def.speed * dt / terrainCost(def, Math.floor(u.x), Math.floor(u.y)));
+  const nx = u.x + dx / d * step, ny = u.y + dy / d * step;
+  if (!passableFor(def, Math.floor(nx), Math.floor(ny))) return;
+  u.x = nx; u.y = ny;
+  if (Math.abs(dx) > 0.01) u.facing = dx > 0 ? 1 : -1;
+  stepSnd(u, step);
+}
+
 function updateUnit(u, dt) {
   if (u.type === 'horse') { updateHorse(u, dt); return; }
   if (CFG.units[u.type] && CFG.units[u.type].animal) { updateAnimal(u, dt); return; }
@@ -812,10 +832,11 @@ function updateUnit(u, dt) {
       const d = Math.hypot(t.x - u.x, t.y - u.y);
       // postawa decyduje o pościgu: cel z rozkazu goni zawsze, automatyczny słucha postawy
       if (stanceDropsTarget(u, def, d, !!u.ordered)) { u.attackTarget = null; u.state = 'idle'; break; }
-      if (d > def.range) {
+      if (d > reachOf(def)) {
         u.repathT -= dt;
         if (u.repathT <= 0) { u.path = uPath(u, Math.floor(t.x), Math.floor(t.y)); u.pathI = 0; u.repathT = 0.8; u.state = 'attack'; }
-        if (u.path.length) followPath(u, dt);
+        // pusta ścieżka przy celu poza zasięgiem = BFS uznał jednostkę za "na miejscu" (promień stopu 1 kafla), więc dochodzimy wprost
+        if (u.path.length) followPath(u, dt); else stepToward(u, t.x, t.y, dt);
       } else if (u.cd <= 0 && !isSwimming(u)) {
         u.cd = def.cd;
         u.kick = 0.15;
@@ -847,9 +868,8 @@ function updateUnit(u, dt) {
           if (d < def.aggro * def.aggro * 0.25) { u.attackTarget = e; u.ordered = false; u.state = 'attack'; return; }
         }
       }
-      const radius = (b.w + b.h) / 4;
-      const d = Math.hypot(b.cx - u.x, b.cy - u.y);
-      if (d > def.range + radius) {
+      // dystans do obrysu budynku, nie do środka: w rogu pierścienia dojścia środek jest dalej niż zasięg wręcz + promień
+      if (rectDist(u.x, u.y, b) > Math.max(def.range, 1)) {
         u.repathT -= dt;
         if (u.repathT <= 0) { u.path = pathToBuildingU(u, b); u.pathI = 0; u.repathT = 1.5; }
         if (u.path.length) followPath(u, dt);
@@ -998,7 +1018,7 @@ function stanceDropsTarget(u, def, d, ordered) {
   const st = u.stance || 'norm';
   if (st === 'aggr') return false;
   if (st === 'norm') return d > def.aggro;
-  return d > def.range;
+  return d > reachOf(def);
 }
 // cel zaangażowany w walkę (kogoś atakuje albo szturmuje budynek) = oskrzydlenie dla atakującego z innej strony
 function flankBonus(t) {
