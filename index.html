@@ -97,6 +97,17 @@
   .scr-foot { position: absolute; bottom: calc(var(--u) * 14px); left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 calc(var(--u) * 40px); }
   .scr-foot .mid { display: flex; gap: calc(var(--u) * 14px); align-items: center; font: calc(var(--u) * 12px) Georgia, serif; color: #f3dfb6; }
   .scr-foot .mid button { margin: 0 !important; padding: 4px 14px !important; font-size: calc(var(--u) * 12px) !important; }
+  .sk-wrap { width: min(96vw, calc(var(--u) * 860px)); display: flex; flex-direction: column; gap: calc(var(--u) * 12px); margin-top: calc(var(--u) * 6px); }
+  .sk-row { display: flex; gap: calc(var(--u) * 10px); justify-content: center; align-items: center; flex-wrap: wrap; }
+  .sk-lbl { min-width: calc(var(--u) * 96px); text-align: right; font: calc(var(--u) * 13px) Georgia, serif; color: #f3dfb6; text-shadow: 0 1px 2px #000; }
+  .mapcard { width: calc(var(--u) * 196px); padding: calc(var(--u) * 6px); background: linear-gradient(#2a160b, #150a05); border: 2px solid #5a3a1c; box-shadow: inset 0 0 0 1px #000, 0 3px 8px rgba(0, 0, 0, 0.6); cursor: pointer; text-align: center; color: #f2c35c; font: bold calc(var(--u) * 13px) Georgia, serif; }
+  .mapcard canvas { display: block; margin: 0 auto calc(var(--u) * 4px); background: #12202a; width: 100%; }
+  .mapcard small { display: block; font-weight: normal; font-size: calc(var(--u) * 10px); color: #d8c08a; }
+  .mapcard.on { border-color: #ffcf4a; box-shadow: 0 0 0 2px #ffcf4a, 0 3px 10px rgba(0, 0, 0, 0.7); }
+  .mapcard:hover { filter: brightness(1.12); }
+  .sk-desc { text-align: center; min-height: calc(var(--u) * 36px); font: italic calc(var(--u) * 14px) Georgia, serif; color: #f6e8c6; text-shadow: 0 1px 3px #000; }
+  #overlay .opt { margin: 0; padding: calc(var(--u) * 5px) calc(var(--u) * 16px); font-size: calc(var(--u) * 13px); }
+  #overlay .opt.on { background: linear-gradient(#6a4a12, #3a2606); color: #fff0c0; border-color: #ffcf4a; }
   .set-rows { display: grid; grid-template-columns: calc(var(--u) * 300px) calc(var(--u) * 220px); gap: calc(var(--u) * 14px) calc(var(--u) * 22px); margin-top: calc(var(--u) * 34px); align-items: center; }
   .set-rows .scr-pill { text-align: left; }
   #overlay .set-rows button { margin: 0; background: linear-gradient(#2a160b, #150a05); color: #ffd97a; }
@@ -131,6 +142,7 @@
 </div>
 <div id="overlay"></div>
 <script src="assets/manifest.js"></script>
+<script src="assets/maps.js"></script>
 <script>
 'use strict';
 // ============================== CONFIG ==============================
@@ -226,7 +238,7 @@ const RACES = {
   },
   // Sioux: tepee zamiast domu (pop +5), bez fabryki broni (łuki z drewna) i bez zagrody (brak kawalerii); koszary produkują łuczników i medicine manów
   sioux: {
-    label: 'Sioux', nation: 'sx', biome: 'olive', playable: true,
+    label: 'Sioux', nation: 'sx', biome: 'grass', playable: true,
     desc: 'Squawy budują i farmią, wojownicy rąbią i polują; łuki z drewna, tepee, medicine man.',
     startUnits: ['squaw', 'squaw', 'wojownik', 'wojownik'], startOrders: [null, null, 'forest', 'forest'],
     build: [
@@ -239,7 +251,7 @@ const RACES = {
       buildings: ['storehouse', 'farm', 'barracks', 'tepee', 'tepee', 'farm'],
       units: { squaw: 4, wojownik: 6, lucznik: 6, medicine: 1, wodz: 1 } },
   },
-  outlaw:  { label: 'Desperado', nation: 'ban', biome: 'prairie', playable: false, desc: 'Brak własnej produkcji: łupy, destylarnia (C4).', build: [], train: {}, noTechs: [] },
+  outlaw:  { label: 'Desperado', nation: 'ban', biome: 'prairie', playable: false, aiReady: true, desc: 'Brak własnej produkcji: łupy, destylarnia (C4).', build: [], train: {}, noTechs: [] },
   mexican: { label: 'Meksykanie', nation: 'mx', biome: 'prairie', playable: false, desc: 'Leczenie i konwersja, mobilna armata (C7).', build: [], train: {}, noTechs: [] },
 };
 const PLAYABLE_RACES = Object.keys(RACES).filter(k => RACES[k].playable);
@@ -268,18 +280,47 @@ let rngCombat = mulberry32(2);
 // ============================== STATE ==============================
 function diffOf() { return CFG.difficulty[S.difficulty] || CFG.difficulty.normal; }
 function newAIState() { return { thinkT: 1, attacks: 0, attackCd: CFG.ai.attackCooldown * diffOf().waveMul, trainQ: 0 }; }
-const MAP = CFG.map;
-const T_GRASS = 0, T_FOREST = 1, T_GOLD = 2, T_WATER = 3, T_MEAT = 4, T_THICK = 5;
+let MAP = CFG.map;   // rozmiar bieżącej mapy (kafle); zmienia go newGame/restoreGame zależnie od mapy
+const T_GRASS = 0, T_FOREST = 1, T_GOLD = 2, T_WATER = 3, T_MEAT = 4, T_THICK = 5, T_CLIFF = 6;
 // przybliżenie kamery: świat rysowany przez transform ZOOM; 2 = piksel-art 2x bez wygładzania, 1 = stara skala
 const ZOOM = 2;
 const S = {};
 const idx = (x, y) => y * MAP + x;
 const inMap = (x, y) => x >= 0 && y >= 0 && x < MAP && y < MAP;
 
-function newGame(seed, race) {
+// ============================== MAPY POTYCZKI (faza 10) ==============================
+// 'prairie' to klasyczna mapa generowana proceduralnie (genMap), reszta to układy ASCII z assets/maps.js (tools/maps/build_maps.js)
+const MAP_LIST = () => [{ id: 'prairie', name: 'Preria', size: 40, desc: 'Otwarte pole, rzeka przy krawędzi, jedna szeroka droga. Mapa klasyczna.', p: [33, 33], e: [2, 2] }].concat(Object.values(window.MAPS_DATA || {}));
+const mapDef = id => MAP_LIST().find(m => m.id === id) || MAP_LIST()[0];
+const TERRAIN_OF = { '#': T_CLIFF, '~': T_WATER, F: T_FOREST, T: T_THICK, G: T_GOLD };
+function genLayoutMap(def) {
+  const herds = [];
+  def.rows.forEach((row, y) => { for (let x = 0; x < row.length; x++) {
+    const c = row[x], t = TERRAIN_OF[c];
+    if (t !== undefined) { S.terrain[idx(x, y)] = t; S.amt[idx(x, y)] = t === T_FOREST ? 100 : t === T_GOLD ? 1000 : 0; }
+    else if (c === 'h' || c === 'b' || c === 'c') herds.push([x, y, c]);
+  } });
+  // stada jak w mapie klasycznej: konie 5-8, bizony 4-7, bydło 3-4, rozrzucone wokół znacznika
+  for (const [hx, hy, c] of herds) {
+    const type = c === 'h' ? 'horse' : c === 'b' ? 'bizon' : 'bydlo', n = c === 'h' ? 5 + Math.floor(rng() * 4) : c === 'b' ? 4 + Math.floor(rng() * 4) : 3 + Math.floor(rng() * 2);
+    let placed = 0, tries = 0;
+    while (placed < n && tries < 40) {
+      tries++;
+      const x = hx + Math.floor(rng() * 7) - 3, y = hy + Math.floor(rng() * 7) - 3;
+      if (!inMap(x, y) || isBlocked(x, y)) continue;
+      addUnit(type, 'neutral', x + 0.5, y + 0.5); placed++;
+    }
+  }
+}
+function newGame(seed, race, opts) {
+  opts = opts || {};
+  const sk = SETTINGS.skirmish;
+  const def = mapDef(opts.map || sk.map);
+  S.mapId = def.id; MAP = def.size; S.fogC = null; S.gch = null;
+  S.biomeChoice = opts.biome || sk.biome || 'auto';
   S.mapSeed = (seed >>> 0) & 0xffff;   // rozmieszczenie plam gruntu i szuwarów: zależne od partii, bez ruszania generatorów rozgrywki
   S.playerRace = RACES[race] && RACES[race].playable ? race : (S.playerRace || 'settler');
-  S.enemyRace = 'outlaw';
+  S.enemyRace = RACES[opts.enemy || sk.enemy] && RACES[opts.enemy || sk.enemy].aiReady ? (opts.enemy || sk.enemy) : 'outlaw';
   S.difficulty = CFG.difficulty[S.difficulty] ? S.difficulty : 'normal';
   rng = mulberry32(seed >>> 0);
   rngCombat = mulberry32((seed >>> 0) ^ 0x9E3779B9);
@@ -311,28 +352,32 @@ function newGame(seed, race) {
   S.resE = { ...CFG.ai.startRes };
   S.ai = newAIState();
 
-  genMap();
-  S.biome = raceOf('player').biome;   // preria ochrowa; mapy Sioux oliwkowo-żółte (screeny oryginału)
+  if (def.rows) genLayoutMap(def); else genMap();
+  S.biome = resolveBiome();
   buildGround();
-  const hq = addBuilding('hq', 33, 33, 'player');
-  addBuilding('hq', 2, 2, 'enemy');
+  const hq = addBuilding('hq', def.p[0], def.p[1], 'player');
+  const ehq0 = addBuilding('hq', def.e[0], def.e[1], 'enemy');
   // start per frakcja: Osadnicy 4 robotników, Sioux 2 squawy i 2 wojowników (asymetria ekonomii od pierwszej sekundy)
   const startU = raceOf('player').startUnits;
   const pu = [];
+  const classic = !def.rows;
+  // mapa klasyczna zachowuje dokładne pozycje startowe (baseline balansu); inne mapy biorą najbliższe wolne kafle przy obozie
+  const spots = (b, n) => freeTilesAround(Math.floor(b.cx), Math.floor(b.cy), 4).sort((a, c) => Math.hypot(a[0] + 0.5 - b.cx, a[1] + 0.5 - b.cy) - Math.hypot(c[0] + 0.5 - b.cx, c[1] + 0.5 - b.cy) + 0.001 * (a[0] - c[0])).slice(0, n);
+  const psp = classic ? [[32, 36], [33, 36], [32, 37], [33, 37]] : spots(hq, 4), esp = classic ? [[5, 5], [6, 5], [7, 5], [6, 4], [7, 4]] : spots(ehq0, 5);
   for (let i = 0; i < 4; i++) {
-    const u = addUnit(startU[i], 'player', 32 + (i % 2), 36 + Math.floor(i / 2));
+    const u = addUnit(startU[i], 'player', psp[i][0], psp[i][1]);
     u.x += 0.5; u.y += 0.5;
     pu.push(u);
   }
-  for (let i = 0; i < 3; i++) addUnit('desperado', 'enemy', 5 + i, 5).x += 0.5, S.units[S.units.length - 1].y += 0.5;
+  for (let i = 0; i < 3; i++) addUnit('desperado', 'enemy', esp[i][0], esp[i][1]).x += 0.5, S.units[S.units.length - 1].y += 0.5;
   const eWorkers = [];
-  for (let i = 0; i < 2; i++) eWorkers.push(addUnit('worker', 'enemy', 6 + i, 4));
+  for (let i = 0; i < 2; i++) eWorkers.push(addUnit('worker', 'enemy', esp[3 + i][0], esp[3 + i][1]));
   orderGatherAuto(eWorkers[0], T_FOREST);
   orderGatherAuto(eWorkers[1], T_FOREST);
   computeFog();
   // startowe rozkazy: 2 drwale, 1 górnik, czwarty wolny (autostart gospodarki); Sioux: wojownicy rąbią, squawy czekają na budowę
   raceOf('player').startOrders.forEach((o, i) => { if (o) orderGatherAuto(pu[i], o === 'gold' ? T_GOLD : T_FOREST); });
-  centerCameraOn(34.5, 34.5);
+  centerCameraOn(hq.cx, hq.cy);
 }
 
 function genMap() {
@@ -452,7 +497,7 @@ function buildingAt(x, y) {
 function isBlocked(x, y) {
   if (!inMap(x, y)) return true;
   const t = S.terrain[idx(x, y)];
-  if (t === T_FOREST || t === T_GOLD || t === T_WATER || t === T_THICK) return true;
+  if (t === T_FOREST || t === T_GOLD || t === T_WATER || t === T_THICK || t === T_CLIFF) return true;
   return !!buildingAt(x, y);
 }
 // ruch jednostek per teren [Ź 19.6]: rzeka tylko dla Indian (płyną), gęsty las tunelem dla pieszych (nie dla konnych i zwierzyny)
@@ -461,7 +506,7 @@ function passableFor(def, x, y) {
   const t = S.terrain[idx(x, y)];
   if (t === T_WATER) return !!(def && def.swim);
   if (t === T_THICK) return !!(def && !def.cav && !def.animal);
-  if (t === T_FOREST || t === T_GOLD) return false;
+  if (t === T_FOREST || t === T_GOLD || t === T_CLIFF) return false;   // klif: nieprzekraczalna elewacja (korytarze map)
   return !buildingAt(x, y);
 }
 // koszt terenowy [Ź 19.6]: trawa 1.0, rzeka 0.5 dla Indian, gęsty las 1.5 Indianie / 2.0 piesi osadników
@@ -2369,8 +2414,8 @@ function cycleDifficulty() {
 // ustawienia gracza zapisywane w przeglądarce (indeksy poziomów); dźwięk to S.muted
 const SET_KEY = 'anpbtl_settings_v1';
 const SET_LEVELS = { scroll: [['Wolne', 0.6], ['Normalne', 1], ['Szybkie', 1.6]], speed: [['Wolna', 0.75], ['Normalna', 1], ['Szybka', 1.5]], shadow: [['Wyłączone', 0], ['Przezroczyste', 1]] };
-const SETTINGS = { scroll: 1, speed: 1, shadow: 1 };
-try { Object.assign(SETTINGS, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); } catch (e) { /* brak zapisu */ }
+const SETTINGS = { scroll: 1, speed: 1, shadow: 1, skirmish: { map: 'prairie', biome: 'auto', enemy: 'outlaw' } };
+try { const sv = JSON.parse(localStorage.getItem(SET_KEY) || '{}'); Object.assign(SETTINGS, sv); SETTINGS.skirmish = Object.assign({ map: 'prairie', biome: 'auto', enemy: 'outlaw' }, sv.skirmish || {}); } catch (e) { /* brak zapisu */ }
 const settingVal = k => (SET_LEVELS[k][SETTINGS[k]] || SET_LEVELS[k][1])[1];
 function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(SETTINGS)); } catch (e) { /* bez zapisu też działa */ } }
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
@@ -2402,7 +2447,7 @@ function showFactionScreen() {
     if (face[k]) { const th = thumb('unit', face[k][1], Math.round(168 * (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--u')) || 1)), k === 'outlaw' ? 'enemy' : 'player'); c.appendChild(th); }
     else c.appendChild(el('div', '', '?')).style.cssText = 'font:bold 64px Georgia;color:#5a3a1c';
     const cap = el('div', 'cap', R.label); cap.appendChild(el('small', '', R.playable ? 'Graj' : 'wkrótce')); c.appendChild(cap);
-    if (R.playable) c.onclick = () => { leaveScreens(); startRace(k); };
+    if (R.playable) c.onclick = () => showSkirmishScreen(k);
     circles.appendChild(c);
   }
   const foot = el('div', 'scr-foot'), back = el('button', '', 'Wstecz'), load = el('button', '', 'Wczytaj'), mid = el('div', 'mid');
@@ -2412,6 +2457,42 @@ function showFactionScreen() {
   for (const k of PLAYABLE_RACES) { const t = el('button', '', RACES[k].label); t.title = 'Rozbudowane bazy i pełne wojsko od razu; przeciwnik milczy'; t.onclick = () => { leaveScreens(); setupTest(k); }; mid.appendChild(t); }
   foot.append(back, mid, load);
   o.append(circles, foot);
+}
+// miniatura mapy: romb z kafli w kolorach terenu (ten sam rzut co w grze), znaczniki baz gracza i wroga
+function mapThumb(def, w) {
+  const c = document.createElement('canvas'); c.width = w; c.height = Math.round(w / 2 + 4);
+  const g = c.getContext('2d'), n = def.size, k = (w - 2) / (2 * n);
+  g.setTransform(k, k / 2, -k, k / 2, w / 2, 2);
+  const col = { '.': '#8c8a4a', '#': '#8a5a34', '~': '#3f7ea0', F: '#3d5a22', T: '#26401a', G: '#e8c34a' };
+  if (def.rows) def.rows.forEach((row, y) => { for (let x = 0; x < n; x++) { g.fillStyle = col[row[x]] || col['.']; g.fillRect(x, y, 1.05, 1.05); } });
+  else { g.fillStyle = col['.']; g.fillRect(0, 0, n, n); g.fillStyle = col['~']; g.fillRect(n - 5, 0, 2, n); g.fillStyle = col.F; for (const [x, y] of [[8, 14], [24, 6], [30, 24], [12, 30], [20, 18]]) g.fillRect(x, y, 4, 3); g.fillStyle = col.G; for (const [x, y] of [[26, 26], [20, 20], [8, 10]]) g.fillRect(x, y, 2, 2); }
+  g.fillStyle = '#6fb4ff'; g.fillRect(def.p[0] - 1, def.p[1] - 1, 5, 5); g.fillStyle = '#ff6a5a'; g.fillRect(def.e[0] - 1, def.e[1] - 1, 5, 5);
+  return c;
+}
+// ustawienia potyczki po wyborze ludu: mapa, motyw terenu, przeciwnik, trudność
+function showSkirmishScreen(race) {
+  S.menuOpen = true;
+  const sk = SETTINGS.skirmish, o = screen('scr-wood');
+  o.append(el('div', 'scr-title', 'AMERICA'), el('div', 'scr-sub', 'Potyczka: ' + RACES[race].label));
+  const wrap = el('div', 'sk-wrap'), mapsRow = el('div', 'sk-row'), desc = el('div', 'sk-desc');
+  const maps = MAP_LIST(), cards = [];
+  const refreshDesc = () => { const d = mapDef(sk.map); desc.textContent = d.name + ' (' + d.size + '×' + d.size + '): ' + d.desc; cards.forEach((c, i) => c.classList.toggle('on', maps[i].id === sk.map)); };
+  for (const d of maps) {
+    const card = el('div', 'mapcard'); card.append(mapThumb(d, 180), document.createTextNode(d.name), el('small', '', d.size + '×' + d.size));
+    card.onclick = () => { sk.map = d.id; saveSettings(); refreshDesc(); }; card.dataset.map = d.id;
+    cards.push(card); mapsRow.appendChild(card);
+  }
+  const opts = (label, items, cur, set, disabled) => {
+    const row = el('div', 'sk-row'); row.appendChild(el('div', 'sk-lbl', label));
+    const bs = items.map(([id, name]) => { const b = el('button', 'opt' + (cur() === id ? ' on' : ''), name); b.dataset.val = id; const off = disabled && disabled(id); if (off) { b.disabled = true; b.title = 'Dostępne po fazie z AI dla tej frakcji'; } b.onclick = () => { set(id); saveSettings(); bs.forEach(x => x.classList.toggle('on', x.dataset.val === cur())); }; return b; });
+    row.append(...bs); return row;
+  };
+  const biomeRow = opts('Teren', BIOME_ORDER.map(k => [k, k === 'auto' ? 'Auto' : BIOMES[k].label]), () => sk.biome, v => { sk.biome = v; });
+  const enemyRow = opts('Przeciwnik', ['outlaw', 'settler', 'sioux', 'mexican'].map(k => [k, RACES[k].label + (RACES[k].aiReady ? '' : ' (wkrótce)')]), () => sk.enemy, v => { sk.enemy = v; }, id => !RACES[id].aiReady);
+  const diffRow = opts('Trudność', Object.keys(CFG.difficulty).map(k => [k, CFG.difficulty[k].label]), () => S.difficulty || 'normal', v => { S.difficulty = v; });
+  wrap.append(mapsRow, desc, biomeRow, enemyRow, diffRow);
+  const foot = el('div', 'scr-foot'), back = el('button', '', 'Wstecz'), go = el('button', '', 'Start'); back.onclick = showFactionScreen; go.onclick = () => { saveSettings(); leaveScreens(); startRace(race); };
+  go.id = 'sk-start'; foot.append(back, go); o.append(wrap, foot); refreshDesc();
 }
 // ustawienia: ciemne tabliczki z nazwami i złote wartości, klik przełącza wartość
 function showSettings(back) {
@@ -2496,7 +2577,7 @@ function serializeGame() {
   const groups = {}; for (const g in S.groups) groups[g] = S.groups[g].filter(u => ents.has(u)).map(u => u.id);
   return {
     version: SAVE_VERSION,
-    playerRace: S.playerRace, enemyRace: S.enemyRace, difficulty: S.difficulty, biome: S.biome, mapSeed: S.mapSeed, testMode: S.testMode,
+    playerRace: S.playerRace, enemyRace: S.enemyRace, difficulty: S.difficulty, biome: S.biome, biomeChoice: S.biomeChoice, mapId: S.mapId, mapSize: MAP, mapSeed: S.mapSeed, testMode: S.testMode,
     time: S.time, nextId: S.nextId, res: S.res, resE: S.resE, techs: S.techs, ai: S.ai, rainT: S.rainT, storms: S.storms,
     moraleT: S.moraleT, woodAlertT: S.woodAlertT, groups,
     terrain: b64Of(S.terrain), amt: b64Of(S.amt), explored: b64Of(S.explored),
@@ -2506,7 +2587,7 @@ function serializeGame() {
 }
 function restoreGame(d) {
   if (!d || d.version !== SAVE_VERSION) return false;
-  S.playerRace = d.playerRace; S.enemyRace = d.enemyRace; S.difficulty = d.difficulty; S.biome = d.biome; S.mapSeed = d.mapSeed || 0; S.testMode = !!d.testMode;
+  S.playerRace = d.playerRace; S.enemyRace = d.enemyRace; S.difficulty = d.difficulty; S.mapId = d.mapId || 'prairie'; MAP = d.mapSize || 40; S.fogC = null; S.gch = null; S.biomeChoice = d.biomeChoice || 'auto'; S.biome = BIOMES[d.biome] ? d.biome : 'prairie'; S.mapSeed = d.mapSeed || 0; S.testMode = !!d.testMode;
   S.time = d.time; S.nextId = d.nextId; S.res = d.res; S.resE = d.resE; S.techs = d.techs; S.ai = d.ai; S.rainT = d.rainT || {}; S.storms = d.storms || [];
   S.moraleT = d.moraleT || 0; S.woodAlertT = d.woodAlertT || 0;
   S.terrain = fromB64(d.terrain, Uint8Array); S.amt = fromB64(d.amt, Float32Array); S.explored = fromB64(d.explored, Uint8Array);
@@ -2544,7 +2625,6 @@ function loadGame() {
 function blitSpr(s, px, py) { ctx.imageSmoothingEnabled = false; ctx.drawImage(s.c, Math.round(px - s.ax), Math.round(py - s.ay)); }
 // ============================== ZASOBY GRAFICZNE (G2: pre-render 3D + painted, kafel 128 px rysowany w połowie rozmiaru) ==============================
 const AK = 0.5;                       // skala zasobów 128 px -> świat 64 px (ZOOM=2 daje na ekranie 1:1)
-const GL_W = 2624, GL_H = 1312, GL_OX = 1312;   // warstwa terenu w px świata: romb 40x40 kafli + margines
 function loadAssets() {
   return new Promise(resolve => {
     const man = window.ASSETS; if (!man) { resolve(false); return; }
@@ -2570,12 +2650,20 @@ function drawGroundTile(ctx2, name, x, y, cx, cy) {
   ctx2.drawImage(e._img, i * e.tw, j * e.th, e.tw, e.th, cx - 33, cy - 17, 66, 34);
 }
 // teren: grunt bazowy + plamy piasku i żwiru (maski z miękkich plam, więc brzegi plam nie trzymają siatki kafli), woda z atlasu i brzeg (mokry piasek, płycizna, nierówna linia)
+// motywy terenu: grunt (baza i plamy), mieszanka drzew [dąb, sosna, uschłe, dąb2 jako progi skumulowane], gęstość rekwizytów [skała, krzak, zielona kępka, sucha kępa jako progi skumulowane], styl klifów
 const BIOMES = {
-  prairie: { base: 'grass', patches: [{ atlas: 'sand', n: 16, r: [1.5, 3.5] }, { atlas: 'gravel', n: 12, r: [1, 2.4] }] },
-  olive:   { base: 'olive', patches: [{ atlas: 'sand', n: 8, r: [1.2, 3] }, { atlas: 'gravel', n: 8, r: [1, 2.5] }] },
+  arid:    { label: 'Arid (oryginał)', base: 'ochre', patches: [{ atlas: 'dirt', n: 22, r: [1.5, 3.8] }, { atlas: 'sand', n: 10, r: [1.2, 3] }, { atlas: 'gravel', n: 8, r: [1, 2.2] }], trees: [0.18, 0.55, 0.88], props: [0.05, 0.075, 0.09, 0.2], cliff: 'arid', mini: '#9a6a2a' },
+  prairie: { label: 'Preria', base: 'grass', patches: [{ atlas: 'sand', n: 16, r: [1.5, 3.5] }, { atlas: 'gravel', n: 12, r: [1, 2.4] }], trees: [0.30, 0.72, 0.87], props: [0.022, 0.045, 0.135, 0.15], cliff: 'prairie', mini: '#6f7330' },
+  grass:   { label: 'Trawiasta', base: 'olive', patches: [{ atlas: 'meadow', n: 26, r: [2, 4.5] }, { atlas: 'sand', n: 6, r: [1.2, 2.6] }, { atlas: 'gravel', n: 6, r: [1, 2.2] }], trees: [0.55, 0.85, 0.89], props: [0.012, 0.045, 0.22, 0.23], cliff: 'grass', mini: '#5f7a2a' },
 };
+const BIOME_ORDER = ['auto', 'arid', 'prairie', 'grass'];
+function resolveBiome() { return BIOMES[S.biomeChoice] ? S.biomeChoice : raceOf('player').biome; }
+const biomeDef = () => BIOMES[S.biome] || BIOMES.prairie;
 const N4 = [[1, 0], [0, 1], [-1, 0], [0, -1]], N8 = N4.concat([[1, 1], [-1, 1], [-1, -1], [1, -1]]);
 const isWaterAt = (x, y) => inMap(x, y) && S.terrain[idx(x, y)] === T_WATER;
+// warstwa terenu: wymiary z rozmiaru mapy, dzielona na kafelki 512 px świata (2x rozdzielczości) z marginesem; duże mapy nie potrzebują jednego gigantycznego płótna
+let GL_W = 0, GL_H = 0, GL_OX = 0;
+function groundDims() { GL_W = MAP * CFG.tileW + CFG.tileW; GL_H = MAP * CFG.tileH + CFG.tileH; GL_OX = GL_W / 2; }
 function groundCenter(x, y) { return [(x - y) * CFG.tileW / 2 + GL_OX, (x + y) * CFG.tileH / 2 + CFG.tileH / 2]; }
 function softBlob(g, cx, cy, rx, ry, stops) {
   g.save(); g.translate(cx, cy); g.scale(rx, ry);
@@ -2583,59 +2671,80 @@ function softBlob(g, cx, cy, rx, ry, stops) {
   for (const [o, c] of stops) gr.addColorStop(o, c);
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
 }
-let GL_TMP = null, GL_MASK = null;
-// warstwa terenu ma GS-krotną rozdzielczość świata (sprite'y są rysowane z zasobów 128 px, więc grunt w 64 px wyglądał przy nich na rozmyty); współrzędne dalej w jednostkach świata
-const GS = 2;
+const GS = 2, CHK = 512, CPAD = 8;
 function buildGround() {
-  const mk = () => { const c = document.createElement('canvas'); c.width = GL_W * GS; c.height = GL_H * GS; const k = c.getContext('2d'); k.scale(GS, GS); k.imageSmoothingEnabled = true; return c; };
-  const c = mk(), g = c.getContext('2d');
-  GL_TMP = mk(); GL_MASK = mk();
-  const B = BIOMES[S.biome] || BIOMES.prairie, ms = S.mapSeed || 0;
-  g.fillStyle = '#25444c'; g.fillRect(0, 0, GL_W, GL_H);
+  groundDims();
+  const B = biomeDef(), ms = S.mapSeed || 0, cw = (CHK + 2 * CPAD) * GS;
+  const mk = () => { const c = document.createElement('canvas'); c.width = c.height = cw; return c; };
+  const prep = (c, x0, y0) => { const k = c.getContext('2d'); k.setTransform(GS, 0, 0, GS, -x0 * GS, -y0 * GS); k.imageSmoothingEnabled = true; return k; };
   // indeks brzegu: dla lądu kierunek (N4) do sąsiada-wody, dla wody do sąsiada-lądu; -1 = brak (rysowanie szuwarów)
   S.shore = new Int8Array(MAP * MAP).fill(-1);
-  const land = [];
+  const tiles = [];
   for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
     const w = S.terrain[idx(x, y)] === T_WATER, [cx, cy] = groundCenter(x, y);
-    if (w) drawGroundTile(g, 'water', x, y, cx, cy); else land.push([x, y, cx, cy]);
+    tiles.push({ x, y, w, cx, cy });
     for (let k = 0; k < 4; k++) { const nx = x + N4[k][0], ny = y + N4[k][1]; if (inMap(nx, ny) && isWaterAt(nx, ny) !== w) { S.shore[idx(x, y)] = k; break; } }
   }
-  for (const [x, y, cx, cy] of land) drawGroundTile(g, B.base, x, y, cx, cy);
-  // plamy: osobna warstwa z teksturą plamy, przycięta maską z miękkich elips (rozmiary w kaflach przeliczone na elipsy izometryczne)
-  const t = GL_TMP.getContext('2d'), m = GL_MASK.getContext('2d');
-  B.patches.forEach((P, pi) => {
-    t.globalCompositeOperation = 'source-over'; t.clearRect(0, 0, GL_W, GL_H);
-    for (const [x, y, cx, cy] of land) drawGroundTile(t, P.atlas, x, y, cx, cy);
-    m.clearRect(0, 0, GL_W, GL_H);
-    for (let i = 0; i < P.n; i++) {
-      const bx = sprNoise(i, 100 + pi, ms) * MAP, by = sprNoise(i, 200 + pi, ms) * MAP, r = P.r[0] + sprNoise(i, 300 + pi, ms) * (P.r[1] - P.r[0]);
-      softBlob(m, (bx - by) * CFG.tileW / 2 + GL_OX, (bx + by) * CFG.tileH / 2 + CFG.tileH / 2, r * CFG.tileW * 0.7, r * CFG.tileH * 0.7, [[0, 'rgba(255,255,255,1)'], [0.5, 'rgba(255,255,255,0.92)'], [1, 'rgba(255,255,255,0)']]);
-    }
-    t.globalCompositeOperation = 'destination-in'; t.drawImage(GL_MASK, 0, 0, GL_W, GL_H);
-    g.drawImage(GL_TMP, 0, 0, GL_W, GL_H);
-  });
-  // brzeg: płycizna po stronie wody, mokry ciemny piasek na lądzie, nierówna jasna warga piasku na samej linii
-  for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
-    const w = S.terrain[idx(x, y)] === T_WATER, [cx, cy] = groundCenter(x, y);
-    for (let k = 0; k < 8; k++) {
-      const nx = x + N8[k][0], ny = y + N8[k][1];
-      if (!inMap(nx, ny) || isWaterAt(nx, ny) === w) continue;
-      const [ox, oy] = groundCenter(nx, ny), dx = (ox - cx) / 2, dy = (oy - cy) / 2;   // środek wspólnej krawędzi albo wierzchołka
-      const diag = k >= 4;
-      if (w) softBlob(g, cx + dx * 0.85, cy + dy * 0.85, diag ? 18 : 30, diag ? 9 : 15, [[0, 'rgba(150,205,195,0.50)'], [1, 'rgba(150,205,195,0)']]);
-      else {
-        softBlob(g, cx + dx * 0.9, cy + dy * 0.9, diag ? 16 : 28, diag ? 8 : 14, [[0, 'rgba(58,42,22,0.42)'], [1, 'rgba(58,42,22,0)']]);
-        for (let j = 0; j < (diag ? 1 : 3); j++) {
-          const f = diag ? 0 : (j - 1) * 0.55, jx = (sprNoise(x * 8 + k, y, 40 + j) - 0.5) * 7, jy = (sprNoise(x * 8 + k, y, 50 + j) - 0.5) * 4;
-          const tx = diag ? 0 : -dy * 1.4 * f, ty = diag ? 0 : dx * 1.4 * f;   // wzdłuż krawędzi (prostopadle do kierunku na sąsiada)
-          const rr = 6 + sprNoise(x * 8 + k, y, 60 + j) * 5;
-          softBlob(g, cx + dx + tx + jx, cy + dy + ty + jy, rr * 1.6, rr * 0.8, [[0, 'rgba(190,166,110,0.95)'], [0.65, 'rgba(184,160,104,0.8)'], [1, 'rgba(184,160,104,0)']]);
+  // plamy gruntu: pozycje blobów liczone raz na partię (współrzędne świata), maski rysowane per kafelek
+  const blobs = B.patches.map((P, pi) => Array.from({ length: P.n }, (_, i) => {
+    const bx = sprNoise(i, 100 + pi, ms) * MAP, by = sprNoise(i, 200 + pi, ms) * MAP, r = P.r[0] + sprNoise(i, 300 + pi, ms) * (P.r[1] - P.r[0]);
+    return [(bx - by) * CFG.tileW / 2 + GL_OX, (bx + by) * CFG.tileH / 2 + CFG.tileH / 2, r * CFG.tileW * 0.7, r * CFG.tileH * 0.7];
+  }));
+  const cols = Math.ceil(GL_W / CHK), rows = Math.ceil(GL_H / CHK);
+  S.gch = { cols, rows, cv: new Array(cols * rows).fill(null) };
+  const tmpC = mk(), mskC = mk();
+  for (let cy = 0; cy < rows; cy++) for (let cx = 0; cx < cols; cx++) {
+    const x0 = cx * CHK - CPAD, y0 = cy * CHK - CPAD, x1 = x0 + CHK + 2 * CPAD, y1 = y0 + CHK + 2 * CPAD;
+    const here = tiles.filter(t => t.cx + 36 > x0 && t.cx - 36 < x1 && t.cy + 20 > y0 && t.cy - 20 < y1);
+    if (!here.length) continue;
+    const c = mk(), g = prep(c, x0, y0); g.fillStyle = '#25444c'; g.fillRect(x0, y0, x1 - x0, y1 - y0);
+    for (const t of here) if (t.w) drawGroundTile(g, 'water', t.x, t.y, t.cx, t.cy);
+    const landHere = here.filter(t => !t.w);
+    for (const t of landHere) drawGroundTile(g, B.base, t.x, t.y, t.cx, t.cy);
+    // plamy: warstwa z teksturą plamy przycięta maską z miękkich elips (brzegi plam nie trzymają siatki kafli)
+    const t2 = prep(tmpC, x0, y0), m2 = prep(mskC, x0, y0);
+    B.patches.forEach((P, pi) => {
+      t2.globalCompositeOperation = 'source-over'; t2.clearRect(x0, y0, x1 - x0, y1 - y0);
+      for (const t of landHere) drawGroundTile(t2, P.atlas, t.x, t.y, t.cx, t.cy);
+      m2.clearRect(x0, y0, x1 - x0, y1 - y0);
+      for (const [bx, by, rx, ry] of blobs[pi]) if (bx + rx > x0 && bx - rx < x1 && by + ry > y0 && by - ry < y1) softBlob(m2, bx, by, rx, ry, [[0, 'rgba(255,255,255,1)'], [0.5, 'rgba(255,255,255,0.92)'], [1, 'rgba(255,255,255,0)']]);
+      t2.globalCompositeOperation = 'destination-in'; t2.drawImage(mskC, 0, 0, cw, cw, x0, y0, x1 - x0, y1 - y0);
+      g.drawImage(tmpC, 0, 0, cw, cw, x0, y0, x1 - x0, y1 - y0);
+    });
+    // brzeg: płycizna po stronie wody, mokry ciemny piasek na lądzie, nierówna jasna warga piasku na samej linii
+    for (const t of here) {
+      const { x, y, w } = t;
+      for (let k = 0; k < 8; k++) {
+        const nx = x + N8[k][0], ny = y + N8[k][1];
+        if (!inMap(nx, ny) || isWaterAt(nx, ny) === w) continue;
+        const [ox, oy] = groundCenter(nx, ny), dx = (ox - t.cx) / 2, dy = (oy - t.cy) / 2;   // środek wspólnej krawędzi albo wierzchołka
+        const diag = k >= 4;
+        if (w) softBlob(g, t.cx + dx * 0.85, t.cy + dy * 0.85, diag ? 18 : 30, diag ? 9 : 15, [[0, 'rgba(150,205,195,0.50)'], [1, 'rgba(150,205,195,0)']]);
+        else {
+          softBlob(g, t.cx + dx * 0.9, t.cy + dy * 0.9, diag ? 16 : 28, diag ? 8 : 14, [[0, 'rgba(58,42,22,0.42)'], [1, 'rgba(58,42,22,0)']]);
+          for (let j = 0; j < (diag ? 1 : 3); j++) {
+            const f = diag ? 0 : (j - 1) * 0.55, jx = (sprNoise(x * 8 + k, y, 40 + j) - 0.5) * 7, jy = (sprNoise(x * 8 + k, y, 50 + j) - 0.5) * 4;
+            const tx = diag ? 0 : -dy * 1.4 * f, ty = diag ? 0 : dx * 1.4 * f;   // wzdłuż krawędzi (prostopadle do kierunku na sąsiada)
+            const rr = 6 + sprNoise(x * 8 + k, y, 60 + j) * 5;
+            softBlob(g, t.cx + dx + tx + jx, t.cy + dy + ty + jy, rr * 1.6, rr * 0.8, [[0, 'rgba(190,166,110,0.95)'], [0.65, 'rgba(184,160,104,0.8)'], [1, 'rgba(184,160,104,0)']]);
+          }
         }
       }
     }
+    S.gch.cv[cy * cols + cx] = c;
   }
-  GL_TMP.width = GL_MASK.width = 1; GL_TMP = GL_MASK = null;   // robocze płótna zwalniamy zaraz po budowie
-  S.groundLayer = c;
+  tmpC.width = mskC.width = 1;   // robocze płótna zwalniamy zaraz po budowie
+}
+function drawGroundChunks() {
+  const G = S.gch; if (!G) return;
+  const VW = canvasW / ZOOM, VH = canvasH / ZOOM, ox = Math.round(cam.x - GL_OX), oy = Math.round(cam.y), sz = CHK + 2 * CPAD;
+  ctx.imageSmoothingEnabled = true;
+  for (let cy = 0; cy < G.rows; cy++) for (let cx = 0; cx < G.cols; cx++) {
+    const c = G.cv[cy * G.cols + cx]; if (!c) continue;
+    const x = ox + cx * CHK - CPAD, y = oy + cy * CHK - CPAD;
+    if (x > VW || y > VH || x + sz < 0 || y + sz < 0) continue;
+    ctx.drawImage(c, x, y, sz, sz);
+  }
 }
 // szuwary: na lądzie przy wodzie (po stronie wody) i rzadziej w płyciźnie; deterministycznie z kafla
 function drawShoreReeds(x, y, cx, cy) {
@@ -2853,7 +2962,7 @@ function render() {
   const VW = canvasW / ZOOM, VH = canvasH / ZOOM; // widoczny fragment w px świata (do kullingu)
   const items = [];
   // teren: grunt to jedna warstwa rysowana raz na partię, pętla niżej nakłada tylko to, co dynamiczne
-  if (S.groundLayer) { ctx.imageSmoothingEnabled = true; ctx.drawImage(S.groundLayer, Math.round(cam.x - GL_OX), Math.round(cam.y), GL_W, GL_H); }
+  drawGroundChunks();
   for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
     const i = idx(x, y);
     const [sx, sy] = tileToScreen(x, y);
@@ -2862,6 +2971,8 @@ function render() {
     const t = S.terrain[i];
     if (t === T_WATER) {
       drawShoreReeds(x, y, sx, sy + CFG.tileH / 2);
+    } else if (t === T_CLIFF) {
+      items.push({ d: x + y + 0.02, kind: 'cliff', sx, sy: sy + CFG.tileH / 2, v: Math.floor(sprNoise(x, y, 31) * 4) });
     } else if (t === T_GOLD) {
       drawDirt(x, y, sx, sy);
       items.push({ d: x + y, kind: 'gold', sx, sy: sy + CFG.tileH / 2 });
@@ -2876,7 +2987,7 @@ function render() {
       for (let k = 0; k < 2; k++) {
         const jx = sprNoise(x, y, 7 + 10 * k) * 10 - 5, jy = sprNoise(x, y, 9 + 10 * k) * 6 - 3;
         const tn = sprNoise(x, y, 2 + 10 * k);
-        const v = tn < 0.30 ? 0 : tn < 0.72 ? 1 : tn < 0.87 ? 2 : 3;
+        const TB = biomeDef().trees, v = tn < TB[0] ? 0 : tn < TB[1] ? 1 : tn < TB[2] ? 2 : 3;
         items.push({ d: x + y + k * 0.01, kind: 'tree', sx: sx + jx, sy: sy + CFG.tileH / 2 + jy, v });
       }
     } else {
@@ -2888,7 +2999,7 @@ function render() {
         const jx = sprNoise(x, y, 7) * 8 - 4, jy = sprNoise(x, y, 9) * 4 - 2;
         // miksu gatunków: 30% liściaste, 42% sosny, 15% uschłe, 13% liściaste2 (preria: sosny i snagi na wagę)
         const tn = sprNoise(x, y, 2);
-        const v = tn < 0.30 ? 0 : tn < 0.72 ? 1 : tn < 0.87 ? 2 : 3;
+        const TB = biomeDef().trees, v = tn < TB[0] ? 0 : tn < TB[1] ? 1 : tn < TB[2] ? 2 : 3;
         items.push({ d: x + y, kind: 'tree', sx: sx + jx, sy: sy + CFG.tileH / 2 + jy, v });
       } else {
         // drobne rekwizyty terenu: kwiaty, kamienie, krzaki (deterministycznie z pozycji kafla)
@@ -2915,6 +3026,7 @@ function render() {
   items.sort((a, b) => a.d - b.d);
   for (const it of items) {
     if (it.kind === 'tree') drawTree(it.sx, it.sy, it.v || 0);
+    else if (it.kind === 'cliff') drawStatic('cliff_' + biomeDef().cliff + '_' + it.v, it.sx, it.sy);
     else if (it.kind === 'gold') drawStatic('gold_vein' + (sprNoise(Math.round(it.sx), Math.round(it.sy), 3) < 0.5 ? 0 : 1), it.sx, it.sy);
     else if (it.kind === 'meat') drawCarcass(it.sx, it.sy);
     else if (it.kind === 'storm') drawStorm(it.o, it.sx, it.sy);
@@ -3070,11 +3182,11 @@ function drawTree(sx, sy, v) {
 // rekwizyt terenowy: pozycja deterministyczna z pozycji kafla, zawsze wewnątrz rombu (max |ox|/32+|oy|/16 = 0.875 < 1)
 function drawProp(x, y, cx, cy) {
   if (drawShoreReeds(x, y, cx, cy)) return;
-  const r = sprNoise(x, y, 11); if (r >= 0.15) return;
+  const r = sprNoise(x, y, 11), PB = biomeDef().props; if (r >= PB[3]) return;
   const ox = (sprNoise(x, y, 12) - 0.5) * 28, oy = (sprNoise(x, y, 13) - 0.5) * 14, v = sprNoise(x, y, 14);
-  if (r < 0.022) drawStatic('prop_rock' + Math.floor(v * 3), cx + ox, cy + oy);
-  else if (r < 0.045) drawStatic('prop_bush' + (v < 0.5 ? 0 : 1), cx + ox, cy + oy);
-  else if (r < 0.135) drawStatic('prop_tuft' + (v < 0.5 ? 0 : 1), cx + ox, cy + oy);   // zielone kępki
+  if (r < PB[0]) drawStatic('prop_rock' + Math.floor(v * 3), cx + ox, cy + oy);
+  else if (r < PB[1]) drawStatic('prop_bush' + (v < 0.5 ? 0 : 1), cx + ox, cy + oy);
+  else if (r < PB[2]) drawStatic('prop_tuft' + (v < 0.5 ? 0 : 1), cx + ox, cy + oy);   // zielone kępki
   else drawStatic('prop_tuft2', cx + ox, cy + oy);   // sucha kępa
 }
 // budynek wg nacji (styl, nie kolor właściciela): wróg = Desperado (ban), gracz = Osadnicy (us) albo Sioux (sx); brak wariantu = sprite Osadników
@@ -3181,7 +3293,7 @@ function renderMinimap() {
     const i = idx(x, y);
     if (!S.explored[i]) continue;
     const t = S.terrain[i];
-    mctx.fillStyle = t === T_FOREST ? '#2c4a1e' : t === T_GOLD ? '#e8c34a' : t === T_WATER ? '#3a6272' : t === T_MEAT ? '#a05a3a' : t === T_THICK ? '#1c3812' : '#6f7330';
+    mctx.fillStyle = t === T_FOREST ? '#2c4a1e' : t === T_GOLD ? '#e8c34a' : t === T_WATER ? '#3a6272' : t === T_MEAT ? '#a05a3a' : t === T_THICK ? '#1c3812' : t === T_CLIFF ? '#5a3a22' : biomeDef().mini;
     mctx.fillRect(x * px, y * px, px, px);
   }
   for (const b of S.buildings) {

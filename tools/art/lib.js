@@ -50,6 +50,22 @@ function texSand(size, seed) {   // piasek: jasny, zszarzały beż z drobnym zia
     return [c[0] * f, c[1] * f, c[2] * f];
   });
 }
+// klif: warstwy skały (poziome pasy o zmiennej szerokości), pionowe szczeliny i plamy; pal = [ciemny, bazowy, jasny]
+function texCliff(size, seed, pal) {
+  const big = rt.fbm(size, seed, [3, 9]), fine = rt.fbm(size, seed + 1, [0.3, 0.9]), warp = rt.fbm(size, seed + 2, [4, 12]), crk = rt.fbm(size, seed + 3, [2, 6], [0.4, 4]);
+  return paint(size, i => {
+    const y = Math.floor(i / size) / size, band = Math.sin(y * 6.283 * 6 + warp[i] * 0.45) * 0.5 + 0.5, band2 = Math.sin(y * 6.283 * 17 + warp[i] * 0.6) * 0.5 + 0.5;
+    const t = clamp(0.1 + 0.62 * band + 0.14 * band2 + 0.06 * big[i] + 0.015 * fine[i]);
+    let c = t < 0.5 ? mix(pal[0], pal[1], t * 2) : mix(pal[1], pal[2], (t - 0.5) * 2);
+    if (Math.abs(crk[i]) < 0.035) c = mix(c, [pal[0][0] * 0.5, pal[0][1] * 0.5, pal[0][2] * 0.5], 0.7);
+    return c;
+  });
+}
+function texMeadow(size, seed) {   // łąka: żywa, ciemniejsza zieleń z jaśniejszymi plamami i drobnym szumem źdźbeł
+  const big = rt.fbm(size, seed, [5, 14]), mid = rt.fbm(size, seed + 1, [1.2, 3]), fine = rt.fbm(size, seed + 2, [0.18, 0.5]);
+  const dark = [0.14, 0.27, 0.08], base = [0.27, 0.45, 0.14], light = [0.46, 0.62, 0.24];
+  return paint(size, i => { const t = clamp(0.5 + 0.25 * big[i] + 0.15 * mid[i]); const c = t < 0.5 ? mix(dark, base, t * 2) : mix(base, light, (t - 0.5) * 2), f = 1 + 0.14 * fine[i]; return [c[0] * f, c[1] * f, c[2] * f]; });
+}
 function texGravel(size, seed) {   // żwirowisko: szarobeżowe kamyki w drobnej plamistej fakturze
   const big = rt.fbm(size, seed, [3, 9]), fine = rt.fbm(size, seed + 1, [0.25, 0.7]), spk = rt.fbm(size, seed + 2, [0.12, 0.35]);
   return paint(size, i => {
@@ -89,7 +105,8 @@ function texWhite(size, seed) { const n = rt.fbm(size, seed, [2, 6]), f = rt.fbm
 function texGold(size, seed) { const n = rt.fbm(size, seed, [1.5, 4]); return paint(size, i => { const k = 1 + 0.18 * n[i]; return [0.92 * k, 0.70 * k, 0.12 * k]; }); }
 const T = rt.standardTextures();
 const TX = {
-  grass: texGrass(1024, 31), sand: texSand(1024, 71), gravel: texGravel(1024, 51), water: texWater(1024, 61), ochre: texOchre(1024, 11), dirt: texOchre(1024, 41, 0.72), olive: texOlive(1024, 21),
+  cliffArid: texCliff(512, 81, [[0.30, 0.15, 0.08], [0.60, 0.33, 0.17], [0.80, 0.52, 0.30]]), cliffPrairie: texCliff(512, 82, [[0.34, 0.26, 0.16], [0.66, 0.54, 0.36], [0.84, 0.74, 0.54]]), cliffGrass: texCliff(512, 83, [[0.26, 0.24, 0.19], [0.52, 0.48, 0.40], [0.72, 0.68, 0.58]]),
+  grass: texGrass(1024, 31), meadow: texMeadow(1024, 91), sand: texSand(1024, 71), gravel: texGravel(1024, 51), water: texWater(1024, 61), ochre: texOchre(1024, 11), dirt: texOchre(1024, 41, 0.72), olive: texOlive(1024, 21),
   leaf: texAutumnLeaf(256, 5), needle: texRustNeedle(256, 8), hide: texHide(256, 3), pattern: texPattern(256, 4), gold: texGold(128, 2),
   grayPlanks: rt.adjustTexture(T.planks, { saturation: 0.28, brightness: 1.95 }), grayTimber: rt.adjustTexture(T.timber, { saturation: 0.35, brightness: 1.5 }), grayRoof: rt.adjustTexture(T.planks, { saturation: 0.22, brightness: 1.6 }),
   freshPlanks: rt.adjustTexture(T.planks, { saturation: 1.0, brightness: 1.35, contrast: 0.9 }), freshTimber: rt.adjustTexture(T.timber, { saturation: 0.95, brightness: 1.15 }), freshRoof: rt.adjustTexture(T.planks, { saturation: 0.8, brightness: 0.95 }),

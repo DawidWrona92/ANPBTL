@@ -81,3 +81,9 @@ Wyniki mojego własnego wyszukiwania (potwierdzają tytuły rozdziałów, cztery
 - **Wybór ludu:** deski, nagłówek AMERICA, wąska tabliczka „Select people”, cztery postacie w ciemnych kołach (trzy w rzędzie i jedna niżej), na dole przyciski „Back” i „Load game”.
 - **Ustawienia:** deski, ciemne tabliczki z nazwami (Sound, Music, Resolution, Scroll speed, Game speed, Mouse speed, Shadow) i złote wartości po prawej (np. 1024×768, Normal, Fast, Transparent), przycisk OK na dole.
 - **W prototypie `[P]`:** zakładki grup 1–6 zamiast kostek (funkcja zakładek w oryginale nieznana), przyciski pomoc/zapis/odczyt zamiast trzech przycisków minimapy (ich funkcje nieznane), nagrobek (rozwiązanie jednostki) i ustawienia rozdzielczości, muzyki i szybkości myszy pominięte (brak odpowiedników), postacie wodza i kobiet z menu zastąpione portretami jednostek z gry.
+
+
+## Teren: klify i kaniony `[Ź: pamięć gracza, 2026-10-14]`
+- W oryginale była **nieprzekraczalna elewacja terenu** (klify, kaniony) służąca do **tunelowania**, czyli kształtowania korytarzy i przełęczy na mapie. W prototypie to typ `T_CLIFF`: nieprzekraczalny dla każdej jednostki (także pływających), bez zabudowy i zasobów.
+- `[P]` Wzrok przez klif przechodzi (w oryginale elewacja mogła zasłaniać widok, do potwierdzenia).
+- Motywy terenu w oryginale (pamięć gracza): **arid** (oryginalny wygląd, ochrowa wypalona ziemia), preria i trawiasta; prototyp ma trzy motywy i opcję „auto” (Sioux: trawiasta, pozostali: preria).

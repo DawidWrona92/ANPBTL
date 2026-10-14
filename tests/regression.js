@@ -53,7 +53,10 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     await page.click('text=Nowa gra');
     eq(await page.$$eval('#overlay .circ', c => c.map(x => x.className.includes('off') ? 'off' : 'on')), ['on', 'on', 'off', 'off'], 'koła ludów: Osadnicy i Sioux grywalni, reszta wkrótce');
     eq(await page.$$eval('#overlay button', b => b.map(x => x.textContent)), ['Wstecz', 'Trudność: Normalny', 'Osadnicy', 'Sioux', 'Wczytaj'], 'przyciski ekranu wyboru ludu');
-    await page.click('text=Wstecz');
+    await page.click('.circ >> nth=1');
+    eq(await page.$$eval('.mapcard', c => c.map(x => x.dataset.map)), ['prairie', 'canyon', 'ford', 'plateau'], 'karty map');
+    eq(await page.$$eval('#overlay .sk-row:nth-of-type(4) button', b => b.map(x => x.disabled)), [false, true, true, true], 'przeciwnik: tylko Desperado aktywny');
+    await page.click('text=Wstecz'); await page.click('text=Wstecz');
   });
   await test('UI: ustawienia zmieniają i zapamiętują wartości, panel dolny pokazuje polecenia wybranego obiektu', async () => {
     await page.click('text=Ustawienia');
@@ -92,7 +95,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       const man = window.ASSETS, broken = Object.keys(man).filter(k => man[k]._img && !(man[k]._img.complete && man[k]._img.naturalWidth > 0));
       const missU = Object.keys(CFG.units).filter(t => !man[t]), missB = [];
       for (const t of Object.keys(CFG.buildings)) for (const n of t === 'tepee' ? ['sx'] : (t === 'bank' || t === 'ranch') ? ['us'] : ['us', 'ban']) if (!man['bld_' + t + '_' + n]) missB.push(t + '_' + n);
-      return { layer: !!S.groundLayer, assets: Object.keys(man).length, broken, missU, missB };
+      return { layer: !!(S.gch && S.gch.cv.some(Boolean)), assets: Object.keys(man).length, broken, missU, missB };
     });
     await p2.close();
     eq(errs, [], 'błędy strony'); eq(r.missU, [], 'jednostki bez sprite\'a'); eq(r.missB, [], 'budynki bez sprite\'a'); ok(r.layer && r.assets > 10, 'warstwa terenu i manifest'); eq(r.broken, [], 'niezaładowane obrazy');
@@ -334,7 +337,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await test('R10: pomoc pauzuje grę, po porażce są "Jeszcze raz" i "Menu", wyciszenie przeżywa nową grę', async () => {
     await page.evaluate(() => { S.muted = true; newGame(1, 'settler'); showMenu(); });
     ok(await page.evaluate(() => S.muted), 'wyciszenie zgubione w newGame'); await page.evaluate(() => { S.muted = false; });
-    await page.click('text=Nowa gra'); await page.click('.circ >> nth=0'); await page.waitForTimeout(200);
+    await page.click('text=Nowa gra'); await page.click('.circ >> nth=0'); await page.click('#sk-start'); await page.waitForTimeout(200);
     await page.click('#helpbtn'); await page.waitForTimeout(100);
     const t2 = await page.evaluate(() => S.time); await page.waitForTimeout(400);
     eq(await page.evaluate(() => S.time), t2, 'czas w trakcie pomocy');
@@ -543,6 +546,75 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       return { missing, water, shoreLand, shoreWater, bad, reeds };
     });
     eq(r.missing, [], 'brakujące zasoby'); ok(r.water > 20 && r.shoreLand > 5 && r.shoreWater > 5, 'brzeg: ' + JSON.stringify(r)); eq(r.bad, 0, 'złe znaczniki brzegu'); ok(r.reeds > 0, 'szuwary rysowane');
+  });
+  console.log('Faza 10: potyczka (mapy, klify, motywy)');
+  await test('F10: każda mapa ma drogę między obozami dla piechoty i konnych, klif blokuje ruch i budowę', async () => {
+    const r = await page.evaluate(() => {
+      const out = {};
+      for (const m of MAP_LIST()) {
+        newGame(5, 'settler', { map: m.id }); S.menuOpen = false;
+        const php = S.buildings.find(b => b.fac === 'player' && b.type === 'hq'), ehq = S.buildings.find(b => b.fac === 'enemy' && b.type === 'hq');
+        const foot = pathToBuilding(php.cx + 0.5, php.cy + 3.5, ehq, CFG.units.piechota).length, cav = pathToBuilding(php.cx + 0.5, php.cy + 3.5, ehq, CFG.units.jezdiec).length;
+        let cliffs = 0; for (let i = 0; i < MAP * MAP; i++) if (S.terrain[i] === T_CLIFF) cliffs++;
+        out[m.id] = { size: MAP, foot: foot > 0, cav: cav > 0, cliffs, units: S.units.length > 20 };
+      }
+      return out;
+    });
+    for (const id in r) ok(r[id].foot && r[id].cav && r[id].units, id + ': ' + JSON.stringify(r[id]));
+    eq([r.prairie.size, r.canyon.size, r.ford.size, r.plateau.size], [40, 40, 40, 56], 'rozmiary'); eq(r.prairie.cliffs, 0, 'preria bez klifów'); ok(r.canyon.cliffs > 50 && r.plateau.cliffs > 50, 'kaniony mają klify');
+    const c = await page.evaluate(() => {
+      newGame(5, 'settler', { map: 'canyon' }); S.menuOpen = false; S.explored.fill(1);
+      let cx = -1, cy = -1; for (let i = 0; i < MAP * MAP && cx < 0; i++) if (S.terrain[i] === T_CLIFF) { cx = i % MAP; cy = Math.floor(i / MAP); }
+      S.res = { wood: 999, food: 999, gold: 999, guns: 0, horses: 0 }; const w = addUnit('frontiersman', 'player', 20.5, 20.5); S.selected.units = [w]; const n0 = S.buildings.length; tryPlace('house', cx, cy);
+      return { blocked: isBlocked(cx, cy), passable: passableFor(CFG.units.piechota, cx, cy), swim: passableFor(CFG.units.wojownik, cx, cy), built: S.buildings.length > n0 };
+    });
+    eq(c, { blocked: true, passable: false, swim: false, built: false }, 'klif');
+  });
+  await test('F10: kanion ma krótką przełęcz i dłuższe obejście; Bród ma dwa przejścia dla Osadników', async () => {
+    const r = await page.evaluate(() => {
+      newGame(5, 'settler', { map: 'canyon' }); S.menuOpen = false;
+      const php = S.buildings.find(b => b.fac === 'player' && b.type === 'hq'), ehq = S.buildings.find(b => b.fac === 'enemy' && b.type === 'hq');
+      const route = () => pathToBuilding(php.cx + 0.5, php.cy + 3.5, ehq, CFG.units.piechota).length, base = route();
+      // zablokowanie przełęczy zmusza do obejścia: ścieżka musi się wydłużyć, ale nadal istnieć
+      for (let y = 14; y <= 26; y++) for (let x = 14; x <= 26; x++) if (Math.abs(x - y) <= 2) S.terrain[idx(x, y)] = T_CLIFF;
+      const detour = route();
+      return { base, detour };
+    });
+    ok(r.base > 0 && r.detour > r.base + 4, 'przełęcz: ' + r.base + ', obejście: ' + r.detour);
+  });
+  await test('F10: zapis i odczyt zachowują mapę, rozmiar i motyw', async () => {
+    const r = await page.evaluate(() => {
+      newGame(9, 'settler', { map: 'plateau', biome: 'arid' }); S.menuOpen = false; for (let i = 0; i < 600; i++) update(1 / 60);
+      const snap = JSON.stringify(serializeGame()); newGame(9, 'settler', { map: 'prairie', biome: 'grass' });
+      restoreGame(JSON.parse(snap)); const same = JSON.stringify(serializeGame()) === snap; render();
+      return { id: S.mapId, size: MAP, biome: S.biome, chunks: S.gch.cv.filter(Boolean).length > 10, same };
+    });
+    eq([r.id, r.size, r.biome, r.chunks, r.same], ['plateau', 56, 'arid', true, true], 'odczyt mapy');
+  });
+  await test('F10: wszystkie motywy i mapy rysują się bez błędów, klify mają sprite\'y dla każdego motywu', async () => {
+    const p2 = await browser.newPage({ viewport: { width: 1280, height: 720 } }), errs = []; p2.on('pageerror', e => errs.push(String(e).slice(0, 200)));
+    await p2.goto('file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html'))); await p2.waitForFunction(() => window.GAME_READY, null, { timeout: 20000 });
+    const r = await p2.evaluate(() => {
+      const miss = []; for (const b in BIOMES) for (let v = 0; v < 4; v++) if (!window.ASSETS['cliff_' + BIOMES[b].cliff + '_' + v]) miss.push(b + v);
+      let n = 0;
+      for (const m of MAP_LIST()) for (const b of ['arid', 'prairie', 'grass', 'auto']) { newGame(2, 'sioux', { map: m.id, biome: b }); S.menuOpen = false; S.explored.fill(1); S.visible.fill(1); for (let i = 0; i < 30; i++) update(1 / 60); render(); n++; }
+      return { miss, n, auto: (newGame(2, 'sioux', { map: 'prairie', biome: 'auto' }), S.biome) };
+    });
+    await p2.close();
+    eq(errs, [], 'błędy strony'); eq(r.miss, [], 'klify'); eq(r.n, 16, 'kombinacje'); eq(r.auto, 'grass', 'auto: Sioux = trawiasta');
+  });
+  await test('F10: AI Desperado na każdej nowej mapie buduje, szkoli i wysyła wyprawę bez zakleszczeń (6 min)', async () => {
+    const r = await page.evaluate(() => {
+      const out = {};
+      for (const id of ['canyon', 'ford', 'plateau']) {
+        newGame(4, 'settler', { map: id }); S.menuOpen = false; S.difficulty = 'veryhard';
+        for (let i = 0; i < 60 * 360; i++) update(1 / 60);
+        const e = S.units.filter(u => u.fac === 'enemy'), bad = S.units.some(u => !Number.isFinite(u.x) || !Number.isFinite(u.y));
+        out[id] = { blds: S.buildings.filter(b => b.fac === 'enemy' && b.built).length, army: e.filter(u => u.type !== 'worker').length, attacks: S.ai.attacks, bad, res: Object.values(S.resE).every(Number.isFinite) };
+      }
+      return out;
+    });
+    for (const id in r) ok(r[id].blds >= 2 && r[id].army >= 3 && !r[id].bad && r[id].res, id + ': ' + JSON.stringify(r[id]));
   });
   console.log('Smoke');
   for (const race of ['settler', 'sioux']) {
