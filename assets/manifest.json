@@ -126,5 +126,157 @@
   "h": 70,
   "ax": 55,
   "ay": 44
+ },
+ "bld_house_us": {
+  "file": "assets/buildings/bld_house_us.png",
+  "shadow": "assets/buildings/bld_house_us_shadow.png",
+  "w": 314,
+  "h": 237,
+  "ax": 171,
+  "ay": 159
+ },
+ "bld_hq_us": {
+  "file": "assets/buildings/bld_hq_us.png",
+  "shadow": "assets/buildings/bld_hq_us_shadow.png",
+  "w": 472,
+  "h": 388,
+  "ax": 275,
+  "ay": 278
+ },
+ "bld_barracks_us": {
+  "file": "assets/buildings/bld_barracks_us.png",
+  "shadow": "assets/buildings/bld_barracks_us_shadow.png",
+  "w": 324,
+  "h": 232,
+  "ax": 174,
+  "ay": 152
+ },
+ "bld_factory_us": {
+  "file": "assets/buildings/bld_factory_us.png",
+  "shadow": "assets/buildings/bld_factory_us_shadow.png",
+  "w": 300,
+  "h": 222,
+  "ax": 164,
+  "ay": 146
+ },
+ "bld_storehouse_us": {
+  "file": "assets/buildings/bld_storehouse_us.png",
+  "shadow": "assets/buildings/bld_storehouse_us_shadow.png",
+  "w": 305,
+  "h": 188,
+  "ax": 177,
+  "ay": 110
+ },
+ "bld_zagroda_us": {
+  "file": "assets/buildings/bld_zagroda_us.png",
+  "shadow": "assets/buildings/bld_zagroda_us_shadow.png",
+  "w": 291,
+  "h": 173,
+  "ax": 160,
+  "ay": 101
+ },
+ "bld_farm_us": {
+  "file": "assets/buildings/bld_farm_us.png",
+  "shadow": "assets/buildings/bld_farm_us_shadow.png",
+  "w": 276,
+  "h": 159,
+  "ax": 149,
+  "ay": 88
+ },
+ "bld_house_ban": {
+  "file": "assets/buildings/bld_house_ban.png",
+  "shadow": "assets/buildings/bld_house_ban_shadow.png",
+  "w": 335,
+  "h": 238,
+  "ax": 193,
+  "ay": 161
+ },
+ "bld_hq_ban": {
+  "file": "assets/buildings/bld_hq_ban.png",
+  "shadow": "assets/buildings/bld_hq_ban_shadow.png",
+  "w": 488,
+  "h": 325,
+  "ax": 279,
+  "ay": 213
+ },
+ "bld_barracks_ban": {
+  "file": "assets/buildings/bld_barracks_ban.png",
+  "shadow": "assets/buildings/bld_barracks_ban_shadow.png",
+  "w": 331,
+  "h": 217,
+  "ax": 184,
+  "ay": 137
+ },
+ "bld_factory_ban": {
+  "file": "assets/buildings/bld_factory_ban.png",
+  "shadow": "assets/buildings/bld_factory_ban_shadow.png",
+  "w": 307,
+  "h": 221,
+  "ax": 174,
+  "ay": 146
+ },
+ "bld_storehouse_ban": {
+  "file": "assets/buildings/bld_storehouse_ban.png",
+  "shadow": "assets/buildings/bld_storehouse_ban_shadow.png",
+  "w": 305,
+  "h": 188,
+  "ax": 177,
+  "ay": 110
+ },
+ "bld_zagroda_ban": {
+  "file": "assets/buildings/bld_zagroda_ban.png",
+  "shadow": "assets/buildings/bld_zagroda_ban_shadow.png",
+  "w": 291,
+  "h": 173,
+  "ax": 160,
+  "ay": 101
+ },
+ "bld_farm_ban": {
+  "file": "assets/buildings/bld_farm_ban.png",
+  "shadow": "assets/buildings/bld_farm_ban_shadow.png",
+  "w": 276,
+  "h": 159,
+  "ax": 149,
+  "ay": 88
+ },
+ "bld_tepee_sx": {
+  "file": "assets/buildings/bld_tepee_sx.png",
+  "shadow": "assets/buildings/bld_tepee_sx_shadow.png",
+  "w": 311,
+  "h": 286,
+  "ax": 233,
+  "ay": 215
+ },
+ "bld_hq_sx": {
+  "file": "assets/buildings/bld_hq_sx.png",
+  "shadow": "assets/buildings/bld_hq_sx_shadow.png",
+  "w": 462,
+  "h": 409,
+  "ax": 334,
+  "ay": 308
+ },
+ "bld_barracks_sx": {
+  "file": "assets/buildings/bld_barracks_sx.png",
+  "shadow": "assets/buildings/bld_barracks_sx_shadow.png",
+  "w": 390,
+  "h": 341,
+  "ax": 278,
+  "ay": 256
+ },
+ "bld_storehouse_sx": {
+  "file": "assets/buildings/bld_storehouse_sx.png",
+  "shadow": "assets/buildings/bld_storehouse_sx_shadow.png",
+  "w": 223,
+  "h": 158,
+  "ax": 132,
+  "ay": 101
+ },
+ "bld_farm_sx": {
+  "file": "assets/buildings/bld_farm_sx.png",
+  "shadow": "assets/buildings/bld_farm_sx_shadow.png",
+  "w": 276,
+  "h": 159,
+  "ax": 149,
+  "ay": 88
  }
 }

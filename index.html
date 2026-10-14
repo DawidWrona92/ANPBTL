@@ -2759,6 +2759,13 @@ function drawProp(x, y, cx, cy) {
     ctx.fillStyle = '#55823a'; ctx.fillRect(px - 2, py - 3, 3, 2);
   }
 }
+// budynek wg nacji (styl, nie kolor właściciela): wróg = Desperado (ban), gracz = Osadnicy (us) albo Sioux (sx); brak wariantu = sprite Osadników
+function drawBld(b, sx, sy) {
+  if (ART !== 'prerender') { blitSpr(bldSpr(b.type, b.fac), sx, sy); return; }
+  const nat = b.fac === 'enemy' ? 'ban' : (S.playerRace === 'sioux' ? 'sx' : 'us'), A = window.ASSETS;
+  const key = 'bld_' + b.type + '_' + nat;
+  drawStatic(A[key] ? key : 'bld_' + b.type + '_us', sx, sy);
+}
 function drawBuilding(b) {
   const def = CFG.buildings[b.type];
   const [sx, sy] = tileToScreen(b.cx, b.cy);
@@ -2766,7 +2773,7 @@ function drawBuilding(b) {
   if (!b.built) {
     // duch budynku: bryła materializuje się wraz z postępem, rusztowanie = przerywana elipsa
     ctx.globalAlpha = 0.15 + 0.5 * b.progress;
-    blitSpr(bldSpr(b.type, b.fac), sx, sy);
+    drawBld(b, sx, sy);
     ctx.globalAlpha = 1;
     ctx.strokeStyle = '#c9a35f'; ctx.lineWidth = 2;
     ctx.setLineDash([4, 3]);
@@ -2776,7 +2783,7 @@ function drawBuilding(b) {
     ctx.fillText(Math.floor(b.progress * 100) + '%', sx, sy - h / 4);
     return;
   }
-  blitSpr(bldSpr(b.type, b.fac), sx, sy);
+  drawBld(b, sx, sy);
   ctx.fillStyle = b.fac === 'enemy' ? '#ff8f6f' : '#f0e2bd';
   ctx.font = '11px Georgia'; ctx.textAlign = 'center';
   ctx.fillText(def.label, sx, sy + b.h * CFG.tileH / 2 - 6);
