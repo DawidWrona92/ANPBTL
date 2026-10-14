@@ -4,7 +4,8 @@
   "description": "Prototyp gry America: No Peace Beyond the Line (jeden plik index.html)",
   "scripts": {
     "test": "node tests/regression.js",
-    "balance": "node tests/balance/run.js"
+    "balance": "node tests/balance/run.js",
+    "balance:duels": "node tests/balance/duels.js"
   },
   "devDependencies": {
     "playwright": "^1.49.0"
