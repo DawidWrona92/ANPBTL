@@ -1,0 +1,2563 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>America: prototyp</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1410; font-family: Georgia, 'Times New Roman', serif; user-select: none; }
+  #game { position: absolute; inset: 0; touch-action: none; cursor: default; }
+  .panel { position: absolute; background: rgba(43, 31, 20, 0.92); border: 2px solid #8a6b45; border-radius: 6px; color: #e8d9b0; }
+  #topbar { top: 8px; left: 50%; transform: translateX(-50%); padding: 6px 16px; display: flex; gap: 18px; align-items: center; font-size: 15px; white-space: nowrap; }
+  #topbar b { color: #ffd97a; }
+  #buildbar { bottom: 8px; left: 8px; padding: 8px; display: flex; gap: 6px; flex-wrap: wrap; max-width: 460px; }
+  #buildbar button, #bpanel button, #stancebar button { background: #5a4128; color: #f0e2bd; border: 1px solid #8a6b45; padding: 7px 10px; font-family: inherit; font-size: 13px; border-radius: 4px; cursor: pointer; }
+  #buildbar button:hover:not(:disabled), #bpanel button:hover:not(:disabled), #stancebar button:hover:not(:disabled) { background: #7a5836; }
+  #buildbar button:disabled { opacity: 0.45; cursor: not-allowed; }
+  #stancebar { bottom: 8px; left: 480px; padding: 8px; display: none; gap: 6px; flex-wrap: wrap; max-width: 340px; }
+  #stancebar button.active { background: #a5822f; border-color: #ffd97a; color: #fff6dd; }
+  #bpanel { bottom: 8px; left: 480px; padding: 8px; display: none; min-width: 220px; }
+  #bpanel .name { color: #ffd97a; font-size: 14px; margin-bottom: 6px; }
+  #bpanel .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  #minimapWrap { position: absolute; bottom: 8px; right: 8px; border: 2px solid #8a6b45; border-radius: 4px; overflow: hidden; background: #000; }
+  #minimap { display: block; }
+  #alerts { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; align-items: center; pointer-events: none; }
+  .alert { background: rgba(43, 31, 20, 0.95); border: 1px solid #b06a3a; color: #ffd97a; padding: 4px 14px; border-radius: 4px; font-size: 14px; animation: fadeout 6s forwards; }
+  @keyframes fadeout { 0% {opacity: 1;} 80% {opacity: 1;} 100% {opacity: 0;} }
+  #overlay { position: absolute; inset: 0; background: rgba(20, 12, 6, 0.88); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  #overlay .box { max-width: 560px; background: #2b1f14; border: 3px solid #8a6b45; border-radius: 8px; padding: 28px 34px; color: #e8d9b0; }
+  #overlay h1 { color: #ffd97a; font-size: 26px; margin-bottom: 10px; }
+  #overlay h2 { color: #ffd97a; font-size: 20px; margin-bottom: 10px; }
+  #overlay p { margin: 8px 0; font-size: 15px; line-height: 1.5; }
+  #overlay ul { margin: 10px 0 10px 22px; font-size: 15px; line-height: 1.6; }
+  #overlay button { margin-top: 14px; background: #7a5836; color: #fff; border: 1px solid #a8845c; padding: 10px 22px; font-size: 16px; border-radius: 5px; cursor: pointer; font-family: inherit; }
+  #overlay button:hover { background: #96703f; }
+  #helpbtn { position: absolute; top: 8px; right: 8px; padding: 6px 12px; background: #5a4128; color: #f0e2bd; border: 1px solid #8a6b45; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 14px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="topbar" class="panel"></div>
+<button id="helpbtn">?</button>
+<div id="alerts"></div>
+<div id="buildbar" class="panel"></div>
+<div id="bpanel" class="panel"></div>
+<div id="stancebar" class="panel"></div>
+<div id="abilitybar" class="panel"></div>
+<div id="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
+<div id="overlay"></div>
+<script>
+'use strict';
+// ============================== CONFIG ==============================
+const CFG = {
+  map: 40, tileW: 64, tileH: 32,
+  startRes: { wood: 300, food: 150, gold: 0, guns: 0, horses: 0 },
+  resCap: { wood: 500, food: 500, gold: 2000, guns: 200, horses: 20 },
+  carry: 10, chop: 2.5, mine: 1.5, butcher: 3,
+  fogRadius: 6, fogHq: 8,
+  morale: { tick: 1.0, deathR: 6, deathPenalty: 2, hitPenalty: 1, regen: 0.2, restR: 10, restRegen: 1.0, hqAuraR: 8, hqAura: 0.5, leaderAuraR: 6, leaderAura: 0.5, fleeAt: 30, fleeTime: 5, fleeBreak: 30, fleeDist: 4, wodzDeath: 30 },
+  // zdolności medicine mana [Ź 19.4]: deszcz +100% plonów na wszystkich polach 60 s, burza r3 10 obr./s 5 s + morale wrogów -20
+  abilities: { rain: { dur: 60, cd: 180 }, storm: { dur: 5, cd: 120, r: 3, dps: 10, morale: 20 } },
+  xp: { hit: 2, kill: 10, thresholds: [25, 75, 150] },
+  work: { xpRate: 0.5, moraleMin: 0.6 },
+  ai: {
+    thinkEvery: 2.0, startRes: { wood: 250, food: 250, gold: 60, guns: 0, horses: 0 },
+    workersMax: 3, farmsPer: 5, armyBase: 4, armyGrow: 2, armyCap: 12,
+    attackCooldown: 150, trainCap: 3, buildR: 6,
+  },
+  units: {
+    worker:    { hp: 50,  dmg: 4,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 30 }, train: 12, aggro: 0, letter: 'W', color: '#3a7bd5', kind: 'melee', hunter: true, builder: true, farmer: true },
+    // frakcja Sioux, statystyki z 19.2 [Ź]: squaw buduje i farmi, nie rąbie; wojownik rąbie, kopie i poluje; łuk kosztuje drewno, nie broń palną
+    squaw:     { hp: 35,  dmg: 2,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 20 }, train: 10, aggro: 0, letter: 'S', color: '#c46a8a', kind: 'melee', builder: true, farmer: true, swim: true },
+    wojownik:  { hp: 55,  dmg: 7,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 25 }, train: 10, aggro: 0, letter: 'I', color: '#a05a30', kind: 'melee', hunter: true, woodcutter: true, swim: true },
+    lucznik:   { hp: 45,  dmg: 9,  range: 7, cd: 1.1, speed: 1.0, cost: { food: 30, wood: 5 }, train: 12, aggro: 6, letter: 'Ł', color: '#7a9a4a', kind: 'bow', swim: true },
+    medicine:  { hp: 50,  dmg: 3,  range: 6, cd: 1.5, speed: 1.0, cost: { food: 50, gold: 30 }, train: 25, aggro: 0, letter: 'M', color: '#4a8a6a', kind: 'bow', swim: true },
+    wodz:      { hp: 100, dmg: 12, range: 1, cd: 1.0, speed: 1.1, cost: { food: 60, gold: 50 }, train: 30, aggro: 5, letter: 'C', color: '#d1a02f', kind: 'melee', limit: 1, swim: true },
+    piechota:  { hp: 60,  dmg: 12, range: 5, cd: 1.0, speed: 1.0, cost: { food: 40, gold: 10, guns: 1 }, train: 20, aggro: 6, letter: 'P', color: '#2f5d8a', kind: 'gun' },
+    desperado: { hp: 50,  dmg: 10, range: 4, cd: 1.2, speed: 1.1, cost: { food: 40, gold: 10 }, train: 15, aggro: 6, letter: 'D', color: '#a12f2f', kind: 'gun', hunter: true },
+    bandleader:{ hp: 90,  dmg: 14, range: 5, cd: 1.0, speed: 1.1, cost: { food: 80, gold: 20 }, train: 25, aggro: 6, letter: 'B', color: '#d14a1e', kind: 'gun' },
+    jezdiec:   { hp: 70,  dmg: 12, range: 4, cd: 1.2, speed: 1.8, cost: { food: 40, gold: 10, guns: 1, horses: 1 }, train: 25, aggro: 6, letter: 'J', color: '#6a4a8a', kind: 'gun', cav: true },
+    konnobanda:{ hp: 60,  dmg: 12, range: 1, cd: 0.9, speed: 1.7, cost: { food: 40, gold: 10, horses: 1 }, train: 20, aggro: 7, letter: 'J', color: '#c03a2a', kind: 'melee', cav: true },
+    horse:     { hp: 40,  dmg: 0,  range: 0, cd: 1.0, speed: 0.7, cost: {}, train: 0, aggro: 0, letter: 'K', color: '#8a5a3a' },
+    bizon:     { hp: 45,  dmg: 0,  range: 0, cd: 1.0, speed: 0.8, cost: {}, train: 0, aggro: 0, letter: 'B', color: '#5a4030', animal: true, meat: 150 },
+    bydlo:     { hp: 25,  dmg: 0,  range: 0, cd: 1.0, speed: 0.5, cost: {}, train: 0, aggro: 0, letter: 'C', color: '#a89a85', animal: true, meat: 100 },
+  },
+  buildings: {
+    hq:         { w: 3, h: 3, hp: 1200, cost: {}, build: 60, pop: 10, deposit: true, label: 'OBÓZ', color: '#6e4f2a' },
+    house:      { w: 2, h: 2, hp: 200, cost: { wood: 60, gold: 20 }, build: 25, pop: 10, label: 'DOM', color: '#7a5c33' },
+    farm:       { w: 2, h: 2, hp: 100, cost: { wood: 40 }, build: 20, foodRate: 0.6, upkeep: 0.02, label: 'FARMA', color: '#8a7a33' },
+    storehouse: { w: 2, h: 2, hp: 150, cost: { wood: 50 }, build: 15, deposit: true, label: 'MAGAZYN', color: '#6a6a5a' },
+    barracks:   { w: 2, h: 2, hp: 300, cost: { wood: 100, gold: 40 }, build: 40, label: 'KOSZARY', color: '#5a4a6a' },
+    factory:    { w: 2, h: 2, hp: 300, cost: { wood: 120, gold: 80 }, build: 45, gunTime: 15, gunCost: { wood: 5, gold: 10 }, label: 'FABRYKA', color: '#4a4a5a' },
+    zagroda:    { w: 2, h: 2, hp: 220, cost: { wood: 70, gold: 40 }, build: 30, horseTime: 30, horseCost: { food: 20, gold: 10 }, label: 'ZAGRODA', color: '#8a6a4a' },
+    tepee:      { w: 2, h: 2, hp: 120, cost: { wood: 30 }, build: 10, pop: 5, label: 'TEPEE', color: '#9a6a3a' },
+  },
+  techs: {
+    siekiery: { bld: 'hq', cost: { food: 50 }, time: 30, name: 'Ostrzone siekiery', desc: 'wycinka +20%' },
+    plug:     { bld: 'hq', cost: { food: 80, gold: 30 }, time: 40, name: 'Pług', desc: 'plony +30%' },
+    selekcja: { bld: 'zagroda', cost: { food: 100, gold: 40 }, time: 50, name: 'Selekcja koni', desc: 'hodowla 30 -> 24 s' },
+    sztauga:  { bld: 'barracks', cost: { gold: 100 }, time: 45, name: 'Kowbojska sztauga', desc: 'jeźdźcy +10% HP' },
+  },
+};
+const BUILD_MENU_SETTLER = [
+  { type: 'house', key: 'H', name: 'Dom' }, { type: 'farm', key: 'F', name: 'Farma' },
+  { type: 'storehouse', key: 'M', name: 'Magazyn' }, { type: 'barracks', key: 'K', name: 'Koszary' },
+  { type: 'factory', key: 'B', name: 'Fabryka broni' },
+  { type: 'zagroda', key: 'Z', name: 'Zagroda koni' },
+];
+// Sioux: tepee zamiast domu (pop +5), bez fabryki broni (łuki robią się z drewna) i bez zagrody (brak kawalerii); koszary produkują łuczników i medicine manów
+const BUILD_MENU_SIOUX = [
+  { type: 'tepee', key: 'E', name: 'Tepee' }, { type: 'farm', key: 'F', name: 'Farma' },
+  { type: 'storehouse', key: 'M', name: 'Magazyn' }, { type: 'barracks', key: 'K', name: 'Koszary' },
+];
+function buildMenuFor(race) { return race === 'sioux' ? BUILD_MENU_SIOUX : BUILD_MENU_SETTLER; }
+// produkcja z budynków per frakcja: obóz Osadników wypuszcza robotnika, obóz Sioux squawę, wojownika i wodza; koszary różnie
+function trainMenuFor(b, race) {
+  if (b.type === 'hq') return race === 'sioux' ? ['squaw', 'wojownik', 'wodz'] : ['worker'];
+  if (b.type === 'barracks') return race === 'sioux' ? ['lucznik', 'medicine'] : ['piechota', 'jezdiec'];
+  return [];
+}
+
+// ============================== RNG ==============================
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+let rng = mulberry32(1);
+
+// ============================== STATE ==============================
+const MAP = CFG.map;
+const T_GRASS = 0, T_FOREST = 1, T_GOLD = 2, T_WATER = 3, T_MEAT = 4, T_THICK = 5;
+// przybliżenie kamery: świat rysowany przez transform ZOOM; 2 = piksel-art 2x bez wygładzania, 1 = stara skala
+const ZOOM = 2;
+const S = {};
+const idx = (x, y) => y * MAP + x;
+const inMap = (x, y) => x >= 0 && y >= 0 && x < MAP && y < MAP;
+
+function newGame(seed, race) {
+  S.playerRace = race || S.playerRace || 'settler';
+  rng = mulberry32(seed >>> 0);
+  S.time = 0; S.nextId = 1;
+  S.res = { ...CFG.startRes };
+  S.techs = { player: {}, enemy: {} };
+  S.terrain = new Uint8Array(MAP * MAP);
+  S.amt = new Float32Array(MAP * MAP);
+  S.buildings = []; S.units = [];
+  S.explored = new Uint8Array(MAP * MAP);
+  S.visible = new Uint8Array(MAP * MAP);
+  S.selected = { units: [], building: null };
+  S.groups = {}; S.lastGroup = 0; S.lastGroupT = 0;
+  S.placing = null; S.gameOver = null;
+  S.alertCooldown = {};
+  S.pending = [];
+  S.woodAlertT = 0;
+  S.moraleT = 0;
+  S.rainT = {};   // pozostały czas deszczu per frakcja (aktywny tylko dla frakcji z medicine manem)
+  S.storms = [];  // aktywne burze: { x, y, fac, t }
+  S.shots = [];
+  S.hits = [];
+  S.muted = false;
+  S.testMode = false;
+  S.menuOpen = false;
+  // gospodarka bandytów: własne zasoby i kontroler AI (fale zastąpione realną produkcją)
+  S.resE = { ...CFG.ai.startRes };
+  S.ai = { thinkT: 1, attacks: 0, attackCd: CFG.ai.attackCooldown, trainQ: 0 };
+
+  genMap();
+  const hq = addBuilding('hq', 33, 33, 'player');
+  addBuilding('hq', 2, 2, 'enemy');
+  // start per frakcja: Osadnicy 4 robotników, Sioux 2 squawy i 2 wojowników (asymetria ekonomii od pierwszej sekundy)
+  const startU = S.playerRace === 'sioux' ? ['squaw', 'squaw', 'wojownik', 'wojownik'] : ['worker', 'worker', 'worker', 'worker'];
+  const pu = [];
+  for (let i = 0; i < 4; i++) {
+    const u = addUnit(startU[i], 'player', 32 + (i % 2), 36 + Math.floor(i / 2));
+    u.x += 0.5; u.y += 0.5;
+    pu.push(u);
+  }
+  for (let i = 0; i < 3; i++) addUnit('desperado', 'enemy', 5 + i, 5).x += 0.5, S.units[S.units.length - 1].y += 0.5;
+  const eWorkers = [];
+  for (let i = 0; i < 2; i++) eWorkers.push(addUnit('worker', 'enemy', 6 + i, 4));
+  orderGatherAuto(eWorkers[0], T_FOREST);
+  orderGatherAuto(eWorkers[1], T_FOREST);
+  computeFog();
+  // startowe rozkazy: 2 drwale, 1 górnik, czwarty wolny (autostart gospodarki); Sioux: wojownicy rąbią, squawy czekają na budowę
+  if (S.playerRace === 'sioux') {
+    const wojs = pu.filter(u => u.type === 'wojownik');
+    orderGatherAuto(wojs[0], T_FOREST); orderGatherAuto(wojs[1], T_FOREST);
+  } else {
+    orderGatherAuto(pu[0], T_FOREST); orderGatherAuto(pu[1], T_FOREST);
+    orderGatherAuto(pu[2], T_GOLD);
+  }
+  centerCameraOn(34.5, 34.5);
+}
+
+function genMap() {
+  // baza: trawa
+  // kępy lasu
+  const clusters = 9;
+  for (let c = 0; c < clusters; c++) {
+    const cx = 3 + Math.floor(rng() * (MAP - 6)), cy = 3 + Math.floor(rng() * (MAP - 6));
+    const n = 14 + Math.floor(rng() * 16);
+    for (let i = 0; i < n; i++) {
+      const x = cx + Math.floor(rng() * 7 - 3), y = cy + Math.floor(rng() * 7 - 3);
+      if (!inMap(x, y)) continue;
+      S.terrain[idx(x, y)] = T_FOREST;
+      S.amt[idx(x, y)] = 100;
+    }
+  }
+  // gwarantowany las przy bazie gracza (kolumny 24-27 przeżywają czyszczenie strefy startowej)
+  for (let i = 0; i < 10; i++) {
+    const x = 24 + Math.floor(rng() * 4), y = 28 + Math.floor(rng() * 7);
+    S.terrain[idx(x, y)] = T_FOREST; S.amt[idx(x, y)] = 100;
+  }
+  // żyły złota: przy bazie gracza, środek mapy, przy wrogu (poza strefami czyszczonymi)
+  const veins = [[26, 26], [20, 20], [8, 10]];
+  for (const [vx, vy] of veins) {
+    for (let i = 0; i < 4; i++) {
+      const x = vx + (i % 2), y = vy + Math.floor(i / 2);
+      S.terrain[idx(x, y)] = T_GOLD; S.amt[idx(x, y)] = 1000;
+    }
+  }
+  // wyczyść strefy startowe (promień 4 wokół obozów)
+  for (const [ax, ay] of [[33.5, 33.5], [3.5, 3.5]]) {
+    for (let y = Math.floor(ay - 5); y <= ay + 5; y++)
+      for (let x = Math.floor(ax - 5); x <= ax + 5; x++)
+        if (inMap(x, y)) { S.terrain[idx(x, y)] = T_GRASS; S.amt[idx(x, y)] = 0; }
+  }
+  // gęsty las [Ź 19.6]: tunel dla pieszych (Indianie 1.5, osadnicy 2.0), blokada dla konnych, wozów i zwierzyny; kępy poza strefami startowymi, przed spawnem stad
+  for (const [tx, ty, n] of [[30, 24, 12], [10, 14, 12], [22, 6, 8]]) {
+    for (let i = 0; i < n; i++) {
+      const x = tx + Math.floor(rng() * 5 - 2), y = ty + Math.floor(rng() * 5 - 2);
+      if (!inMap(x, y)) continue;
+      S.terrain[idx(x, y)] = T_THICK; S.amt[idx(x, y)] = 0;
+    }
+  }
+  // stada dzikich koni (neutralne, do schwytania przez każdą frakcję)
+  for (const [hx, hy] of [[28, 24], [12, 26], [20, 10]]) {
+    let placed = 0, tries = 0;
+    while (placed < 5 + Math.floor(rng() * 4) && tries < 40) {
+      tries++;
+      const x = hx + Math.floor(rng() * 7) - 3, y = hy + Math.floor(rng() * 7) - 3;
+      if (!inMap(x, y) || isBlocked(x, y)) continue;
+      addUnit('horse', 'neutral', x + 0.5, y + 0.5);
+      placed++;
+    }
+  }
+  // stada zwierzyny łownej: bizony (19.6: 4-8 sztuk) i bydło, daleko od stref startowych [Ź dla bizonów w grze]
+  // padlina po ubiciu staje się kafl żywności (T_MEAT), więc stada to drugie, odnawialne źródło prowiantu po farmach
+  for (const [hx, hy, type, base, spread] of [[30, 12, 'bizon', 4, 4], [8, 22, 'bizon', 4, 4], [16, 18, 'bizon', 4, 4], [26, 30, 'bydlo', 3, 2], [12, 8, 'bydlo', 3, 2]]) {
+    let placed = 0, tries = 0;
+    while (placed < base + Math.floor(rng() * spread) && tries < 40) {
+      tries++;
+      const x = hx + Math.floor(rng() * 7) - 3, y = hy + Math.floor(rng() * 7) - 3;
+      if (!inMap(x, y) || isBlocked(x, y)) continue;
+      addUnit(type, 'neutral', x + 0.5, y + 0.5);
+      placed++;
+    }
+  }
+  // rzeka meandrująca przy wschodniej krawędzi: 2 kafle szerokości, meander ±1 kafel
+  // przy krawędzi zamiast przez środek: czytelny akcent terenu bez odcinania ścieżek między bazami
+  let rx = MAP - 4;
+  for (let y = 1; y < MAP - 1; y++) {
+    if (rng() < 0.3) rx = Math.max(MAP - 4, Math.min(MAP - 3, rx + (rng() < 0.5 ? -1 : 1)));
+    S.terrain[idx(rx, y)] = T_WATER; S.amt[idx(rx, y)] = 0;
+    S.terrain[idx(rx + 1, y)] = T_WATER; S.amt[idx(rx + 1, y)] = 0;
+  }
+  // czyszczenie surowców odciętych za rzeką (pasek wschodni: niedostępne dla robotników)
+  for (let y = 0; y < MAP; y++) for (let x = MAP - 4; x < MAP; x++)
+    if (S.terrain[idx(x, y)] === T_FOREST || S.terrain[idx(x, y)] === T_GOLD || S.terrain[idx(x, y)] === T_THICK)
+      { S.terrain[idx(x, y)] = T_GRASS; S.amt[idx(x, y)] = 0; }
+}
+
+// ============================== SIM: BUDYNKI I JEDNOSTKI ==============================
+function addBuilding(type, tx, ty, fac) {
+  const def = CFG.buildings[type];
+  const b = {
+    id: S.nextId++, type, fac, tx, ty, w: def.w, h: def.h,
+    cx: tx + def.w / 2, cy: ty + def.h / 2,
+    hp: def.hp, maxHp: def.hp, built: type === 'hq', progress: 0,
+    queue: [], on: true, busy: null,
+  };
+  S.buildings.push(b);
+  return b;
+}
+function addUnit(type, fac, tx, ty) {
+  const def = CFG.units[type];
+  const hp = def.hp * (type === 'jezdiec' && hasTech(fac, 'sztauga') ? 1.1 : 1);
+  const u = {
+    id: S.nextId++, type, fac, x: tx, y: ty,
+    hp, maxHp: hp, state: 'idle',
+    path: [], pathI: 0, carry: 0, carryType: null,
+    node: null, farm: null, buildTarget: null,
+    attackTarget: null, orderBuilding: null,
+    captureTarget: null, captureT: 0, grazeT: 3,
+    morale: 100, fleeT: 0, fleeArmed: true, lastThreat: null,
+    xp: 0, lvl: 0, stance: 'norm', ordered: false,
+    cd: 0, repathT: 0, facing: 1,
+  };
+  S.units.push(u);
+  return u;
+}
+function buildingAt(x, y) {
+  for (const b of S.buildings)
+    if (x >= b.tx && x < b.tx + b.w && y >= b.ty && y < b.ty + b.h) return b;
+  return null;
+}
+function isBlocked(x, y) {
+  if (!inMap(x, y)) return true;
+  const t = S.terrain[idx(x, y)];
+  if (t === T_FOREST || t === T_GOLD || t === T_WATER || t === T_THICK) return true;
+  return !!buildingAt(x, y);
+}
+// ruch jednostek per teren [Ź 19.6]: rzeka tylko dla Indian (płyną), gęsty las tunelem dla pieszych (nie dla konnych i zwierzyny)
+function passableFor(def, x, y) {
+  if (!inMap(x, y)) return false;
+  const t = S.terrain[idx(x, y)];
+  if (t === T_WATER) return !!(def && def.swim);
+  if (t === T_THICK) return !!(def && !def.cav && !def.animal);
+  if (t === T_FOREST || t === T_GOLD) return false;
+  return !buildingAt(x, y);
+}
+// koszt terenowy [Ź 19.6]: trawa 1.0, rzeka 0.5 dla Indian, gęsty las 1.5 Indianie / 2.0 piesi osadników
+function terrainCost(def, x, y) {
+  const t = inMap(x, y) ? S.terrain[idx(x, y)] : T_GRASS;
+  if (t === T_WATER) return def && def.swim ? 0.5 : 1.0;
+  if (t === T_THICK) return def && def.swim ? 1.5 : 2.0;
+  return 1.0;
+}
+// jednostka w wodzie: płynie i nie atakuje [Ź 6.2/19.6]
+function isSwimming(u) {
+  return inMap(Math.floor(u.x), Math.floor(u.y)) && S.terrain[idx(Math.floor(u.x), Math.floor(u.y))] === T_WATER;
+}
+// wersje findPath/pathToBuilding dla jednostki: droga liczone przez passableFor jej definicji
+function uPath(u, gx, gy, r) { return uPath(u, gx, gy, r, CFG.units[u.type]); }
+function pathToBuildingU(u, b) { return pathToBuildingU(u, b, CFG.units[u.type]); }
+function freeTilesAround(cx, cy, r) {
+  const out = [];
+  for (let y = cy - r; y <= cy + r; y++)
+    for (let x = cx - r; x <= cx + r; x++)
+      if (!isBlocked(x, y)) out.push([x, y]);
+  return out;
+}
+
+// BFS: szuka drogi do pola w promieniu r od celu (lub samego celu, jeśli wolne); def = definicja jednostki decyduje o przejściach (rzeka, gęsty las)
+function findPath(sx, sy, gx, gy, r, def) {
+  r = r || 1;
+  sx = Math.floor(sx); sy = Math.floor(sy);
+  if (!inMap(sx, sy)) return [];
+  const goalOk = (x, y) => Math.abs(x - gx) <= r && Math.abs(y - gy) <= r;
+  const start = idx(sx, sy);
+  if (goalOk(sx, sy)) return [];
+  const prev = new Int32Array(MAP * MAP).fill(-1);
+  const seen = new Uint8Array(MAP * MAP);
+  const q = [start]; seen[start] = 1;
+  let head = 0, found = -1;
+  while (head < q.length) {
+    const cur = q[head++];
+    const cx = cur % MAP, cy = (cur - cx) / MAP;
+    if (goalOk(cx, cy)) { found = cur; break; }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = cx + dx, ny = cy + dy;
+      if (!inMap(nx, ny) || !passableFor(def, nx, ny)) continue;
+      const ni = idx(nx, ny);
+      if (seen[ni]) continue;
+      seen[ni] = 1; prev[ni] = cur; q.push(ni);
+    }
+  }
+  if (found === -1) return [];
+  const path = [];
+  let cur = found;
+  while (cur !== start && cur !== -1) { path.push([cur % MAP, Math.floor(cur / MAP)]); cur = prev[cur]; }
+  path.reverse();
+  return path;
+}
+// cel-budynek: promień celu musi obejmować wolny pierścień przy footprincie,
+// inaczej (cel = środek budynku 3x3) BFS nigdy nie znajdzie pola stopu
+function goalR(b) {
+  const m = Math.max(b.w, b.h);
+  return m % 2 === 0 ? m / 2 : (m + 1) / 2;
+}
+function pathToBuilding(sx, sy, b, def) {
+  return findPath(sx, sy, Math.floor(b.cx), Math.floor(b.cy), goalR(b), def);
+}
+
+// ============================== GOSPODARKA ==============================
+function facRes(fac) { return fac === 'enemy' ? S.resE : S.res; }
+function hasTech(fac, id) { return !!(S.techs && S.techs[fac || 'player'] && S.techs[fac || 'player'][id]); }
+function canAfford(cost, fac) {
+  const R = facRes(fac || 'player');
+  for (const k in cost) if (R[k] < cost[k]) return false;
+  return true;
+}
+function pay(cost, fac) {
+  if (!canAfford(cost, fac)) return false;
+  const R = facRes(fac || 'player');
+  for (const k in cost) R[k] -= cost[k];
+  return true;
+}
+function addRes(type, n, fac) { const R = facRes(fac || 'player'); R[type] = Math.min(CFG.resCap[type], R[type] + n); }
+function popCap(fac) {
+  let p = 0;
+  for (const b of S.buildings) if (b.fac === (fac || 'player') && b.built) p += CFG.buildings[b.type].pop || 0;
+  return p;
+}
+function popUsed(fac) { return S.units.filter(u => u.fac === (fac || 'player')).length; }
+function deposits(fac) {
+  return S.buildings.filter(b => b.fac === (fac || 'player') && b.built && CFG.buildings[b.type].deposit);
+}
+function nearestDeposit(u) {
+  let best = null, bd = 1e9;
+  for (const b of deposits(u.fac)) {
+    const d = (b.cx - u.x) ** 2 + (b.cy - u.y) ** 2;
+    if (d < bd) { bd = d; best = b; }
+  }
+  return best;
+}
+function findNodeNear(ter, x, y, r) {
+  let best = null, bd = 1e9;
+  for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    const nx = x + dx, ny = y + dy;
+    if (!inMap(nx, ny) || S.terrain[idx(nx, ny)] !== ter || S.amt[idx(nx, ny)] <= 0) continue;
+    const d = dx * dx + dy * dy;
+    if (d < bd) { bd = d; best = [nx, ny]; }
+  }
+  return best;
+}
+function orderGatherAuto(u, ter) {
+  // fallback promienia: lokalny node, potem dalszy, na końcu cała mapa
+  // (bez tego wyczerpany las w okolicy zostawia robotnika bezczynnym na zawsze)
+  let node = findNodeNear(ter, Math.floor(u.x), Math.floor(u.y), 12);
+  if (!node) node = findNodeNear(ter, Math.floor(u.x), Math.floor(u.y), 25);
+  if (!node) node = findNodeNear(ter, Math.floor(u.x), Math.floor(u.y), MAP);
+  if (node) orderGather(u, node[0], node[1]);
+}
+// zwolnienie farmy zajętej przez robotnika (przy zmianie rozkazu)
+function releaseFarm(u) {
+  for (const b of S.buildings) if (b.busy === u.id) b.busy = null;
+  u.farm = null;
+}
+function orderGather(u, nx, ny) {
+  u.node = [nx, ny];
+  const gt = S.terrain[idx(nx, ny)];
+  u.carryType = gt === T_FOREST ? 'wood' : gt === T_MEAT ? 'food' : 'gold';
+  releaseFarm(u); u.buildTarget = null; u.attackTarget = null; u.orderBuilding = null;
+  u.path = uPath(u, nx, ny); u.pathI = 0;
+  u.state = u.path.length ? 'toNode' : 'gather';
+}
+
+// ============================== ROZKAZY (kolejka z wejścia) ==============================
+function queueCmd(cmd) { S.pending.push(cmd); }
+function addHitFx(x, y, o) {
+  S.hits.push(Object.assign({ x, y, age: 0 }, o));
+  if (S.hits.length > 60) S.hits.shift();
+}
+function addShot(u, tx, ty) {
+  S.shots.push({ x0: u.x, y0: u.y, x1: tx, y1: ty, age: 0 });
+  if (S.shots.length > 40) S.shots.shift();
+  sfx('shot', u.x, u.y);
+}
+function processCmds() {
+  while (S.pending.length) {
+    const c = S.pending.shift();
+    if (c.action === 'order') executeOrder(c);
+    else if (c.action === 'place') tryPlace(c.type, c.x, c.y);
+    else if (c.action === 'train') tryTrain(c.building, c.unitType);
+    else if (c.action === 'research') tryResearch(c.building, c.techId);
+    else if (c.action === 'toggle') { c.building.on = !c.building.on; }
+    else if (c.action === 'resume') {
+      if (!S.buildings.includes(c.building)) continue;
+      const idle = S.units.filter(u => u.fac === 'player' && unitRole(u, 'builder') && u.state === 'idle');
+      if (idle.length) assignBuilders(c.building, idle);
+      else uiAlert('Brak bezczynnych robotników (PPM: wybrane robotnicy wznowią)');
+    }
+  }
+}
+function executeOrder(c) {
+  const units = c.units.filter(u => S.units.includes(u) && u.state !== 'flee');
+  if (c.units.some(u => S.units.includes(u) && u.state === 'flee')) uiAlert('Spanikowana jednostka ignoruje rozkazy');
+  if (!units.length) return;
+  sfx('order', c.x, c.y);
+  // cel: jednostka wroga?
+  const target = c.targetUnit && S.units.includes(c.targetUnit) ? c.targetUnit : null;
+  // polowanie: klik na zwierzę; jednostki z flagą hunter (worker, desperado-łowca) atakują, reszta tylko podchodzi
+  if (target && target.fac === 'neutral' && CFG.units[target.type] && CFG.units[target.type].animal) {
+    for (const u of units) {
+      if (CFG.units[u.type] && CFG.units[u.type].hunter) {
+        u.attackTarget = target; u.ordered = true; u.node = null; releaseFarm(u); u.buildTarget = null; u.orderBuilding = null;
+        u.state = 'attack';
+      } else {
+        u.node = null; releaseFarm(u); u.buildTarget = null; u.attackTarget = null; u.orderBuilding = null;
+        u.path = uPath(u, c.x, c.y); u.pathI = 0; u.state = 'move';
+      }
+    }
+    return;
+  }
+  const b = buildingAt(c.x, c.y);
+  if (target && target.fac !== units[0].fac) {
+    for (const u of units) {
+      u.attackTarget = target; u.ordered = true; u.node = null; releaseFarm(u); u.buildTarget = null;
+      u.state = 'attack';
+    }
+    return;
+  }
+  // schwytanie dzikiego konia (dowolna jednostka, 5 s [Ź])
+  if (c.targetHorse && S.units.includes(c.targetHorse)) {
+    const h = c.targetHorse;
+    for (const u of units) {
+      u.captureTarget = h; u.node = null; releaseFarm(u); u.buildTarget = null; u.attackTarget = null; u.orderBuilding = null;
+      u.path = uPath(u, Math.floor(h.x), Math.floor(h.y)); u.pathI = 0;
+      u.state = u.path.length ? 'toCapture' : 'capture';
+    }
+    return;
+  }
+  // budynek wroga albo własna farma
+  if (b) {
+    if (b.fac !== units[0].fac) {
+      for (const u of units) { u.orderBuilding = b; u.attackTarget = null; releaseFarm(u); u.buildTarget = null; u.state = 'assault'; u.path = pathToBuildingU(u, b); u.pathI = 0; }
+      return;
+    }
+    if (b.type === 'farm' && b.built) {
+      const workers = units.filter(u => unitRole(u, 'farmer'));
+      for (const u of workers) {
+        if (b.busy && b.busy !== u.id) { uiAlert('Farma jest już zajęta'); continue; }
+        releaseFarm(u);
+        b.busy = u.id;
+        u.farm = b; u.node = null; u.buildTarget = null; u.attackTarget = null;
+        u.path = pathToBuildingU(u, b); u.pathI = 0;
+        u.state = u.path.length ? 'toFarm' : 'farming';
+      }
+      const rest = units.filter(u => !unitRole(u, 'farmer'));
+      for (const u of rest) { u.state = 'move'; u.path = uPath(u, c.x, c.y); u.pathI = 0; }
+      return;
+    }
+    // nieukończona własna budowla: wznowienie budowy
+    if (!b.built) {
+      assignBuilders(b, units.filter(u => unitRole(u, 'builder')));
+      for (const u of units.filter(u => !unitRole(u, 'builder'))) { u.state = 'move'; u.path = uPath(u, c.x, c.y); u.pathI = 0; }
+      return;
+    }
+  }
+  // surowiec?
+  const ter = inMap(c.x, c.y) ? S.terrain[idx(c.x, c.y)] : T_GRASS;
+  if ((ter === T_FOREST || ter === T_GOLD || ter === T_MEAT) && S.amt[idx(c.x, c.y)] > 0) {
+    for (const u of units) {
+      if (canGatherRes(u, ter)) orderGather(u, c.x, c.y);
+      else { u.state = 'move'; u.path = uPath(u, c.x, c.y); u.pathI = 0; }
+    }
+    return;
+  }
+  // ruch
+  for (const u of units) {
+    u.node = null; releaseFarm(u); u.buildTarget = null; u.attackTarget = null; u.orderBuilding = null;
+    u.path = uPath(u, c.x, c.y); u.pathI = 0;
+    u.state = 'move';
+  }
+}
+// role zawodowe jednostek: builder (buduje), farmer (uprawia), woodcutter (rąbie)
+function unitRole(u, role) {
+  const d = CFG.units[u.type];
+  return !!(d && d[role]);
+}
+// kto może zbierać surowiec z mapy: robotnik wszystko, wojownik (woodcutter) drewno, złoto i padlinę, squaw nic [Ź 6.2, przydział złota i padliny decyzja własna]
+function canGatherRes(u, ter) {
+  if (u.type === 'worker') return true;
+  const d = CFG.units[u.type];
+  return !!(d && d.woodcutter && (ter === T_FOREST || ter === T_GOLD || ter === T_MEAT));
+}
+// przydziel robotników do budowy (nowej albo przerwanej)
+function assignBuilders(b, workers) {
+  for (const u of workers) {
+    u.buildTarget = b; u.node = null; releaseFarm(u); u.attackTarget = null; u.orderBuilding = null;
+    u.path = pathToBuildingU(u, b); u.pathI = 0;
+    u.state = u.path.length ? 'toBuild' : 'building';
+  }
+}
+function tryPlace(type, tx, ty) {
+  const def = CFG.buildings[type];
+  for (let y = ty; y < ty + def.h; y++) for (let x = tx; x < tx + def.w; x++)
+    if (!inMap(x, y) || isBlocked(x, y)) { uiAlert('Nie można tu budować'); return; }
+  if (!pay(def.cost)) { uiAlert('Brak surowców'); return; }
+  const b = addBuilding(type, tx, ty, 'player');
+  sfx('place', b.cx, b.cy);
+  assignBuilders(b, S.selected.units.filter(u => unitRole(u, 'builder')));
+}
+function tryTrain(b, unitType) {
+  if (!b.built || b.queue.length >= 5) return;
+  const def = CFG.units[unitType];
+  if (def.limit) {
+    const cnt = S.units.filter(u => u.fac === b.fac && u.type === unitType).length + b.queue.filter(q => q.type === unitType).length;
+    if (cnt >= def.limit) { uiAlert('Limit: maksymalnie ' + def.limit); return; }
+  }
+  if (popUsed(b.fac) + b.queue.length >= popCap(b.fac)) { uiAlert('Brak miejsc (zbuduj dom)'); return; }
+  if (!pay(def.cost)) { uiAlert('Brak surowców'); return; }
+  b.queue.push({ type: unitType, remaining: def.train });
+}
+function tryResearch(b, techId) {
+  const td = CFG.techs[techId];
+  if (!td || td.bld !== b.type || !b.built || b.research || hasTech(b.fac, techId)) return;
+  if (!pay(td.cost, b.fac)) { uiAlert('Brak surowców'); return; }
+  b.research = { id: techId, remaining: td.time };
+}
+
+// ============================== UPDATE ==============================
+function update(dt) {
+  if (S.gameOver) return;
+  if (S.menuOpen) return; // menu startowe: symulacja stoi, kamera i render żyją
+  S.time += dt;
+  processCmds();
+  for (const u of S.units) updateUnit(u, dt);
+  for (const b of S.buildings) updateBuilding(b, dt);
+  updateAbilities(dt);
+  // morale: aktualizacja w dyskretnych krokach co 1 s (formuły 19.4)
+  S.moraleT += dt;
+  while (S.moraleT >= CFG.morale.tick) { S.moraleT -= CFG.morale.tick; updateMorale(); }
+  // rozsunięcie jednostek
+  const us = S.units;
+  for (let i = 0; i < us.length; i++) for (let j = i + 1; j < us.length; j++) {
+    const a = us[i], b = us[j];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 > 0.0001 && d2 < 0.2) {
+      const d = Math.sqrt(d2), push = (0.45 - d) * 0.5;
+      const nx = dx / d, ny = dy / d;
+      a.x -= nx * push * dt * 3; a.y -= ny * push * dt * 3;
+      b.x += nx * push * dt * 3; b.y += ny * push * dt * 3;
+    }
+  }
+  // klamp pozycji (separacja nie może wypchnąć poza mapę)
+  for (const u of S.units) {
+    u.x = Math.max(0.05, Math.min(MAP - 0.05, u.x));
+    u.y = Math.max(0.05, Math.min(MAP - 0.05, u.y));
+  }
+  // AI bandytów: myśli zamiast sztucznych fal (gospodarka, trening, wyprawy łupieżcze)
+  updateAI(dt);
+  // kapitulacja gracza (reguła z patcha 1.02: brak obozu, przywódcy i robotników)
+  const pUnits = S.units.filter(u => u.fac === 'player');
+  if (!pUnits.some(u => u.type === 'worker') && pUnits.length === 0 && S.res.food < 30) endGame('lose', 'Twoja osada zniknęła z mapy. Dzikie czasy.');
+  if (S.fx) { S.fx.age += dt; if (S.fx.age > 1) S.fx = null; }
+  for (const sh of S.shots) sh.age += dt;
+  S.shots = S.shots.filter(sh => sh.age < 0.25);
+  for (const h of S.hits) h.age += dt;
+  S.hits = S.hits.filter(h => h.age < 0.3);
+  computeFog();
+}
+
+function stepSnd(u, dist) {
+  // kroki liczone przebytym dystansem, nie czasem: jednostka stojąca nie hałasuje
+  u.stepAcc = (u.stepAcc || 0) + dist;
+  const hoof = u.type === 'jezdiec' || u.type === 'konnobanda';
+  if (u.stepAcc >= (hoof ? 0.4 : 0.5)) { u.stepAcc = 0; sfx(hoof ? 'hoof' : 'step', u.x, u.y); }
+}
+function followPath(u, dt) {
+  const def = CFG.units[u.type];
+  const [nx, ny] = u.path[u.pathI];
+  const tx = nx + 0.5, ty = ny + 0.5;
+  const dx = tx - u.x, dy = ty - u.y;
+  const d = Math.hypot(dx, dy);
+  // koszt terenowy: rzeka 0.5 dla Indian, gęsty las 1.5/2.0, trawa 1.0 (tempo = speed / koszt)
+  const step = def.speed * dt / terrainCost(def, Math.floor(u.x), Math.floor(u.y));
+  if (d <= step) { u.x = tx; u.y = ty; stepSnd(u, Math.min(d, step)); u.pathI++; if (u.pathI >= u.path.length) { u.path = []; return true; } }
+  else { u.x += dx / d * step; u.y += dy / d * step; if (Math.abs(dx) > 0.01) u.facing = dx > 0 ? 1 : -1; stepSnd(u, step); }
+  return false;
+}
+
+function updateUnit(u, dt) {
+  if (u.type === 'horse') { updateHorse(u, dt); return; }
+  if (CFG.units[u.type] && CFG.units[u.type].animal) { updateAnimal(u, dt); return; }
+  const def = CFG.units[u.type];
+  u.cd = Math.max(0, u.cd - dt);
+  u.kick = Math.max(0, (u.kick || 0) - dt);
+  // wojsko: auto-nabór celu w promieniu agresji (neutralne konie nie są celem)
+  const acqR = stanceAcquireR(u, def);
+  if (acqR > 0 && !isSwimming(u) && !u.attackTarget && u.state !== 'assault' && u.state !== 'flee') {
+    let best = null, bd = acqR * acqR;
+    for (const e of S.units) {
+      if (e.fac === u.fac || e.fac === 'neutral' || (e.fac === 'player' && !S.visible[idx(Math.floor(e.x), Math.floor(e.y))])) continue;
+      const d = (e.x - u.x) ** 2 + (e.y - u.y) ** 2;
+      if (d < bd) { bd = d; best = e; }
+    }
+    if (best) { u.attackTarget = best; u.ordered = false; u.state = 'attack'; }
+  }
+  switch (u.state) {
+    case 'flee': {
+      u.fleeT -= dt;
+      if (u.path.length) followPath(u, dt);
+      if (u.fleeT <= 0) {
+        // nadal złamany: kolejna odsłona ucieczki, aż morale odbuduje się nad próg
+        if (u.morale < CFG.morale.fleeAt) { startFlee(u); break; }
+        if (u.orderBuilding && S.buildings.includes(u.orderBuilding)) u.state = 'assault';
+        else if (u.node && inMap(u.node[0], u.node[1]) && S.amt[idx(u.node[0], u.node[1])] > 0) {
+          u.path = uPath(u, u.node[0], u.node[1]); u.pathI = 0;
+          u.state = u.path.length ? 'toNode' : 'gather';
+        } else u.state = 'idle';
+      }
+      break;
+    }
+    case 'toCapture': {
+      const h = u.captureTarget;
+      if (!h || !S.units.includes(h)) { u.state = 'idle'; u.captureTarget = null; break; }
+      const d = Math.hypot(h.x - u.x, h.y - u.y);
+      if (d <= 1.9) { u.state = 'capture'; u.captureT = 5; u.path = []; break; }
+      if (!u.path.length || followPath(u, dt)) {
+        u.path = uPath(u, Math.floor(h.x), Math.floor(h.y)); u.pathI = 0;
+        u.state = u.path.length ? 'toCapture' : 'idle';
+      }
+      break;
+    }
+    case 'capture': {
+      const h = u.captureTarget;
+      if (!h || !S.units.includes(h)) { u.state = 'idle'; u.captureTarget = null; break; }
+      const d = Math.hypot(h.x - u.x, h.y - u.y);
+      if (d > 2.2) { u.state = 'toCapture'; u.path = uPath(u, Math.floor(h.x), Math.floor(h.y)); u.pathI = 0; break; }
+      u.captureT -= dt;
+      if (u.captureT <= 0) {
+        removeHorse(h);
+        addRes('horses', 1, u.fac);
+        u.captureTarget = null; u.state = 'idle';
+        if (u.fac === 'player') { uiAlert('Schwycono konia (w zagrodzie: ' + Math.floor(S.res.horses) + ')'); sfx('ok'); }
+      }
+      break;
+    }
+    case 'idle': break;
+    case 'move':
+      if (!u.path.length || followPath(u, dt)) u.state = 'idle';
+      break;
+    case 'toNode': if (!u.path.length || followPath(u, dt)) u.state = 'gather'; break;
+    case 'toDeposit': if (!u.path.length || followPath(u, dt)) u.state = 'deposit'; break;
+    case 'toBuild': if (!u.path.length || followPath(u, dt)) u.state = 'building'; break;
+    case 'toFarm': if (!u.path.length || followPath(u, dt)) u.state = 'farming'; break;
+    case 'gather': {
+      if (!u.node || !inMap(u.node[0], u.node[1]) || S.amt[idx(u.node[0], u.node[1])] <= 0) { switchToDeposit(u); break; }
+      const nd = Math.hypot(u.node[0] + 0.5 - u.x, u.node[1] + 0.5 - u.y);
+      if (nd > 2.2) {
+        u.path = uPath(u, u.node[0], u.node[1]); u.pathI = 0;
+        u.state = u.path.length ? 'toNode' : 'idle';
+        break;
+      }
+      const rate = gatherRate(u);
+      // XP z czasu pracy (Gameswelt), narasta nawet gdy surowiec się kończy, dopóki robotnik pracuje
+      gainXp(u, CFG.work.xpRate * dt);
+      const take = Math.min(rate * dt, CFG.carry - u.carry, S.amt[idx(u.node[0], u.node[1])]);
+      u.carry += take;
+      // rytm pracy: stuk siekiery/kilufa co ~0.8-1.1 s, rozsynchronizowany per robotnik (u.id)
+      u.sndT = (u.sndT || 0) + dt;
+      if (u.sndT >= 0.8 + (u.id % 4) * 0.1) { u.sndT = 0; sfx(u.carryType === 'wood' ? 'chop' : 'mine', u.x, u.y, 0.3); }
+      S.amt[idx(u.node[0], u.node[1])] -= take;
+      if (S.amt[idx(u.node[0], u.node[1])] <= 0) { S.terrain[idx(u.node[0], u.node[1])] = T_GRASS; }
+      if (u.carry >= CFG.carry) switchToDeposit(u);
+      break;
+    }
+    case 'deposit': {
+      const d = nearestDeposit(u);
+      if (d) { addRes(u.carryType, u.carry, u.fac); }
+      u.carry = 0;
+      if (u.node && inMap(u.node[0], u.node[1]) && S.amt[idx(u.node[0], u.node[1])] > 0) {
+        u.path = uPath(u, u.node[0], u.node[1]); u.pathI = 0; u.state = u.path.length ? 'toNode' : 'gather';
+      } else {
+        const next = findNodeNear(u.carryType === 'wood' ? T_FOREST : u.carryType === 'food' ? T_MEAT : T_GOLD, Math.floor(u.x), Math.floor(u.y), 12);
+        if (next) orderGather(u, next[0], next[1]); else u.state = 'idle';
+      }
+      break;
+    }
+    case 'building': {
+      const b = u.buildTarget;
+      if (!b || !S.buildings.includes(b)) { u.state = 'idle'; break; }
+      if (b.built) { u.state = 'idle'; u.buildTarget = null; break; }
+      const bdist = Math.hypot(b.cx - u.x, b.cy - u.y);
+      if (bdist > (b.w + b.h) / 2 + 1.5) {
+        u.path = pathToBuildingU(u, b); u.pathI = 0;
+        u.state = u.path.length ? 'toBuild' : 'idle';
+        break;
+      }
+      // postęp liczy updateBuilding (zależnie od liczby budujących)
+      // rytm budowy: stuk młotka co ~0.9-1.1 s, rozsynchronizowany per robotnik
+      u.sndT = (u.sndT || 0) + dt;
+      if (u.sndT >= 0.9 + (u.id % 3) * 0.1) { u.sndT = 0; sfx('build', u.x, u.y, 0.3); }
+      break;
+    }
+    case 'farming': {
+      const f = u.farm;
+      if (!f || !S.buildings.includes(f) || !f.built) { u.state = 'idle'; if (f) f.busy = null; break; }
+      const fdist = Math.hypot(f.cx - u.x, f.cy - u.y);
+      if (fdist > 2.5) {
+        u.path = pathToBuildingU(u, f); u.pathI = 0;
+        if (u.path.length) u.state = 'toFarm'; else { f.busy = null; u.state = 'idle'; }
+        break;
+      }
+      const fd = CFG.buildings.farm;
+      const prod = farmRate(u) * dt;
+      const upkeep = prod * fd.upkeep;
+      const R = facRes(u.fac);
+      if (R.wood >= upkeep) {
+        R.wood -= upkeep;
+        addRes('food', prod, u.fac);
+        gainXp(u, CFG.work.xpRate * dt);
+        if (u.fac === 'player') S.woodAlertT = 0;
+      } else if (u.fac === 'player') {
+        S.woodAlertT += dt;
+        if (S.woodAlertT > 10) { uiAlert('Brak drewna! Farma stoi (upkeep)'); S.woodAlertT = 0; }
+      }
+      break;
+    }
+    case 'attack': {
+      const t = u.attackTarget;
+      if (!t || !S.units.includes(t)) { u.attackTarget = null; u.state = u.orderBuilding ? 'assault' : 'idle'; break; }
+      const d = Math.hypot(t.x - u.x, t.y - u.y);
+      // postawa decyduje o pościgu: cel z rozkazu goni zawsze, automatyczny słucha postawy
+      if (stanceDropsTarget(u, def, d, !!u.ordered)) { u.attackTarget = null; u.state = 'idle'; break; }
+      if (d > def.range) {
+        u.repathT -= dt;
+        if (u.repathT <= 0) { u.path = uPath(u, Math.floor(t.x), Math.floor(t.y)); u.pathI = 0; u.repathT = 0.8; u.state = 'attack'; }
+        if (u.path.length) followPath(u, dt);
+      } else if (u.cd <= 0 && !isSwimming(u)) {
+        u.cd = def.cd;
+        u.kick = 0.15;
+        if (def.range > 1) addShot(u, t.x, t.y); else sfx('melee', t.x, t.y);
+        const tdef = CFG.units[t.type];
+        // strzał płoszy zwierzynę w promieniu 5 od celu [Ź 19.6], cios wręcz tylko trafione zwierzę
+        if (def.range > 1) scareAnimals(t.x, t.y, 5); else if (tdef && tdef.animal) scareAnimal(t, u.x, u.y);
+        if (Math.random() < hitChance(u.lvl, t.lvl, flankBonus(t))) {
+          addHitFx(t.x, t.y, { melee: def.range <= 1 });
+          t.hp -= rollDamage(def.dmg, u.lvl, typeMult(def, tdef, false), 0);
+          t.morale = Math.max(0, t.morale - CFG.morale.hitPenalty);
+          t.lastThreat = u;
+          gainXp(u, CFG.xp.hit);
+          if (t.hp <= 0) { gainXp(u, CFG.xp.kill); killUnit(t); }
+        } else {
+          addHitFx(t.x, t.y, { miss: true });
+        }
+      }
+      break;
+    }
+    case 'assault': {
+      const b = u.orderBuilding;
+      if (!b || !S.buildings.includes(b)) { u.orderBuilding = null; u.state = 'idle'; break; }
+      // w pobliżu wroge jednostki? zaatakuj (postawa bramkuje: trzymaj pozycję ignoruje prowokacje)
+      if (stanceAcquireR(u, def) > 0 && !isSwimming(u)) {
+        for (const e of S.units) {
+          if (e.fac === u.fac || e.fac === 'neutral') continue;
+          const d = (e.x - u.x) ** 2 + (e.y - u.y) ** 2;
+          if (d < def.aggro * def.aggro * 0.25) { u.attackTarget = e; u.ordered = false; u.state = 'attack'; return; }
+        }
+      }
+      const radius = (b.w + b.h) / 4;
+      const d = Math.hypot(b.cx - u.x, b.cy - u.y);
+      if (d > def.range + radius) {
+        u.repathT -= dt;
+        if (u.repathT <= 0) { u.path = pathToBuildingU(u, b); u.pathI = 0; u.repathT = 1.5; }
+        if (u.path.length) followPath(u, dt);
+      } else if (u.cd <= 0 && !isSwimming(u)) {
+        u.cd = def.cd;
+        u.kick = 0.15;
+        if (def.range > 1) addShot(u, b.cx, b.cy);
+        addHitFx(b.cx, b.cy, { melee: def.range <= 1 });
+        b.hp -= rollDamage(def.dmg, u.lvl, typeMult(def, null, true), 0);
+        if (b.hp <= 0) {
+          // łupy: część mienia zniszczonego obozu trafia do magazynów napastnika [Ź: klimat łupieżczy]
+          addRes('wood', 25, u.fac); addRes('food', 25, u.fac); addRes('gold', 8, u.fac);
+          destroyBuilding(b);
+        }
+      }
+      break;
+    }
+  }
+}
+function switchToDeposit(u) {
+  const d = nearestDeposit(u);
+  if (!d) { u.state = 'idle'; return; }
+  u.path = pathToBuildingU(u, d); u.pathI = 0;
+  u.state = u.path.length ? 'toDeposit' : 'deposit';
+}
+
+// ============================== MODEL WALKI (formuły 19.4) ==============================
+// trafienie: clamp(0.75 + 0.05*(poziomA - poziomT) + 0.10*oskrzydlenie, 0.30, 0.95)
+function hitChance(lvlA, lvlT, flank) {
+  return Math.max(0.30, Math.min(0.95, 0.75 + 0.05 * (lvlA - lvlT) + 0.10 * flank));
+}
+// mnożniki typu z 19.4: wręcz x1.5 przeciw strzeleckim, kawaleria x1.5 przeciw artylerii,
+// artyleria x0.5 przeciw pojedynczym pieszym, x2.0 przeciw budynkom (artyleria czeka na wdrożenie)
+function typeMult(attackerDef, targetDef, targetIsBuilding) {
+  const a = attackerDef.kind || 'melee';
+  if (targetIsBuilding) return a === 'art' ? 2.0 : 1.0;
+  const t = targetDef.kind || 'melee';
+  if (t === 'art') return attackerDef.cav ? 1.5 : 1.0;
+  if (t === 'gun' && a === 'melee') return 1.5;
+  if (t === 'bow' && a === 'melee') return 1.5; // łuk to broń dystansowa, bonus wręcz działa jak przeciw broni palnej (decyzja własna, źródła milczą)
+  if (a === 'art') return 0.5;
+  return 1.0;
+}
+// obrażenia: max(1, baza * (1 + 0.10*poziom) * mnożnikTypu - pancerz(cel))
+// pancerz w prototypie na razie 0 dla wszystkich (brak wartości w źródłach, czeka na manual)
+function rollDamage(base, lvl, mult, armor) {
+  return Math.max(1, Math.round(base * (1 + 0.10 * lvl) * mult - armor));
+}
+// poziom z XP (progi 25/75/150 -> poziomy 0-3); progi i zdobycz XP to decyzja projektowa,
+// oryginał ma trzecią statystykę doświadczenia ale nie znamy jego tabel
+function xpLevel(xp) {
+  const th = CFG.xp.thresholds; let lvl = 0;
+  for (let i = 0; i < th.length; i++) if (xp >= th[i]) lvl = i + 1;
+  return lvl;
+}
+function gainXp(u, n) {
+  u.xp += n;
+  const nl = xpLevel(u.xp);
+  if (nl > u.lvl) { u.lvl = nl; addHitFx(u.x, u.y, { lvlUp: true }); if (u.fac === 'player') sfx('ok', u.x, u.y); }
+}
+// Gameswelt: doświadczenie rośnie z czasem każdej pracy (nie tylko walki), a morale wpływa na pracowitość.
+// Mnożnik tempa pracy liniowy od morale: 100 daje 1.0, 0 daje moraleMin. Wartości własne, źródła nie podają tabel.
+function workMult(u) {
+  const m = CFG.work.moraleMin;
+  return m + (1 - m) * (u.morale / 100);
+}
+// tempo zbierania: baza surowca razy technika razy morale
+function gatherRate(u) {
+  const base = u.carryType === 'wood' ? CFG.chop * (hasTech(u.fac, 'siekiery') ? 1.2 : 1) : u.carryType === 'food' ? CFG.butcher : CFG.mine;
+  return base * workMult(u);
+}
+// tempo budowy: pierwszy budowniczy pełną mocą, każdy kolejny z dołem 50%, przy morale 100 zachowuje formułę 1 + 0.5*(n-1)
+function buildSpeed(builders) {
+  return 0.5 + builders.reduce((a, u) => a + workMult(u) * 0.5, 0);
+}
+// tempo farmy: baza razy technika razy morale
+function farmRate(u) {
+  return CFG.buildings.farm.foodRate * (hasTech(u.fac, 'plug') ? 1.3 : 1) * ((S.rainT && S.rainT[u.fac] > 0) ? 2 : 1) * workMult(u);
+}
+// ============================== ZDOLNOŚCI MEDICINE MANA (formuły 19.4) ==============================
+// deszcz: wszystkie pola frakcji +100% plonów przez 60 s, cooldown 180 s; koszt: brak (rytualny taniec)
+function castRain(u) {
+  if (u.type !== 'medicine' || (u.rainCd || 0) > 0) return;
+  u.rainCd = CFG.abilities.rain.cd;
+  S.rainT[u.fac] = CFG.abilities.rain.dur;
+  uiAlert('Taniec deszczu: pola dają podwójny plon przez ' + CFG.abilities.rain.dur + ' s');
+  sfx('ok');
+}
+// burza: obszar promień 3 wokół szamana, 10 obrażeń/s przez 5 s, jednorazowo morale wrogów -20, cooldown 120 s
+function castStorm(u) {
+  if (u.type !== 'medicine' || (u.stormCd || 0) > 0) return;
+  u.stormCd = CFG.abilities.storm.cd;
+  S.storms.push({ x: u.x, y: u.y, fac: u.fac, t: CFG.abilities.storm.dur });
+  for (const e of S.units) {
+    if (e.fac === u.fac || e.fac === 'neutral') continue;
+    if ((e.x - u.x) ** 2 + (e.y - u.y) ** 2 <= CFG.abilities.storm.r * CFG.abilities.storm.r)
+      e.morale = Math.max(0, e.morale - CFG.abilities.storm.morale);
+  }
+  uiAlert('Burza nad wrogiem (' + CFG.abilities.storm.dur + ' s)');
+}
+// tick zdolności: cooldowny jednostek, czas deszczu, obrażenia i czas burz
+function updateAbilities(dt) {
+  for (const u of S.units) {
+    if (u.type !== 'medicine') continue;
+    if (u.rainCd > 0) u.rainCd = Math.max(0, u.rainCd - dt);
+    if (u.stormCd > 0) u.stormCd = Math.max(0, u.stormCd - dt);
+  }
+  for (const fac in S.rainT) if (S.rainT[fac] > 0) S.rainT[fac] -= dt;
+  const dmg = CFG.abilities.storm.dps * dt;
+  for (const st of S.storms) {
+    st.t -= dt;
+    for (const e of S.units) {
+      if (e.fac === st.fac || e.fac === 'neutral') continue;
+      if ((e.x - st.x) ** 2 + (e.y - st.y) ** 2 > CFG.abilities.storm.r * CFG.abilities.storm.r) continue;
+      e.hp -= dmg;
+      if (e.hp <= 0 && S.units.includes(e)) killUnit(e);
+    }
+  }
+  S.storms = S.storms.filter(st => st.t > 0);
+}
+// śmierć wodza: cała jego armia traci 30 morale [Ź 19.2], spadek jednorazowy, nie obszarowy
+function applyWodzDeath(u) {
+  for (const a of S.units) if (a.fac === u.fac) a.morale = Math.max(0, a.morale - CFG.morale.wodzDeath);
+  if (u.fac === 'player') uiAlert('Wódz poległ: armia załamana (-30 morale)');
+}
+// Postawy (spec sterowania, naprawa wady z recenzji GameOver: ustawienia agresywności muszą realnie modyfikować automatyzm rozkazów):
+// agresywna sama nabiera cele w promieniu agresji i goni bez ograniczeń, neutralna nabiera w zasięgu broni i goni do promienia agresji,
+// obronna nie rusza się z miejsca, trzymaj pozycję dodatkowo nie nabiera celów sama. Rozkaz ręczny gracza zawsze goni.
+const STANCE_MENU = [
+  { id: 'aggr', name: 'Agresywna', key: 'G' },
+  { id: 'norm', name: 'Neutralna', key: 'N' },
+  { id: 'def', name: 'Obronna', key: 'O' },
+  { id: 'hold', name: 'Trzymaj', key: 'T' },
+];
+// promień automatycznego nabycia celu zależny od postawy; jednostki wręcz (zasięg 1) nie mają promienia wykrycia,
+// więc naboru nie zwęża się do zasięgu broni, zostaje promień agresji (decyzja własna: zasięg 1 kafla to cios, nie wykrywanie)
+function stanceAcquireR(u, def) {
+  const st = u.stance || 'norm';
+  if (st === 'hold') return 0;
+  if (st === 'aggr' || def.range <= 1) return def.aggro;
+  return def.range;
+}
+// czy automatyzm zrywa cel na dystansie d: rozkaz ręczny (ordered) słucha postawy wyłącznie przy pościgu, cel z rozkazu goni zawsze
+function stanceDropsTarget(u, def, d, ordered) {
+  if (ordered) return false;
+  const st = u.stance || 'norm';
+  if (st === 'aggr') return false;
+  if (st === 'norm') return d > def.aggro;
+  return d > def.range;
+}
+// cel zaangażowany w walkę (kogoś atakuje albo szturmuje budynek) = oskrzydlenie dla atakującego z innej strony
+function flankBonus(t) {
+  return (t.state === 'attack' && t.attackTarget) || t.state === 'assault' ? 1 : 0;
+}
+
+// ============================== MORALE ==============================
+function updateMorale() {
+  const M = CFG.morale;
+  const hqs = {};
+  for (const b of S.buildings) if (b.type === 'hq' && b.built) hqs[b.fac] = b;
+  for (const u of S.units) {
+    let m = u.morale + M.regen * (u.hp / u.maxHp);
+    const hq = hqs[u.fac];
+    if (hq && (hq.cx - u.x) ** 2 + (hq.cy - u.y) ** 2 <= M.hqAuraR * M.hqAuraR) m += M.hqAura;
+    for (const l of S.units) {
+      if (l.fac !== u.fac || (l.type !== 'bandleader' && l.type !== 'wodz')) continue;
+      if ((l.x - u.x) ** 2 + (l.y - u.y) ** 2 <= M.leaderAuraR * M.leaderAuraR) { m += M.leaderAura; break; }
+    }
+    let enemyNear = false;
+    for (const e of S.units) {
+      if (e.fac === u.fac || e.fac === 'neutral') continue;
+      if ((e.x - u.x) ** 2 + (e.y - u.y) ** 2 <= M.restR * M.restR) { enemyNear = true; break; }
+    }
+    if (!enemyNear) m += M.restRegen;
+    u.morale = Math.max(0, Math.min(100, m));
+    if (u.morale >= M.fleeAt) u.fleeArmed = true;
+    if (u.fleeArmed && u.morale < M.fleeAt && u.state !== 'flee') startFlee(u);
+  }
+}
+function threatPos(u) {
+  if (u.lastThreat && S.units.includes(u.lastThreat)) return u.lastThreat;
+  let best = null, bd = 1e9;
+  for (const e of S.units) {
+    if (e.fac === u.fac || e.fac === 'neutral') continue;
+    const d = (e.x - u.x) ** 2 + (e.y - u.y) ** 2;
+    if (d < bd) { bd = d; best = e; }
+  }
+  return best;
+}
+function startFlee(u) {
+  const M = CFG.morale;
+  u.fleeArmed = false;
+  u.fleeT = u.morale <= 0 ? M.fleeBreak : M.fleeTime;
+  u.attackTarget = null; u.buildTarget = null; u.captureTarget = null; releaseFarm(u);
+  // node i orderBuilding zostają: po panice robotnik wraca do surowca, banda do szturmu
+  let path = [];
+  const th = threatPos(u);
+  if (th) {
+    const dx = u.x - th.x, dy = u.y - th.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const tx = Math.max(1, Math.min(MAP - 2, Math.floor(u.x + dx / d * M.fleeDist)));
+    const ty = Math.max(1, Math.min(MAP - 2, Math.floor(u.y + dy / d * M.fleeDist)));
+    path = uPath(u, tx, ty);
+  }
+  if (!path.length) {
+    const hq = S.buildings.find(b => b.type === 'hq' && b.fac === u.fac);
+    if (hq) path = pathToBuildingU(u, hq);
+  }
+  u.path = path; u.pathI = 0;
+  u.state = 'flee';
+}
+function killUnit(u) {
+  sfx('death', u.x, u.y);
+  addHitFx(u.x, u.y, { death: true });
+  // wstrząs morale sojuszników w promieniu śmierci
+  for (const a of S.units) {
+    if (a === u || a.fac !== u.fac) continue;
+    if ((a.x - u.x) ** 2 + (a.y - u.y) ** 2 <= CFG.morale.deathR * CFG.morale.deathR)
+      a.morale = Math.max(0, a.morale - CFG.morale.deathPenalty);
+  }
+  S.units = S.units.filter(x => x !== u);
+  S.selected.units = S.selected.units.filter(x => x !== u);
+  for (const b of S.buildings) if (b.busy === u.id) b.busy = null;
+  // śmierć wodza łamie morale całej armii [Ź 19.2], poza standardowym wstrząsem w promieniu śmierci
+  if (u.type === 'wodz') applyWodzDeath(u);
+  // zabity jeździec zostawia konia na mapie do schwytania [Ź: mechanika oryginału]
+  if (u.type === 'jezdiec' || u.type === 'konnobanda') addUnit('horse', 'neutral', u.x, u.y);
+  // ubite zwierzę zostawia padlinę jako kafl żywności (19.5: bizon 150, bydło 100), tylko na trawie
+  const ad = CFG.units[u.type];
+  if (ad && ad.animal) {
+    const tx = Math.floor(u.x), ty = Math.floor(u.y);
+    if (inMap(tx, ty) && S.terrain[idx(tx, ty)] === T_GRASS) {
+      S.terrain[idx(tx, ty)] = T_MEAT;
+      S.amt[idx(tx, ty)] = ad.meat;
+    }
+  }
+}
+function removeHorse(h) {
+  for (const u of S.units) {
+    if (u.captureTarget === h) { u.captureTarget = null; if (u.state === 'capture' || u.state === 'toCapture') u.state = 'idle'; }
+  }
+  S.units = S.units.filter(x => x !== h);
+}
+// dziki koń: spokojny wypas, krótkie wędrówki, staje gdy ktoś jest przy nim
+function updateHorse(h, dt) {
+  let someoneNear = false;
+  for (const u of S.units) {
+    if (u === h || u.fac === 'neutral') continue;
+    if ((u.x - h.x) ** 2 + (u.y - h.y) ** 2 <= 6.25) { someoneNear = true; break; }
+  }
+  if (someoneNear) { h.path = []; return; }
+  if (h.path.length) { followPath(h, dt); return; }
+  h.grazeT -= dt;
+  if (h.grazeT <= 0) {
+    h.grazeT = 4 + rng() * 6;
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const [dx, dy] = dirs[Math.floor(rng() * 4)];
+    const tx = Math.floor(h.x) + dx, ty = Math.floor(h.y) + dy;
+    // krok o jeden kafel: BFS od startu natychmiast spełnia cel, ścieżka wprost
+    if (!isBlocked(tx, ty)) { h.path = [[tx, ty]]; h.pathI = 0; }
+  }
+}
+// zwierzęta łowne: błądzą jak konie, płoszą się od strzałów (stado w promieniu 5 kafla od celu, 19.6)
+// i od ciosu wręcz (samo zwierzę), uciekają 4-6 s od źródła zagrożenia
+function scareAnimal(a, x, y) {
+  a.aFleeT = Math.max(a.aFleeT || 0, 4 + rng() * 2);
+  a.threatX = x; a.threatY = y;
+  a.path = [];
+}
+function scareAnimals(x, y, r) {
+  for (const a of S.units) {
+    const d = CFG.units[a.type];
+    if (!d || !d.animal) continue;
+    if ((a.x - x) ** 2 + (a.y - y) ** 2 <= r * r) scareAnimal(a, x, y);
+  }
+}
+function updateAnimal(a, dt) {
+  if (a.aFleeT > 0) {
+    a.aFleeT -= dt;
+    if (!a.path.length) {
+      // 3-4 kafle od zagrożenia, kierunek od threat z rozrzutem, kafel przechodni
+      for (let t = 0; t < 6; t++) {
+        const ang = Math.atan2(a.y - a.threatY, a.x - a.threatX) + (rng() - 0.5) * 1.6;
+        const dist = 3 + rng();
+        const tx = Math.floor(a.x + Math.cos(ang) * dist), ty = Math.floor(a.y + Math.sin(ang) * dist);
+        if (!inMap(tx, ty) || isBlocked(tx, ty)) continue;
+        a.path = findPath(a.x, a.y, tx, ty, 0, CFG.units[a.type]); a.pathI = 0;
+        break;
+      }
+    }
+    if (a.path.length) followPath(a, dt);
+    return;
+  }
+  // spokojne błądzenie, wzorzec konia
+  if (a.path.length) { followPath(a, dt); return; }
+  a.grazeT -= dt;
+  if (a.grazeT <= 0) {
+    a.grazeT = 4 + rng() * 6;
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const [dx, dy] = dirs[Math.floor(rng() * 4)];
+    const tx = Math.floor(a.x) + dx, ty = Math.floor(a.y) + dy;
+    if (!isBlocked(tx, ty)) { a.path = [[tx, ty]]; a.pathI = 0; }
+  }
+}
+function destroyBuilding(b) {
+  sfx('boom', b.cx, b.cy);
+  addHitFx(b.cx, b.cy, { boom: true });
+  S.buildings = S.buildings.filter(x => x !== b);
+  if (S.selected.building === b) S.selected.building = null;
+  for (const u of S.units) {
+    if (u.farm === b) { u.farm = null; u.state = 'idle'; }
+    if (u.buildTarget === b) { u.buildTarget = null; u.state = 'idle'; }
+    if (u.orderBuilding === b) { u.orderBuilding = null; u.state = 'idle'; }
+  }
+  if (b.type === 'hq' && b.fac === 'enemy') endGame('win', 'Obóz bandytów zniszczony. Zachód znów na chwilę bezpieczny.');
+  if (b.type === 'hq' && b.fac === 'player') endGame('lose', 'Twój obóz spłonął. Dziki Zachód nie wybacza.');
+}
+function updateBuilding(b, dt) {
+  if (!b.built) {
+    const builders = S.units.filter(u => u.state === 'building' && u.buildTarget === b);
+    if (builders.length > 0) {
+      const speed = buildSpeed(builders);
+      for (const u of builders) gainXp(u, CFG.work.xpRate * dt);
+      b.progress += dt * speed / CFG.buildings[b.type].build;
+      if (b.progress >= 1) {
+        b.built = true; b.progress = 1;
+        if (b.fac === 'player') { uiAlert(CFG.buildings[b.type].label + ' gotowy'); sfx('ok'); }
+        for (const u of builders) { u.buildTarget = null; u.state = 'idle'; }
+      }
+    }
+    return;
+  }
+  // badanie technologii (jeden projekt na budynek naraz)
+  if (b.research) {
+    b.research.remaining -= dt;
+    if (b.research.remaining <= 0) {
+      S.techs[b.fac][b.research.id] = true;
+      if (b.fac === 'player') { uiAlert('Opracowano: ' + CFG.techs[b.research.id].name); sfx('ok'); }
+      b.research = null;
+    }
+  }
+  // kolejka produkcji (obóz: robotnik, koszary: piechota)
+  if (b.queue.length) {
+    const q = b.queue[0];
+    if (b.type === 'hq' && popUsed(b.fac) >= popCap(b.fac)) { /* czekaj na dom */ }
+    else {
+      q.remaining -= dt;
+      if (q.remaining <= 0) {
+        b.queue.shift();
+        const spots = freeTilesAround(Math.floor(b.cx), Math.floor(b.cy), 3);
+        if (spots.length) {
+          const u = addUnit(q.type, b.fac, spots[0][0] + 0.5, spots[0][1] + 0.5);
+          if (q.type === 'worker' && b.fac === 'player') { /* nowy robotnik bezczynny */ }
+          if (b.fac === 'player') sfx('ok');
+        }
+      }
+    }
+  }
+  // fabryka: produkcja broni
+  if (b.type === 'factory' && b.on) {
+    const fd = CFG.buildings.factory;
+    b.gunAcc = (b.gunAcc || 0) + dt;
+    if (b.gunAcc >= fd.gunTime && canAfford(fd.gunCost, b.fac)) {
+      pay(fd.gunCost, b.fac); addRes('guns', 1, b.fac); b.gunAcc = 0;
+    }
+  }
+  // zagroda: hodowla koni (1/30 s za 20 żywności + 10 złota, Selekcja koni 24 s)
+  if (b.type === 'zagroda' && b.on) {
+    const zd = CFG.buildings.zagroda;
+    const t = hasTech(b.fac, 'selekcja') ? 24 : zd.horseTime;
+    b.horseAcc = (b.horseAcc || 0) + dt;
+    if (b.horseAcc >= t) {
+      if (facRes(b.fac).horses < CFG.resCap.horses && canAfford(zd.horseCost, b.fac)) {
+        pay(zd.horseCost, b.fac); addRes('horses', 1, b.fac); b.horseAcc = 0;
+      } else { b.horseAcc = t; }
+    }
+  }
+  // farma bez robotnika: nic; upkeep liczony przy robotniku
+}
+
+// ============================== AI BANDYTÓW ==============================
+// zalew BFS po kaflach spełniających predykat free, start z seeds; zwraca maskę osiągalności
+function floodFrom(free, seeds) {
+  const seen = new Uint8Array(MAP * MAP);
+  const q = [];
+  for (const [sx, sy] of seeds) {
+    if (!free(sx, sy)) continue;
+    const i = idx(sx, sy);
+    if (!seen[i]) { seen[i] = 1; q.push(i); }
+  }
+  let head = 0;
+  while (head < q.length) {
+    const cur = q[head++];
+    const cx = cur % MAP, cy = (cur - cx) / MAP;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = cx + dx, ny = cy + dy;
+      if (!free(nx, ny)) continue;
+      const ni = idx(nx, ny);
+      if (!seen[ni]) { seen[ni] = 1; q.push(ni); }
+    }
+  }
+  return seen;
+}
+function aiFindSpot(type, r) {
+  const ehq = S.buildings.find(b => b.fac === 'enemy' && b.type === 'hq');
+  if (!ehq) return null;
+  const def = CFG.buildings[type];
+  const spots = freeTilesAround(Math.floor(ehq.cx), Math.floor(ehq.cy), r);
+  const seeds = freeTilesAround(Math.floor(ehq.cx), Math.floor(ehq.cy), 2);
+  const free1 = (x, y) => inMap(x, y) && !isBlocked(x, y);
+  const before = floodFrom(free1, seeds);
+  for (const [tx, ty] of spots) {
+    let ok = true;
+    for (let y = ty; y < ty + def.h && ok; y++) for (let x = tx; x < tx + def.w && ok; x++)
+      if (!inMap(x, y) || isBlocked(x, y)) ok = false;
+    if (!ok) continue;
+    // żadna jednostka nie stoi na footprincie: AI nie zabudowuje własnych robotników i koni
+    if (S.units.some(u => Math.floor(u.x) >= tx && Math.floor(u.x) < tx + def.w && Math.floor(u.y) >= ty && Math.floor(u.y) < ty + def.h)) continue;
+    // cel BFS (goalR): wolny kafel poza footprintem, osiągalny także PO zabudowaniu
+    const gr = goalR({ w: def.w, h: def.h });
+    const gx = Math.floor(tx + def.w / 2), gy = Math.floor(ty + def.h / 2);
+    const inFp = (x, y) => x >= tx && x < tx + def.w && y >= ty && y < ty + def.h;
+    const free2 = (x, y) => free1(x, y) && !inFp(x, y);
+    const after = floodFrom(free2, seeds);
+    const goals = [];
+    for (let y = gy - gr; y <= gy + gr; y++) for (let x = gx - gr; x <= gx + gr; x++) {
+      if (inFp(x, y)) continue;
+      if (free1(x, y)) goals.push([x, y]);
+    }
+    if (!goals.some(g => after[idx(g[0], g[1])])) continue;
+    // footprint nie może odciąć jednostki wroga ani dzikiego konia od reszty mapy
+    let seals = false;
+    for (const u of S.units) {
+      if (u.fac === 'player') continue;
+      const ux = Math.floor(u.x), uy = Math.floor(u.y);
+      if (!free1(ux, uy)) continue; // jednostka już uwięzona lub na niedostępnym kafu: nie blokuje placementu
+      if (before[idx(ux, uy)] && !after[idx(ux, uy)]) { seals = true; break; }
+    }
+    if (seals) continue;
+    return [tx, ty];
+  }
+  return null;
+}
+function aiPlace(type) {
+  const def = CFG.buildings[type];
+  const spot = aiFindSpot(type, CFG.ai.buildR);
+  if (!spot || !canAfford(def.cost, 'enemy')) return false;
+  if (!pay(def.cost, 'enemy')) return false;
+  const b = addBuilding(type, spot[0], spot[1], 'enemy');
+  // budowniczy: najbliżsi robotnicy bandytów, gather przerwany (orderGather wznawia po budowie)
+  const ws = S.units.filter(u => u.fac === 'enemy' && u.type === 'worker' && u.state !== 'flee');
+  ws.sort((a, c) => ((a.x - b.cx) ** 2 + (a.y - b.cy) ** 2) - ((c.x - b.cx) ** 2 + (c.y - b.cy) ** 2));
+  if (ws.length) assignBuilders(b, [ws[0]]);
+  return true;
+}
+function aiTrain(b, unitType) {
+  if (!b || !b.built || b.queue.length >= CFG.ai.trainCap) return false;
+  const def = CFG.units[unitType];
+  if (popUsed('enemy') + b.queue.length >= popCap('enemy')) return false;
+  if (!pay(def.cost, 'enemy')) return false;
+  b.queue.push({ type: unitType, remaining: def.train });
+  return true;
+}
+function aiAttack(target) {
+  let sent = 0;
+  for (const u of S.units) {
+    if (u.fac !== 'enemy' || u.type === 'worker' || u.type === 'horse') continue;
+    if (u.state === 'assault' || u.state === 'flee') continue;
+    u.orderBuilding = target; u.attackTarget = null; u.node = null; releaseFarm(u); u.buildTarget = null;
+    u.path = pathToBuildingU(u, target); u.pathI = 0;
+    u.state = 'assault';
+    sent++;
+  }
+  return sent;
+}
+function updateAI(dt) {
+  if (S.testMode) return; // tryb testowy: kontroler strategiczny milczy, zostaje tylko auto-aggro jednostek
+  const A = CFG.ai, st = S.ai;
+  st.thinkT -= dt;
+  st.attackCd -= dt;
+  if (st.thinkT > 0) return;
+  st.thinkT = A.thinkEvery;
+  const R = S.resE;
+  const ehq = S.buildings.find(b => b.fac === 'enemy' && b.type === 'hq' && b.built);
+  if (!ehq) return;
+  const myWorkers = S.units.filter(u => u.fac === 'enemy' && u.type === 'worker');
+  const myArmy = S.units.filter(u => u.fac === 'enemy' && u.type !== 'worker' && u.type !== 'horse' && u.state !== 'assault');
+  const barr = S.buildings.find(b => b.fac === 'enemy' && b.type === 'barracks' && b.built);
+  // 1. robotnicy (trening w obozie)
+  const queuedW = ehq.queue.filter(q => q.type === 'worker').length;
+  if (myWorkers.length + queuedW < A.workersMax) aiTrain(ehq, 'worker');
+  // 2. bezczynni robotnicy: surowiec wg potrzeb albo farmowanie
+  const myFarms = S.buildings.filter(b => b.fac === 'enemy' && b.type === 'farm' && b.built);
+  for (const u of myWorkers) {
+    if (u.state !== 'idle' && u.state !== 'gather') continue;
+    if (u.state === 'gather' && u.node && S.amt[idx(u.node[0], u.node[1])] > 0) continue;
+    const freeFarm = myFarms.find(f => !f.busy);
+    if (freeFarm && R.food < 150) {
+      freeFarm.busy = u.id; u.farm = freeFarm; u.node = null; u.buildTarget = null;
+      u.path = pathToBuildingU(u, freeFarm); u.pathI = 0;
+      u.state = u.path.length ? 'toFarm' : 'farming';
+    } else orderGatherAuto(u, R.wood < 200 ? T_FOREST : T_GOLD);
+  }
+  // 2a. watchdog budowy: budowla bez budowniczego blokuje bramkę unbuilt i całą rozbudowę
+  for (const b of S.buildings.slice()) {
+    if (b.fac !== 'enemy' || b.built) continue;
+    b.aiAge = (b.aiAge || 0) + A.thinkEvery;
+    const hasBuilder = S.units.some(u => u.fac === 'enemy' && u.buildTarget === b && (u.state === 'building' || u.state === 'toBuild'));
+    if (hasBuilder) b.aiAge = 0; // wiek liczy czas ciągłego braku budowniczego, nie czas budowy
+    else if (b.aiAge > 60) {
+      // rozbiórka martwej budowli: połowa kosztu wraca, robotnicy odzyskani
+      for (const u of S.units) if (u.buildTarget === b) { u.buildTarget = null; u.state = 'idle'; }
+      S.buildings = S.buildings.filter(x => x !== b);
+      for (const k in CFG.buildings[b.type].cost) addRes(k, Math.floor(CFG.buildings[b.type].cost[k] / 2), 'enemy');
+    } else if (!hasBuilder) {
+      const ws = S.units.filter(u => u.fac === 'enemy' && u.type === 'worker' && u.state !== 'flee');
+      ws.sort((p, q) => ((p.x - b.cx) ** 2 + (p.y - b.cy) ** 2) - ((q.x - b.cx) ** 2 + (q.y - b.cy) ** 2));
+      // tylko robotnik z realną ścieżką (lub już przy ścianie): uwięziony robotnik nie blokuje budowy
+      for (const w of ws) {
+        if (pathToBuilding(w.x, w.y, b, CFG.units[w.type]).length || Math.hypot(b.cx - w.x, b.cy - w.y) <= (b.w + b.h) / 2 + 1.5) { assignBuilders(b, [w]); break; }
+      }
+    }
+  }
+  // 3. budowa (co najwyżej jedna na turę myśli, robotnik zbierający zostaje przerwany)
+  const storeh = S.buildings.filter(b => b.fac === 'enemy' && b.type === 'storehouse' && b.built).length;
+  const houses = S.buildings.filter(b => b.fac === 'enemy' && b.type === 'house' && b.built).length;
+  const unbuilt = S.buildings.some(b => b.fac === 'enemy' && !b.built);
+  if (!unbuilt) {
+    if (!storeh) aiPlace('storehouse');
+    else if (myFarms.length < 1 + Math.floor((myArmy.length + myWorkers.length) / A.farmsPer)) aiPlace('farm');
+    else if (!barr) aiPlace('barracks');
+    else if (popUsed('enemy') + 2 >= popCap('enemy')) aiPlace('house');
+    else if (storeh < 2 && R.wood > 250) aiPlace('storehouse');
+  }
+  // 4. trening wojska w koszarach
+  if (barr) {
+    const armyAt = Math.min(A.armyCap, A.armyBase + A.armyGrow * st.attacks);
+    const leaders = myArmy.filter(u => u.type === 'bandleader').length;
+    const barrQ = barr.queue.length;
+    if (myArmy.length + barrQ < armyAt) {
+      if (!leaders && myArmy.length >= 5) aiTrain(barr, 'bandleader');
+      else if (S.time > 600 && R.horses >= 1 && rng() < 0.3) aiTrain(barr, 'konnobanda');
+      else aiTrain(barr, 'desperado');
+    }
+  }
+  // 5. wyprawa łupieżcza (karencja startowa 8 min: fabryka+broń+2 piechota muszą być osiągalne)
+  const armyAt = Math.min(A.armyCap, A.armyBase + A.armyGrow * st.attacks);
+  if (myArmy.length >= armyAt && st.attackCd <= 0 && S.time > 480) {
+    const phq = S.buildings.find(b => b.fac === 'player' && b.type === 'hq' && b.built);
+    let target = phq;
+    let bd = 1e9;
+    for (const b of S.buildings) {
+      if (b.fac !== 'player' || !b.built) continue;
+      const d = (b.cx - ehq.cx) ** 2 + (b.cy - ehq.cy) ** 2;
+      if (d < bd) { bd = d; target = b; }
+    }
+    if (target && aiAttack(target) > 0) {
+      st.attacks++; st.attackCd = A.attackCooldown;
+      if (S.buildings.some(b => b.fac === 'player' && b.type === 'hq'))
+        uiAlert('Zwiadowcy donoszą: banda ruszyła na twoją osadę!');
+    }
+  }
+}
+
+function computeFog() {
+  S.visible.fill(0);
+  for (const u of S.units) {
+    if (u.fac !== 'player') continue;
+    const r = CFG.fogRadius;
+    const ux = Math.floor(u.x), uy = Math.floor(u.y);
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dy * dy > r * r) continue;
+      const x = ux + dx, y = uy + dy;
+      if (inMap(x, y)) { S.visible[idx(x, y)] = 1; S.explored[idx(x, y)] = 1; }
+    }
+  }
+  for (const b of S.buildings) {
+    if (b.fac !== 'player') continue;
+    const r = CFG.fogHq;
+    const bx = Math.floor(b.cx), by = Math.floor(b.cy);
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dy * dy > r * r) continue;
+      const x = bx + dx, y = by + dy;
+      if (inMap(x, y)) { S.visible[idx(x, y)] = 1; S.explored[idx(x, y)] = 1; }
+    }
+  }
+}
+
+function endGame(result, msg) {
+  S.gameOver = result;
+  showOverlay(result === 'win'
+    ? { title: 'Zwycięstwo!', body: msg }
+    : { title: 'Porażka', body: msg });
+}
+
+// ============================== WEJŚCIE ==============================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const mini = document.getElementById('minimap');
+const mctx = mini.getContext('2d');
+const cam = { x: 0, y: 0 };
+let canvasW = 800, canvasH = 600;
+function resize() {
+  const ratio = window.devicePixelRatio || 1;
+  canvasW = window.innerWidth; canvasH = window.innerHeight;
+  canvas.width = Math.round(canvasW * ratio); canvas.height = Math.round(canvasH * ratio);
+  canvas.style.width = canvasW + 'px'; canvas.style.height = canvasH + 'px';
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.imageSmoothingEnabled = false; // zoom całkowity: piksel-art musi zostać ostry
+}
+window.addEventListener('resize', resize);
+
+function screenToTile(mx, my) {
+  // px ekranu → px świata (render skaluje ctx przez ZOOM, kamera w px świata)
+  const sx = mx / ZOOM - cam.x, sy = my / ZOOM - cam.y;
+  const px = (sx / (CFG.tileW / 2) + sy / (CFG.tileH / 2)) / 2;
+  const py = (sy / (CFG.tileH / 2) - sx / (CFG.tileW / 2)) / 2;
+  return [px, py];
+}
+function tileToScreen(px, py) {
+  return [(px - py) * CFG.tileW / 2 + cam.x, (px + py) * CFG.tileH / 2 + cam.y];
+}
+function centerCameraOn(px, py) {
+  cam.x = canvasW / (2 * ZOOM) - (px - py) * CFG.tileW / 2;
+  cam.y = canvasH / (2 * ZOOM) - (px + py) * CFG.tileH / 2;
+}
+function clampCam() {
+  const bw = MAP * CFG.tileW / 2;  // połowa szerokości rombu mapy w px świata (cam też w px świata)
+  const bh = MAP * CFG.tileH;     // wysokość rombu mapy w px świata
+  cam.x = Math.max(canvasW / ZOOM - bw, Math.min(bw, cam.x));
+  cam.y = Math.max(canvasH / ZOOM - bh, Math.min(0, cam.y));
+}
+
+let mouse = { x: 400, y: 300, down: false, dragging: false, sx: 0, sy: 0 };
+const keys = {};
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('pointerdown', e => {
+  ensureAudio();
+  mouse.down = true; mouse.dragging = false;
+  mouse.sx = e.offsetX; mouse.sy = e.offsetY;
+  mouse.x = e.offsetX; mouse.y = e.offsetY;
+});
+canvas.addEventListener('pointermove', e => { mouse.x = e.offsetX; mouse.y = e.offsetY; if (mouse.down && (Math.abs(mouse.x - mouse.sx) > 4 || Math.abs(mouse.y - mouse.sy) > 4)) mouse.dragging = true; });
+// puszczenie przycisku nad panelem UI: bez tego następny klik robił gigantyczną ramkę zaznaczania
+window.addEventListener('pointerup', () => { mouse.down = false; mouse.dragging = false; });
+canvas.addEventListener('pointerup', e => {
+  mouse.down = false;
+  if (S.gameOver) return;
+  const right = e.button === 2;
+  // współrzędne kliknięcia w przestrzeni świata (kamera jest przeskalowana przez ZOOM, offsetX jest raw)
+  const ex = e.offsetX / ZOOM, ey = e.offsetY / ZOOM;
+  const [px, py] = screenToTile(e.offsetX, e.offsetY);
+  const tx = Math.floor(px), ty = Math.floor(py);
+  if (S.placing && !right) { queueCmd({ action: 'place', type: S.placing, x: tx, y: ty }); if (!e.shiftKey) S.placing = null; mouse.dragging = false; return; }
+  if (S.placing && right) { S.placing = null; return; }
+  if (right) {
+    if (!S.selected.units.length) return;
+    let targetUnit = null, bd = 400;
+    for (const u of S.units) {
+      const isAnimal = u.fac === 'neutral' && CFG.units[u.type] && CFG.units[u.type].animal;
+      if ((u.fac !== 'enemy' && !isAnimal) || !S.visible[idx(Math.min(MAP-1,Math.floor(u.x)), Math.min(MAP-1,Math.floor(u.y)))]) continue;
+      const [usx, usy] = tileToScreen(u.x, u.y);
+      const d = (usx - ex) ** 2 + (usy - ey) ** 2;
+      if (d < bd) { bd = d; targetUnit = u; }
+    }
+    let targetHorse = null;
+    if (!targetUnit) {
+      let hb = 400;
+      for (const u of S.units) {
+        if (u.type !== 'horse' || !S.visible[idx(Math.min(MAP-1,Math.floor(u.x)), Math.min(MAP-1,Math.floor(u.y)))]) continue;
+        const [usx, usy] = tileToScreen(u.x, u.y);
+        const d = (usx - ex) ** 2 + (usy - ey) ** 2;
+        if (d < hb) { hb = d; targetHorse = u; }
+      }
+    }
+    queueCmd({ action: 'order', units: [...S.selected.units], x: tx, y: ty, targetUnit, targetHorse });
+    S.fx = { x: px, y: py, age: 0 };
+    return;
+  }
+  // lewy: zaznaczanie
+  if (mouse.dragging) {
+    // ramka rysowana w px raw, ale porównania w przestrzeni świata (przez ZOOM)
+    const x1 = Math.min(mouse.sx, e.offsetX) / ZOOM, x2 = Math.max(mouse.sx, e.offsetX) / ZOOM;
+    const y1 = Math.min(mouse.sy, e.offsetY) / ZOOM, y2 = Math.max(mouse.sy, e.offsetY) / ZOOM;
+    S.selected.units = S.units.filter(u => {
+      if (u.fac !== 'player') return false;
+      const [ux, uy] = tileToScreen(u.x, u.y);
+      return ux >= x1 && ux <= x2 && uy >= y1 && uy <= y2;
+    });
+    S.selected.building = null;
+    updatePanels();
+    return;
+  }
+  // klik: jednostka?
+  let hit = null, bd = 400;
+  for (const u of S.units) {
+    if (u.fac !== 'player') continue;
+    const [ux, uy] = tileToScreen(u.x, u.y);
+    const d = (ux - ex) ** 2 + (uy - ey) ** 2;
+    if (d < bd) { bd = d; hit = u; }
+  }
+  if (hit) { S.selected.units = [hit]; S.selected.building = null; updatePanels(); sfx('sel', hit.x, hit.y); return; }
+  // klik: budynek?
+  const b = inMap(tx, ty) ? buildingAt(tx, ty) : null;
+  if (b && b.fac === 'player') { S.selected.building = b; S.selected.units = []; updatePanels(); sfx('sel', b.cx, b.cy); return; }
+  S.selected.units = []; S.selected.building = null;
+  updatePanels();
+});
+mini.addEventListener('pointerdown', e => {
+  const r = mini.getBoundingClientRect();
+  const mx = (e.clientX - r.left) / r.width * MAP, my = (e.clientY - r.top) / r.height * MAP;
+  centerCameraOn(mx, my);
+});
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  const k = e.key.toUpperCase();
+  ensureAudio();
+  if (k === 'C' && !e.repeat) { S.muted = !S.muted; if (!S.muted) ensureAudio(); }
+  if (S.placing && e.key === 'Escape') S.placing = null;
+  const item = buildMenuFor(S.playerRace).find(m => m.key === k);
+  if (item && S.selected.units.some(u => unitRole(u, 'builder'))) S.placing = item.type;
+  // zdolności medicine mana: R deszcz, B burza; B nie koliduje, bo fabrykę (B) stawiają tylko Osadnicy, a medicine man jest jednostką Sioux
+  if (!e.ctrlKey && !e.altKey && !e.repeat && (k === 'R' || k === 'B')) {
+    const m = S.selected.units.find(u => u.fac === 'player' && u.type === 'medicine');
+    if (m && k === 'R') castRain(m);
+    if (m && k === 'B') castStorm(m);
+  }
+  // postawy: G/N/O/T dla zaznaczonego wojska (gracza)
+  if (!e.ctrlKey && !e.altKey && !e.repeat) {
+    const st = STANCE_MENU.find(s => s.key === k);
+    if (st && S.selected.units.some(u => u.fac === 'player' && CFG.units[u.type] && CFG.units[u.type].aggro > 0)) setStance(st.id);
+  }
+  // grupy: Ctrl+1-9 przypisuje, cyfra wybiera, podwójne wciśnięcie centruje kamerę
+  if (k >= '1' && k <= '9') {
+    const n = k.charCodeAt(0) - 48;
+    if (e.ctrlKey) {
+      const alive = S.selected.units.filter(u => S.units.includes(u) && u.fac === 'player');
+      if (alive.length) { S.groups[n] = alive; uiAlert('Grupa ' + n + ': ' + alive.length + ' jedn.'); e.preventDefault(); }
+    } else if (S.groups[n] && S.groups[n].length) {
+      const g = S.groups[n].filter(u => S.units.includes(u));
+      S.groups[n] = g;
+      if (g.length) {
+        if (S.lastGroup === n && Date.now() - S.lastGroupT < 350) {
+          cam.x = g.reduce((a, u) => a + u.x, 0) / g.length;
+          cam.y = g.reduce((a, u) => a + u.y, 0) / g.length;
+          clampCam();
+        }
+        S.selected.units = g; S.selected.building = null; updatePanels(); sfx('sel');
+      }
+      S.lastGroup = n; S.lastGroupT = Date.now();
+    }
+  }
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// ============================== UI ==============================
+const topbar = document.getElementById('topbar');
+const buildbar = document.getElementById('buildbar');
+const bpanel = document.getElementById('bpanel');
+const stancebar = document.getElementById('stancebar');
+const abilitybar = document.getElementById('abilitybar');
+const alertsEl = document.getElementById('alerts');
+const overlay = document.getElementById('overlay');
+
+function uiAlert(msg) {
+  sfx('warn'); // każdy alert (porażka budowy, brak surowców, wyprawa wroga) ma wspólne brzmienie
+  const d = document.createElement('div');
+  d.className = 'alert'; d.textContent = msg;
+  alertsEl.appendChild(d);
+  setTimeout(() => d.remove(), 6000);
+  while (alertsEl.children.length > 4) alertsEl.firstChild.remove();
+}
+function costText(cost) {
+  const names = { wood: '🪵', food: '🌾', gold: '⛏', guns: '🔫', horses: '🐎' };
+  return Object.entries(cost).map(([k, v]) => v + names[k]).join(' ');
+}
+const buildBtns = [];
+let buildBarRace = null;
+let bpanelBuilding = null, bpanelBuilt = null;
+let stanceBtns = [];
+const ABILITY_MENU = [
+  { id: 'rain', key: 'R', name: 'Deszcz', desc: 'Taniec deszczu: wszystkie pola +100% plonów przez 60 s, cooldown 180 s' },
+  { id: 'storm', key: 'B', desc: 'Burza: obszar 3 wokół szamana, 10 obr./s przez 5 s, morale wrogów -20, cooldown 120 s', name: 'Burza' },
+];
+let abilityBtns = [];
+function setStance(id) {
+  let n = 0;
+  for (const u of S.selected.units) {
+    if (u.fac === 'player' && CFG.units[u.type] && CFG.units[u.type].aggro > 0) { u.stance = id; n++; }
+  }
+  if (n) sfx('order');
+  updatePanels();
+}
+function updatePanels() {
+  // pasek budowy: przyciski tworzone raz na frakcję, po zmianie rasy przebudowa (przebudowa DOM w trakcie gry zjadała kliknięcia)
+  if (!buildBtns.length || buildBarRace !== S.playerRace) {
+    buildBarRace = S.playerRace;
+    buildBtns.length = 0;
+    while (buildbar.firstChild) buildbar.removeChild(buildbar.firstChild);
+    for (const m of buildMenuFor(S.playerRace)) {
+      const btn = document.createElement('button');
+      const def = CFG.buildings[m.type];
+      btn.textContent = m.name + ' [' + m.key + '] ' + costText(def.cost);
+      btn.title = 'HP ' + def.hp + ', budowa ' + def.build + 's';
+      btn.onclick = () => { S.placing = m.type; };
+      buildbar.appendChild(btn);
+      buildBtns.push({ btn, type: m.type });
+    }
+  }
+  const hasWorker = S.selected.units.some(u => unitRole(u, 'builder'));
+  for (const bb of buildBtns) bb.btn.disabled = !hasWorker || !canAfford(CFG.buildings[bb.type].cost);
+  // pasek postaw: tylko uzbrojone jednostki gracza (robotnik ma aggro 0, postawa nic by nie robiła)
+  const armed = S.selected.units.filter(u => u.fac === 'player' && CFG.units[u.type] && CFG.units[u.type].aggro > 0);
+  stancebar.style.display = armed.length ? 'flex' : 'none';
+  if (armed.length) {
+    if (!stanceBtns.length) {
+      for (const st of STANCE_MENU) {
+        const btn = document.createElement('button');
+        btn.textContent = st.name + ' [' + st.key + ']';
+        btn.title = st.id === 'aggr' ? 'Sama nabiera cele w promieniu agresji i goni bez ograniczeń'
+          : st.id === 'norm' ? 'Nabiera cele w zasięgu broni, goni do promienia agresji'
+          : st.id === 'def' ? 'Nie rusza się z miejsca, atakuje tylko to, co w zasięgu broni'
+          : 'Nie nabiera celów sama, walczy tylko z rozkazanymi celami';
+        btn.onclick = () => setStance(st.id);
+        stancebar.appendChild(btn);
+        stanceBtns.push({ btn, id: st.id });
+      }
+    }
+    const cur = armed[0].stance || 'norm';
+    for (const sb of stanceBtns) sb.btn.className = sb.id === cur ? 'active' : '';
+  }
+  // pasek zdolności: medicine man gracza (deszcz R, burza B), cooldown na przycisku, odświeżany z updatePanels
+  const medics = S.selected.units.filter(u => u.fac === 'player' && u.type === 'medicine');
+  abilitybar.style.display = medics.length ? 'flex' : 'none';
+  if (medics.length) {
+    if (!abilityBtns.length) {
+      for (const ab of ABILITY_MENU) {
+        const btn = document.createElement('button');
+        btn.title = ab.desc;
+        btn.onclick = () => { const m = S.selected.units.find(u => u.fac === 'player' && u.type === 'medicine'); if (m) ab.id === 'rain' ? castRain(m) : castStorm(m); };
+        abilitybar.appendChild(btn);
+        abilityBtns.push({ btn, id: ab.id });
+      }
+    }
+    const m = medics[0];
+    for (const ab of abilityBtns) {
+      const cd = ab.id === 'rain' ? (m.rainCd || 0) : (m.stormCd || 0);
+      ab.btn.textContent = (ab.id === 'rain' ? 'Deszcz [R]' : 'Burza [B]') + (cd > 0 ? ' (' + Math.ceil(cd) + 's)' : '');
+      ab.btn.disabled = cd > 0;
+      ab.btn.className = cd > 0 ? '' : 'active';
+    }
+  }
+  // panel budynku: przebudowa tylko przy zmianie obiektu albo stanu budowy
+  const b = S.selected.building;
+  if (!(b && b.fac === 'player')) { bpanel.style.display = 'none'; bpanelBuilding = null; bpanelBuilt = null; return; }
+  bpanel.style.display = 'block';
+  if (bpanelBuilding !== b || bpanelBuilt !== b.built) {
+    bpanelBuilding = b; bpanelBuilt = b.built;
+    bpanel.innerHTML = '';
+    const name = document.createElement('div');
+    name.className = 'name';
+    bpanel.appendChild(name);
+    const row = document.createElement('div');
+    row.className = 'row';
+    bpanel.appendChild(row);
+    if (!b.built) {
+      const btn = document.createElement('button');
+      btn.dataset.role = 'resume';
+      btn.textContent = 'Kontynuuj budowlę';
+      btn.onclick = () => queueCmd({ action: 'resume', building: b });
+      row.appendChild(btn);
+    }
+    if (b.built && (b.type === 'hq' || b.type === 'barracks')) {
+      for (const ut of trainMenuFor(b, S.playerRace)) {
+        const btn = document.createElement('button');
+        btn.dataset.role = 'train_' + ut;
+        btn.onclick = () => queueCmd({ action: 'train', building: b, unitType: ut });
+        row.appendChild(btn);
+      }
+    }
+    if (b.built && (b.type === 'factory' || b.type === 'zagroda')) {
+      const btn = document.createElement('button');
+      btn.dataset.role = 'toggle';
+      btn.onclick = () => queueCmd({ action: 'toggle', building: b });
+      row.appendChild(btn);
+    }
+    if (b.type === 'farm') {
+      const st = document.createElement('button');
+      st.dataset.role = 'farm';
+      st.disabled = true;
+      row.appendChild(st);
+    }
+    if (b.built && b.fac === 'player') {
+      for (const tid in CFG.techs) {
+        const td = CFG.techs[tid];
+        if (td.bld !== b.type) continue;
+        if (S.playerRace === 'sioux' && tid === 'sztauga') continue; // kawaleryjna technologia bez sensu dla Sioux
+        const btn = document.createElement('button');
+        btn.dataset.role = 'tech_' + tid;
+        btn.title = td.desc;
+        btn.onclick = () => queueCmd({ action: 'research', building: b, techId: tid });
+        row.appendChild(btn);
+      }
+    }
+    const q = document.createElement('button');
+    q.dataset.role = 'queue';
+    q.disabled = true;
+    q.style.display = 'none';
+    row.appendChild(q);
+  }
+  // odświeżanie treści bez ruszania DOM
+  const nameEl = bpanel.querySelector('.name');
+  nameEl.textContent = CFG.buildings[b.type].label + (b.built ? '' : ' (budowa ' + Math.floor(b.progress * 100) + '%)');
+  const q = bpanel.querySelector('[data-role="queue"]');
+  if (b.queue.length) { q.style.display = 'inline-block'; q.textContent = 'Kolejka: ' + b.queue.length + ' (' + Math.ceil(b.queue[0].remaining) + 's)'; }
+  else q.style.display = 'none';
+  const UNIT_NAMES = { worker: 'Robotnik', piechota: 'Piechota', jezdiec: 'Jeździec', squaw: 'Squaw', wojownik: 'Wojownik', wodz: 'Wódz', lucznik: 'Łucznik', medicine: 'Medicine man' };
+  for (const ut of trainMenuFor(b, S.playerRace)) {
+    const btn = bpanel.querySelector('[data-role="train_' + ut + '"]');
+    if (!btn) continue;
+    const ud = CFG.units[ut];
+    const limHit = ud.limit && S.units.filter(u => u.fac === 'player' && u.type === ut).length + b.queue.filter(q => q.type === ut).length >= ud.limit;
+    btn.textContent = UNIT_NAMES[ut] + (limHit ? ' (limit ' + ud.limit + ')' : ' (' + costText(ud.cost) + ')');
+    btn.disabled = !canAfford(ud.cost) || !!limHit;
+  }
+  const btnT = bpanel.querySelector('[data-role="toggle"]');
+  if (btnT) btnT.textContent = b.on ? 'Produkcja: WŁ' : 'Produkcja: WYŁ';
+  const btnF = bpanel.querySelector('[data-role="farm"]');
+  if (btnF) btnF.textContent = b.busy ? 'Rolnik: w pracy' : 'Pusta (wyślij robotnika PPM)';
+  for (const tid in CFG.techs) {
+    const btn = bpanel.querySelector('[data-role="tech_' + tid + '"]');
+    if (!btn) continue;
+    const td = CFG.techs[tid];
+    if (hasTech('player', tid)) { btn.textContent = td.name + ' ✓'; btn.disabled = true; }
+    else if (b.research && b.research.id === tid) { btn.textContent = td.name + ' (' + Math.ceil(b.research.remaining) + 's)'; btn.disabled = true; }
+    else { btn.textContent = td.name + ' (' + costText(td.cost) + ')'; btn.disabled = !canAfford(td.cost) || !!(b.research); }
+  }
+}
+function updateTopbar() {
+  const mm = Math.floor(S.time / 60), ss = Math.floor(S.time % 60);
+  // bandyci widziani przez gracza (zwiad w czasie rzeczywistym, nie wskaźnik AI)
+  let seen = 0;
+  for (const u of S.units) {
+    if (u.fac !== 'enemy' || u.type === 'worker') continue;
+    if (S.visible[idx(Math.min(MAP - 1, Math.floor(u.x)), Math.min(MAP - 1, Math.floor(u.y)))]) seen++;
+  }
+  topbar.innerHTML = '🪵 <b>' + Math.floor(S.res.wood) + '</b> 🌾 <b>' + Math.floor(S.res.food) +
+    '</b> ⛏ <b>' + Math.floor(S.res.gold) + '</b> 🔫 <b>' + Math.floor(S.res.guns) +
+    '</b> 🐎 <b>' + Math.floor(S.res.horses) + '</b> 👥 <b>' + popUsed() + '/' + popCap() + '</b> ⏱ <b>' + mm + ':' + String(ss).padStart(2, '0') +
+    '</b> ☠ widziani bandyci: <b>' + seen + '</b>';
+}
+function showOverlay(o) {
+  overlay.style.display = 'flex';
+  overlay.innerHTML = '';
+  const box = document.createElement('div');
+  box.className = 'box';
+  const h = document.createElement('h1'); h.textContent = o.title;
+  const p = document.createElement('p'); p.textContent = o.body;
+  box.appendChild(h);
+  if (o.list) { const ul = document.createElement('ul'); for (const li of o.list) { const el = document.createElement('li'); el.textContent = li; ul.appendChild(el); } box.appendChild(ul); }
+  box.appendChild(p);
+  if (o.buttons) {
+    for (const bd of o.buttons) {
+      const btn = document.createElement('button');
+      btn.textContent = bd.label;
+      btn.onclick = () => { overlay.style.display = 'none'; S.menuOpen = false; if (bd.cb) bd.cb(); };
+      box.appendChild(btn);
+    }
+  } else {
+    const btn = document.createElement('button');
+    btn.textContent = o.btn || 'Zaczynamy';
+    btn.onclick = () => { overlay.style.display = 'none'; if (S.menuOpen) { showMenu(); return; } if (S.gameOver) { newGame(Date.now()); updatePanels(); } };
+    box.appendChild(btn);
+  }
+  overlay.appendChild(box);
+}
+document.getElementById('helpbtn').onclick = () => showHelp();
+function showHelp() {
+  showOverlay({ title: 'America: No Peace Beyond the Line (prototyp)', body: 'Dzikie czasy po wojnie secesyjnej. Zbuduj osadę, wystaw piechotę i rozbij obóz bandytów na północy. Farma konsumuje drewno, fabryka konsumuje złoto: łańcuchy dostaw jak w oryginale.',
+    list: [
+      'LPM: zaznacz jednostkę lub przeciągnij ramkę. PPM: rozkaz (ruch, zbieranie, atak).',
+      'PPM na lesie lub złocie z robotnikiem: zbieraj. PPM na farmie: farmerka przechodzi do pracy.',
+      'Zaznacz robotnika i wybierz budynek z dolnego paska: Dom (populacja), Farma, Magazyn, Koszary, Fabryka broni, Zagroda koni.',
+      'Przerwana budowa: PPM własnej nieukończonej budowli z robotnikami wznawia prace, albo kliknij budowę i użyj przycisku Kontynuuj.',
+      'Fabryka produkuje broń za drewno i złoto. Piechota wymaga żywności, złota i broni.',
+      'Klawisze budowy: H Dom, F Farma, M Magazyn, K Koszary, B Fabryka, Z Zagroda. Strzałki/WSAD: kamera. C: dźwięk wł/wył. Minimapa: skok kamery.',
+      'Bandyty atakują falami. Zwycięstwo: zniszcz obóz wroga. Porażka: utrata obozu albo całkowita zagłada osady.',
+      'Morale: rany i straty w pobliżu zbijają morale. Poniżej 30 jednostka panikuje i ucieka, nie przyjmuje rozkazów. Odpoczynek z dala od walki i aura obozu odbudowują odwagę. Niskie morale zwalnia też pracę: zbieranie, budowę i farmę.',
+      'Doświadczenie: jednostki zdobywają XP nie tylko w walce, także z czasu pracy (zbieranie, budowa, farma). Awans podnosi trafienie i obrażenia w walce.',
+      'Postawy: G Agresywna (goni bez ograniczeń), N Neutralna (atakuje w zasięgu broni, goni do promienia agresji), O Obronna (nie rusza się z miejsca), T Trzymaj (ignoruje prowokacje, walczy tylko z rozkazanymi celami). Rozkaz wydany ręcznie zawsze goni.',
+      'Grupy: Ctrl+1-9 przypisuje zaznaczenie, cyfra wybiera grupę, podwójne wciśnięcie tej samej cyfry centruje na niej kamerę.',
+      'Dzikie konie wędrują po mapie. PPM na koniu: jednostka podchodzi i chwyta go przez 5 s. Jeździec w koszarach wymaga żywności, złota, broni i konia; strzela z konia (karabinek, zasięg 4). Zabity jeździec zostawia konia na mapie, każda strona może go schwycić. Konne bandy bandytów atakują wręcz.',
+      'Zagroda koni hoduje konie za żywność i złoto (włącz Produkcję w panelu budynku): stabilne zaopatrzenie bez gonienia stad po mapie.',
+      'Technologie: zaznacz Obóz (Ostrzone siekiery +20% wycinki, Pług +30% plonów), Zagrodę (Selekcja koni, hodowla 24 s) albo Koszary (Kowbojska sztauga, jeźdźcy +10% HP) i kliknij przycisk badania. Jeden projekt na budynek naraz.',
+      'Frakcja Sioux: squawy budują i prowadzą farmy (nie rąbią lasu ani nie kopią), wojownicy rąbią las, kopią złoto i polują, łucznik kosztuje 5 drewna zamiast broni.',
+      'Sioux: Tepee (klawisz E) daje +5 populacji i jest tańsze od domu. Obóz produkuje squawę, wojownika i wodza (limit 1, aura +20 morale, jego śmierć zbija morale armii), koszary łucznika i medicine mana.',
+      'Sioux nie mają fabryki broni ani zagrody koni: piechota z bronią palnej jest niedostępna, siła to łuk i liczba. Sztauga kowbojska nie dotyczy obozu Indian.',
+      'Pływanie i gęsty las: jednostki Sioux płyną przez rzekę (koszt 0.5) i przechodzą gęsty las tunelem (1.5), ale z wody nie atakują. Osadnikom pieszym rzeka jest zablokowana, gęsty las kosztuje ich 2.0, konni i zwierzyna nie wejdą w gąszcz.',
+      'Medicine man: zaznacz go i użyj R Deszcz (+100% plonów na wszystkich polach przez 60 s, odnowienie 180 s) albo B Burza (obszar 3 wokół szamana, 10 obr./s przez 5 s, morale wrogów -20, odnowienie 120 s). Śmierć wodza odbija całej armii 30 morale, pilnuj go.',
+    ], btn: 'Do dzieła' });
+}
+function startRace(race) {
+  newGame(Date.now(), race);
+  updatePanels();
+}
+function showMenu() {
+  S.menuOpen = true;
+  showOverlay({ title: 'America: No Peace Beyond the Line (prototyp)', body: 'Wybierz frakcję i tryb. Gra: Osadnicy albo Sioux (squawy budują, wojownicy rąbią i polują, łuki z drewna, tepee). Test: rozbudowane bazy i pełne zapasy, AI bierne, jednostki reagują tylko na zbliżenie. Do szybkiego sprawdzania nowych jednostek bez czekania na rozbudowę.',
+    buttons: [
+      { label: 'Graj: Osadnicy', cb: () => startRace('settler') },
+      { label: 'Graj: Sioux', cb: () => startRace('sioux') },
+      { label: 'Test: Osadnicy', cb: () => setupTest('settler') },
+      { label: 'Test: Sioux', cb: () => setupTest('sioux') },
+    ] });
+}
+// tryb testowy: deterministyczne rozmieszczenie budowli spiralą wokół obozu
+function testPlace(fac, type, cx, cy) {
+  const def = CFG.buildings[type];
+  for (let r = 3; r <= 14; r++) {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; // tylko obwód pierścienia
+      const tx = cx + dx - Math.floor(def.w / 2), ty = cy + dy - Math.floor(def.h / 2);
+      let ok = true;
+      for (let y = ty; y < ty + def.h && ok; y++) for (let x = tx; x < tx + def.w; x++)
+        if (!inMap(x, y) || isBlocked(x, y)) { ok = false; break; }
+      if (ok) { const b = addBuilding(type, tx, ty, fac); b.built = true; b.progress = 1; return b; }
+    }
+  }
+  return null;
+}
+function setupTest(race) {
+  S.testMode = true;
+  S.playerRace = race || 'settler';
+  S.units = [];
+  S.rainT = {}; S.storms = []; // zdolności nie przeciekają między partiami
+  S.buildings = S.buildings.filter(b => b.type === 'hq');
+  const phq = S.buildings.find(b => b.fac === 'player');
+  const ehq = S.buildings.find(b => b.fac === 'enemy');
+  const pBlds = S.playerRace === 'sioux'
+    ? ['storehouse', 'farm', 'barracks', 'tepee', 'tepee', 'farm']
+    : ['storehouse', 'farm', 'barracks', 'factory', 'zagroda', 'house', 'house', 'farm'];
+  for (const t of pBlds)
+    testPlace('player', t, Math.floor(phq.cx), Math.floor(phq.cy));
+  for (const t of ['storehouse', 'farm', 'barracks', 'factory', 'house', 'house'])
+    testPlace('enemy', t, Math.floor(ehq.cx), Math.floor(ehq.cy));
+  S.res = S.playerRace === 'sioux' ? { wood: 500, food: 500, gold: 1000, guns: 0, horses: 0 } : { wood: 500, food: 500, gold: 1000, guns: 50, horses: 20 };
+  S.resE = { wood: 500, food: 500, gold: 1000, guns: 50, horses: 20 };
+  // jednostki dopiero PO zabudowie: spawn na wolnych kaflach wokół obozu
+  const ps = freeTilesAround(Math.floor(phq.cx), Math.floor(phq.cy), 5);
+  const es = freeTilesAround(Math.floor(ehq.cx), Math.floor(ehq.cy), 5);
+  let pi = 0, ei = 0;
+  const spawnP = t => { if (pi < ps.length) { const u = addUnit(t, 'player', ps[pi][0], ps[pi][1]); u.x += 0.5; u.y += 0.5; pi++; } };
+  const spawnE = t => { if (ei < es.length) { const u = addUnit(t, 'enemy', es[ei][0], es[ei][1]); u.x += 0.5; u.y += 0.5; ei++; } };
+  for (let i = 0; i < 6; i++) spawnE('worker');
+  if (S.playerRace === 'sioux') {
+    for (let i = 0; i < 4; i++) spawnP('squaw');
+    for (let i = 0; i < 6; i++) spawnP('wojownik');
+    for (let i = 0; i < 6; i++) spawnP('lucznik');
+    spawnP('medicine'); spawnP('wodz');
+  } else {
+    for (let i = 0; i < 6; i++) spawnP('worker');
+    for (let i = 0; i < 8; i++) spawnP('piechota');
+    for (let i = 0; i < 4; i++) spawnP('jezdiec');
+  }
+  for (let i = 0; i < 10; i++) spawnE('desperado');
+  for (let i = 0; i < 3; i++) spawnE('bandleader');
+  for (let i = 0; i < 4; i++) spawnE('konnobanda');
+  S.ai = { thinkT: 1, attacks: 0, attackCd: CFG.ai.attackCooldown, trainQ: 0 };
+  computeFog();
+  centerCameraOn(phq.cx, phq.cy + 4);
+  updateTopbar(); updatePanels();
+}
+
+// ============================== RENDER ==============================
+// ============================== SPRITES ==============================
+// Zestaw retro-rts (tryb PRERENDER, kafel 64x32 = CFG.tileW/tileH, swiatlo z lewego gornego rogu).
+// Kazdy sprite: paleta (znak -> kolor) + wiersze RLE (liczba^znak, '.' = przezroczysty).
+// Wygenerowane kitem retro-rts-sprites na podstawie stylistyki oryginalnej gry (2001, pre-rendered).
+const SPRITE_DEFS = {"grass0":{"w":64,"h":32,"ax":32,"ay":16,"pal":{"d":"#665a28","g":"#8a7634","l":"#a08b42","y":"#9a7f3a"},"rows":["31.gd31.","29.lgd3g29.","27.10g27.","25.d7gdg2l2g25.","23.2gl2gd12g23.","21.8g2d2gdgl2gl4g21.","19.3gd2gdly4gy4gd3gd2gd19.","17.yl4gd4gd3gl3gl10g17.","15.24gd3gylgy2g15.","13.12gd3gd21g13.","11.7g2l2gl15gl2gd8gl2g11.","9.dlgl3gd6gl4gd3gygy3gd4gld3gd6g9.","7.5gd2gl9gl18gd7glgdlg7.","5.4gy6gl14gl12gdl3gd5gd3g5.","3.gd11gyd2gl2gl7gd4gd4gd8gd4gd5g3.",".d2gy6gl7gl2gl8gd4gd12gd11gdg.",".14gy2gl3gl2gd2gd9gy6gl9gl3gy3g.","3.gdgl8gd7g2y5gd25gy2gdg3.","5.3gd4gd4gl6gl16gl16g5.","7.gd3gl11gd8gy3gd7gl11g7.","9.6gdgdgl13gl2g2d4gy4gd5glg9.","11.3gd17g2d3gl9gyl4g11.","13.l6gl7gl10g2y3gl6g13.","15.9gd11gl9gl2g15.","17.4gygy7gl15g17.","19.2gl16gd5gd19.","21.6gd8gld4gd21.","23.2gy15g23.","25.3gl4gl4gy25.","27.10g27.","29.6g29.","31.gy31."]},"grass1":{"w":64,"h":32,"ax":32,"ay":16,"pal":{"d":"#665a28","g":"#8a7634","l":"#a08b42","y":"#9a7f3a"},"rows":["31.gd31.","29.gld3g29.","27.6gd3g27.","25.4gd8gl25.","23.8gy7gdg23.","21.2d5gy6gl7g21.","19.4gl8gd5gdgy4g19.","17.2g2ygdld8gl6gd6g17.","15.3gy14gl2gy4gygy2gd2g15.","13.6gl7gl10gl8gl3g13.","11.gd10gl7gy10gd2gygl5g11.","9.2gl2gy9gy23gdl3gld9.","7.6gd2gldlgy5g2l4gl12gd3glgl3gdg7.","5.7glgy3gly4gl2gy2gd4gd2gyl9gy9g5.","3.2gy8gl5gl2g2d4gd5gl2gy3gl2gy10gy2gdg3.",".2ygy19gl11gd15gy9gl.",".17gd5gd14gy18gd4g.","3.11gd13gd12gl5gd10gy2g3.","5.3gygl6g2dy6gl13gd18g5.","7.12gd17gd10g2dld5g7.","9.d2l8gd6gl12gl3gy10g9.","11.7gl7gd2gy20glyl11.","13.ld5gd4gy6gl3g2y4glygd2gl2g13.","15.7gl7gy18g15.","17.2gy2gd4gdgl7gy6gd2g17.","19.6gy4gd13gd19.","21.8gdgy6glgylg21.","23.3gygy2gl3gdgy3g23.","25.14g25.","27.10g27.","29.d3gyg29.","31.2g31."]},"grass2":{"w":64,"h":32,"ax":32,"ay":16,"pal":{"d":"#665a28","g":"#8a7634","l":"#a08b42","y":"#9a7f3a"},"rows":["31.2g31.","29.6g29.","27.2gl3gdgdl27.","25.3gd6gd3g25.","23.gdl3gdyd2gyg2y2dg23.","21.6gy4gl6gl3g21.","19.dgy3gd3g3ygdg2y4gy3g19.","17.2gldy4gdl2gd13gl2g17.","15.9gdy6gl3gdy7gy3g15.","13.g2l3gygdgd5glyl9gl8gd13.","11.4gy3gydl2ygd2glgdglyglyl4gy7gdlg11.","9.20gy4gl5gygl2ygdy2gl4g9.","7.7g2d4gy6gd6gl3gl7gyl3gd5g7.","5.3gd3gygyl3gy5gl2gd3gyd6gd2gy5gy5gd3g5.","3.l3gy3g2lgldygl7g2y8gygygd8gl6g2d3g3.",".l5gygld6gy6gd11gld7gdgy6g2y7g.",".lgd12gy2gygygy2g2y5gl6g3y4gl4g2y3glgld2g.","3.8gd2gl5gd5gy4gdygd6gy3gy6gygy3g2yg3.","5.y2g2y7gl6gd2gl9gydgd2gy2gy7glgl2g5.","7.glg2d7g2l8gy3gly3gd4gd4gygy5gd7.","9.gl4gd3gy21gygl3gy3gl3g9.","11.d9gd8gy9g2d5gy3glg11.","13.4gdy3gd3gd8gy2gl2gdglgl5g13.","15.4gy10gdgy13gd2g15.","17.yldy12gd2gd8glg17.","19.y2gy7gy4gd7gdy19.","21.10gd2gdldy5g21.","23.2gygy4gd4gyl2g23.","25.2y2gd2glygd3g25.","27.y9g27.","29.d3glg29.","31.2g31."]},"grass3":{"w":64,"h":32,"ax":32,"ay":16,"pal":{"d":"#665a28","g":"#8a7634","l":"#a08b42","y":"#9a7f3a"},"rows":["31.2g31.","29.y2gy2g29.","27.gdgdy5g27.","25.7g2yd4g25.","23.12gy4gl23.","21.14gygylgdgl21.","19.2g2y3gygl9gl5gd19.","17.2gygyd2gl2gdgy7gy8g17.","15.3gy3gdgy5gygy4gd2gdyg2d2gdg15.","13.dl8gdygdg2ydgl3g2d3glgd2gy4g13.","11.y3gd11g2yly5gyl4g2dgy7g11.","9.y3gygy7gd10gl15gl3gy9.","7.4gl4gy10gld18gl4g2y3g7.","5.3gly7gygdglgd19gy8gydy2glg5.","3.2y7gy2gdl4gl4gy3gd2g2y6gy3gy2g2l6gdy3g3.",".7gl3gl5gl10gy6gygyl9gd2gy7gd2g.",".gd3glgd15gd5gyd9gy8gdygdlgygy4g.","3.2gl2gyl7gd2gy2gygd6glgd8gldy2gdgl6gdl2g3.","5.dg2d4gygy10gl13gl2glgdldgy5gyg2d5.","7.2gygyl2y5gyl4gygy5gy9gl2d2y5glyl7.","9.2gl3gdgdgl4gy8g3y2gdgy5g2dgd4gl9.","11.y2g2d2gl4gygygd2l3glglgy7g2l5gy11.","13.4gl4gy10gydgy2gdg2l8g13.","15.gygd24gd3gdg15.","17.5gld2gly2gy6g2dg2y5g17.","19.gygdgy9gly2gygd4g19.","21.gdl2gd9g2y2gd2g21.","23.2dyd2gyl4gd4g24.","25.2gy3gy7g25.","27.5gy4g27.","29.2gd3g29.","31.gd31."]},"dirt0":{"w":64,"h":32,"ax":32,"ay":16,"pal":{"d":"#6b5236","g":"#8b6f47","l":"#a58a5f"},"rows":["31.2g31.","29.gl4g29.","27.5gl4g27.","25.gl3gd2g2d4g25.","23.2gd2gdgl6gdl2g23.","21.14gd4gd2g21.","19.3gl14gd7g19.","17.17gld4gd6g17.","15.gd5gd8gd5gl11g15.","13.gd2gdgdl4g2lgd4gldgd2gd2gd7gl13.","11.6gl5gd5g2d11gdl9g11.","9.3gld7gd7gld3gl14gdg2lgl9.","7.9gd3gl2gl3gl11glgd6g2lgl5g7.","5.2gd7gl2glgd3gl7gdlgl10g2d3gl4gl2g5.","3.gdl5gd4gl6gl2gl2d16gd2glgd2gd7g3.",".4gl5gd4gd4glglgl7gd4gd3gl5gl2g2d7gd2g.",".l22gl4gl9gl4gl8gd9g.","3.2gd2gd3gld2gd19gd4gd2gd2glgl3gd7g3.","5.11gdgl2gd10g2d2gd2gd2gd3gdl4gl6g5.","7.3gl4gd3gl3g2d7glgd12gd4gl3gd7.","9.10gd27gl2gd4g9.","11.d3gl6g3d8glgd17g11.","13.3gd2gd2g2l10gdgl7gdgl4g13.","15.11gdld6gl13g15.","17.4gl2g2d2gl3gl7gd6g17.","19.11gd10gd3g19.","21.22g21.","23.d9gl4gd2g23.","25.14g25.","27.l7glg27.","29.gd4g29.","31.2g31."]},"dirt1":{"w":64,"h":32,"ax":32,"ay":16,"pal":{"d":"#6b5236","g":"#8b6f47","l":"#a58a5f"},"rows":["31.2g31.","29.6g29.","27.10g27.","25.gl10glg25.","23.4gd3gl9g23.","21.5gd11gd4g21.","19.21gd4g19.","17.d18gl2gdgd5g17.","15.gl4gdgd5gl6g2ld4gl5g15.","13.6gd2gd21gl4gdg13.","11.2glg2d9gd10glgd6gl6g11.","9.glgl3gd4gl4gd18glgd5glg9.","7.l3gld5g2l4gdgdl4gd13gd10g7.","5.d6gl3gl3gd6g2d8gl2gl18g5.","3.gl7g2l6gl15gdl12gdl5g3lg3.",".gdlgd2l6g2dgdgl5gd8gdgdld10g3l2gl8g.",".6gd17gl11gd6gd2l4gl4gd6g.","3.8gd2gd9gl27gd8g3.","5.13gl7gd3gd7gd2gl7g2l7gd5.","7.5gl17g2lglgd3gd2gd12glg7.","9.gd8gd4gl6g2l10gdgl5gdg2d9.","11.gd8gdgl4gd7gd6gd6gldg11.","13.2gl2gd12gdlgl12gd3g13.","15.l2gl5gd12gdg2d2gld4g15.","17.18gl2gd4gd3g17.","19.3gdgd6gl13g19.","21.8gd2gl2gd7g21.","23.4glgl4gdl5g23.","25.7gld5g25.","27.6glglg27.","29.l3gdg29.","31.2g31."]},"tree0":{"w":32,"h":40,"ax":16,"ay":36,"pal":{"d":"#24401f","g":"#355c2b","l":"#55823a","u":"#57402a","t":"#7a5b39","s":"rgba(0,0,0,0.30)"},"rows":["32.","32.","13.3g16.","10.3gl2gd15.","9.g3lgl6g11.","9.g2lgl2g4l2g2d8.","9.g2l3g4l5gd7.","9.2gl3g5l5gd6.","8.7g2lgl5g2d6.","8.dl4gdl4gdg3dg6.","5.8gd7g4dg2d4.","3.2g5l2g4d2gdg4d3gd4.","2.g4lg3l7g6d4gd3.","2.g3lg3lgl6gdg4d4gd3.","2.g6l10gdg3d3g2d3.","3.g2l3gl6g9dg3d3.","3.12g9dg4d3.","3.d6gd5g6d2g5d3.","4.d4gdg3dg4d4g6d3.","4.4gdg3dlgl5g2dg4d4.","4.g2l6dgl6g8d3.","4.g5ldlgl6gdg2d2gdgd3.","4.g2lglgl8g5d3g2d3.","4.gl3gl8g5dg4d4.","4.13g5dg5d4.","4.d5g2d2gdg4d2g5d5.","5.9dg4d2g4d7.","14.3du.3d10.","14.3tu14.","14.3tu14.","14.3tu14.","13.4t2u13.","13.4t2u13.","11.2s4t2u2s11.","8.5s4t2u5s8.","6.7s4t2u7s6.","6.20s6.","8.16s8.","11.10s11.","32."]},"tree1":{"w":32,"h":40,"ax":16,"ay":36,"pal":{"d":"#24401f","g":"#355c2b","l":"#55823a","u":"#57402a","t":"#7a5b39","s":"rgba(0,0,0,0.30)"},"rows":["32.","16.g15.","14.2gl2d13.","12.2g2l3gd12.","12.g2l4gd12.","12.gl4g2d12.","9.3gl4g3d3g9.","8.g3l6gdlglgd8.","8.g2lgl3g3d4gd8.","7.g2l5g3d4g2d8.","8.2gl3g2dl4gdgd8.","8.d4g3d6g2d8.","9.dgdg2d4gdg2d9.","9.5dgl2g4d10.","10.g2lgl6gd10.","8.2g2l8g3dg8.","8.g2l6gdg3dlgd7.","7.g3l6g4d3gd7.","6.g3l5g5d5gd6.","5.g2lgl4g4d2l4g3d5.","5.gl6g3dlgl4gdg2d5.","5.9gdl6g5d5.","6.5g5dl4g5d6.","7.2dg6d4g5d7.","9.dg2d2l4g4d9.","9.g4l8gd9.","9.gl8g3d10.","9.9gdg2d10.","10.2d3g7d10.","12.3dg5d11.","14.3tu14.","14.3tu14.","14.3tu14.","13.4t2u13.","9.4s4t2u4s9.","8.5s4t2u5s8.","8.16s8.","9.14s9.","14.4s14.","32."]},"gold":{"w":32,"h":28,"ax":16,"ay":24,"pal":{"m":"#63615a","n":"#8f8a7f","N":"#b5b0a4","G":"#c9a24b","L":"#e6cd7a","O":"#8a6a1e","s":"rgba(0,0,0,0.30)"},"rows":["32.","32.","32.","32.","32.","32.","32.","32.","9.n2.G19.","7.2nN2nO19.","6.nLNnN2nO18.","5.nN2GN4nm3.nG3n9.","3.2n3NG2nGn2m2.nNG3N3m6.","2.n3NGN5n2m.nNG3NnLnm6.","2.n2NnN4n4m.n4N2nG2nm5.","2.nN6nmn2m.n2NnNG3nGnm5.","2.2nN6n4m4N6n2m5.","3.m4n3mn3m2N7n4m4.","4.m2n8m6nmn5m4.","5.10m5nmn6m4.","9.5m.3mnmn7m4.","10.8s7m7.","6.20s6.","5.22s5.","5.22s5.","6.20s6.","10.12s10.","32."]},"worker":{"w":24,"h":32,"ax":12,"ay":29,"pal":{"b":"#c8a06a","c":"#e0bd8d","d":"#2b4d8f","e":"#3f66b5","f":"#6f92d8","j":"#ab9449","k":"#c9b264","t":"#7a5b39","u":"#57402a","y":"#6b5236","w":"#9aa2ab","s":"rgba(0,0,0,0.30)"},"rows":["9.6j9.","9.2k4j9.","8.j2k5j8.","8.8j8.","5.14j5.","8.3c5b8.","8.3c5b8.","8.2c6b2.5w.","8.c7b2.4w2.","9.6b3.4w2.","10.4b4.3w3.","7.3e4f3d3.t3.","4.3b6f4e3bt3.","4.3b5f5e3bt3.","4.3b4f6e3bt3.","4.3b3f6ed3bt3.","4.3b2f6e2d3bt3.","4.3bf4ede3d3bt3.","4.3b6e4d3bt3.","4.3c5e5d3bt3.","4.3c2e8d3bt3.","6.3de8d2.t3.","8.3y2.3y4.t3.","8.3y2.3y8.","8.3y2.3y8.","8.3y2.3y8.","8.3y2.3y8.","6.s4u2s4us6.","4.3s4u2s4u3s4.","4.16s4.","6.12s6.","24."]},"soldier":{"w":24,"h":32,"ax":12,"ay":29,"pal":{"b":"#c8a06a","c":"#e0bd8d","d":"#2b4d8f","e":"#3f66b5","f":"#6f92d8","t":"#7a5b39","u":"#57402a","y":"#6b5236","w":"#9aa2ab","s":"rgba(0,0,0,0.30)"},"rows":["9.6u9.","9.2t4u9.","8.8u8.","8.8u8.","5.14t5.","9.2c4b9.","8.3c5b8.","8.2c6b8.","9.6b9.","9.6b9.","11.2b11.","7.4e2fe3d7.","4.3d6f3ed7.","4.d2e5f5e3d4.","4.d2e4f8ed4.","4.d2t3f6ed2ed4.","4.dew2t6e2d2ed4.","4.d2ef2w2ede3d2ed4.","4.d5e2we4de3c3.","4.3b5e2w4d3c3.","4.3b2e5d2w2d6.","6.3de6d2w6.","8.3y2.3y2.w5.","8.3y2.3y8.","8.3y2.3y8.","8.3y2.3y8.","8.3y2.3y8.","6.s4u2s4us6.","4.3s4u2s4u3s4.","4.16s4.","6.12s6.","24."]},"bandit":{"w":24,"h":32,"ax":12,"ay":29,"pal":{"b":"#c8a06a","c":"#e0bd8d","r":"#b53f3f","R":"#d86f6f","u":"#57402a","t":"#7a5b39","m":"#63615a","w":"#9aa2ab","s":"rgba(0,0,0,0.30)"},"rows":["9.6m9.","8.7m9.","8.8m8.","5.14m5.","9.3c3b9.","8.3c5b8.","8.2c6b8.","9.6r9.","9.7r8.","11.2b3.r7.","6.6t6u6.","6.6t6u6.","4.8t8u4.","4.8t8u4.","4.8t5uw2u4.","4.8t6uwu4.","4.8t6uwu4.","4.8t7uw4.","4.3b5t5u3bw3.","4.3b5t5u3bw3.","5.7t7u2.w2.","8.3t2.3t8.","8.3t2.3t8.","8.3t2.3t8.","8.3t2.3t8.","8.3t2.3t8.","8.3t2.3t8.","6.2s3m2s3m2s6.","4.4s3m2s3m4s4.","4.16s4.","6.12s6.","24."]},"leader":{"w":24,"h":32,"ax":12,"ay":29,"pal":{"b":"#c8a06a","c":"#e0bd8d","q":"#8f2b2b","r":"#b53f3f","R":"#d86f6f","m":"#63615a","n":"#8f8a7f","w":"#9aa2ab","u":"#57402a","s":"rgba(0,0,0,0.30)"},"rows":["8.8m8.","7.9m8.","7.m8nm7.","4.16m4.","9.3c3b9.","8.3c5b8.","8.2c6b8.","9.6b9.","9.6b9.","11.2b11.","6.5r2R2r3q6.","6.r7R3rq6.","4.2qr6R4r3q4.","4.q2r5RrR3rqwq4.","4.q2r4R6r2qw4.","4.q2r3R6r3qw4.","4.q2r2RrR6r3qw3.","4.q2rRrR4rqr4q.w2.","4.3brR6r2q3b.w2.","4.3bR6r3q3b2.w.","5.qR6r6q5.","5.5rqr7q5.","5.q5r8q5.","5.q4r9q5.","5.q3rqr8q5.","5.14q5.","8.3u2.3u8.","6.2s3u2s3u2s6.","4.16s4.","4.16s4.","6.12s6.","24."]},"rider":{"w":32,"h":40,"ax":16,"ay":36,"pal":{"H":"#6b5236","h":"#8b6f47","i":"#a58a5f","u":"#57402a","d":"#2b4d8f","e":"#3f66b5","f":"#6f92d8","j":"#ab9449","k":"#c9b264","b":"#c8a06a","c":"#e0bd8d","s":"rgba(0,0,0,0.30)"},"rows":["13.6j13.","13.2k4j13.","12.j2k5j12.","12.8j12.","10.13j9.","13.2c4b13.","13.c5b13.","13.6b13.","14.4b14.","32.","12.5eded12.","9.3d4f3ed12.","9.d2e3fef2ed12.","7.H.d2e2fef2e2d12.","6.hiH3ef4e3d12.","5.hi2h7e5d11.","4.2H2hH6e6d11.","4.5H5e7d11.","9.3b9d11.","9.3b2.uhH15.","11.2hHi4h2H4.u6.","10.hihi3uhi2h4Hu6.","9.h3ih3u6h3Hu5.","9.h3ih3u6h3Hu5.","9.h2i2h3uhHh5H.u5.","10.H2h4u8H.u5.","10.H2h3u8H2.u5.","10.Hh9HhH.2H.u4.","10.2H.4H4.2H.2H.u4.","10.2H.2H6.2H.2H.u4.","10.2H.2H6.2H.2H6.","10.2H.2H6.2H.2H6.","10.2H.2H6.2H.2H6.","10.2Hs2H6s2H.2H6.","7.3s2us2u6s2us2u6.","6.4s2us2u6s2us2u6.","6.20s6.","7.18s7.","10.12s10.","32."]},"rider_red":{"w":32,"h":40,"ax":16,"ay":36,"pal":{"H":"#6b5236","h":"#8b6f47","i":"#a58a5f","u":"#57402a","q":"#8f2b2b","r":"#b53f3f","R":"#d86f6f","m":"#63615a","b":"#c8a06a","c":"#e0bd8d","s":"rgba(0,0,0,0.30)"},"rows":["13.6m13.","13.6m13.","12.8m12.","12.8m12.","10.13m9.","13.2c4b13.","13.c5b13.","13.6b13.","14.4b14.","32.","12.5rqrq12.","9.3q4R3rq12.","9.q2r3RrR2rq12.","7.H.q2r2RrR2r2q12.","6.hiH3rR4r3q12.","5.hi2h7r5q11.","4.2H2hH6r6q11.","4.5H5r7q11.","9.3b9q11.","9.3b2.uhH15.","11.2hHi4h2H4.u6.","10.hihi3uhi2h4Hu6.","9.h3ih3u6h3Hu5.","9.h3ih3u6h3Hu5.","9.h2i2h3uhHh5H.u5.","10.H2h4u8H.u5.","10.H2h3u8H2.u5.","10.Hh9HhH.2H.u4.","10.2H.4H4.2H.2H.u4.","10.2H.2H6.2H.2H.u4.","10.2H.2H6.2H.2H6.","10.2H.2H6.2H.2H6.","10.2H.2H6.2H.2H6.","10.2Hs2H6s2H.2H6.","7.3s2us2u6s2us2u6.","6.4s2us2u6s2us2u6.","6.20s6.","7.18s7.","10.12s10.","32."]},"horse":{"w":32,"h":40,"ax":16,"ay":36,"pal":{"H":"#6b5236","h":"#8b6f47","i":"#a58a5f","u":"#57402a","s":"rgba(0,0,0,0.30)"},"rows":["32.","32.","32.","32.","32.","32.","32.","32.","32.","32.","32.","32.","32.","7.H.H6.2u14.","6.hi2H6.2u14.","5.hi3hH5.2u14.","4.2H2h3H5.u15.","4.6H6.u15.","15.uH15.","14.uhH15.","11.2hHi4h2H4.u6.","10.hihi4hi2h4Hu6.","9.h3i10h3Hu5.","9.h3i10h3Hu5.","9.h2i6hHh5H.u5.","10.H6h8H.u5.","10.H4h9H2.u5.","10.Hh9HhH.2H.u4.","10.2H.4H4.2H.2H.u4.","10.2H.2H6.2H.2H.u4.","10.2H.2H6.2H.2H6.","10.2H.2H6.2H.2H6.","10.2H.2H6.2H.2H6.","10.2Hs2H6s2H.2H6.","7.3s2us2u6s2us2u6.","6.4s2us2u6s2us2u6.","6.20s6.","7.18s7.","10.12s10.","32."]},"pine":{"w":32,"h":40,"ax":16,"ay":36,"pal":{"d":"#1d331c","g":"#2f5226","l":"#4a7238","t":"#7a5b39","u":"#57402a","s":"rgba(0,0,0,0.30)"},"rows":["32.","32.","15.lgd14.","14.2lg2d13.","13.3l2g2d12.","13.2l2gl2d12.","13.3l2g2d12.","13.3lgl2d12.","13.3l2g2d12.","14.2lgld13.","14.2l2gd13.","13.g2lgl2d12.","12.3l3g3d11.","11.4l3g4d10.","10.4l3gdl4d9.","10.2lg3l2g5d9.","9.6l3g6d8.","9.g5ld3g5d8.","10.5l3g5d9.","10.gdgdgdgdg4d9.","10.dgdgd3g5d9.","10.g3dgdgdg4d9.","9.gdgdgd3g6d8.","8.gdgdgdgd3g6d7.","7.gdgdgdgd3gdg6d6.","6.g3dgdgdg12d5.","6.dgdgdgdg13d5.","6.gdgdgdgdg12d5.","6.dgdgdgdg13d5.","6.gdgdgdgdgtu10d5.","15.tu15.","15.tu15.","15.tu15.","15.tu15.","15.tu15.","15.tu15.","9.15s8.","8.17s7.","9.15s8.","11.11s10."]},"dead":{"w":32,"h":40,"ax":16,"ay":36,"pal":{"t":"#7a5b39","u":"#57402a","w":"#9aa2ab","s":"rgba(0,0,0,0.30)"},"rows":["32.","32.","32.","32.","32.","32.","19.w12.","18.t13.","7.wt9.t13.","7.t2w7.t14.","8.3t5.t15.","9.3t20.","10.5tu9.wu5.","11.5t8.w2u5.","13.3t6.uw2u6.","14.3t4.4u7.","14.3t3.3u9.","15.tu.4u10.","15.t5u11.","15.t3u13.","15.t2u14.","15.tu15.","15.tu4.3wu7.","15.tu.7u7.","15.t7u9.","10.wu3.t3u13.","10.uw2u.tu15.","11.6u15.","13.2utu15.","15.2u15.","15.tu15.","15.tu15.","15.tu15.","15.tu15.","15.tu15.","15.tu15.","9.15s8.","8.17s7.","9.15s8.","11.11s10."]},"bld_house":{"w":128,"h":112,"ax":64,"ay":80,"pal":{"v":"#57402a","w":"#7a5b39","l":"#9c7a4c","R":"#c9b264","r":"#ab9449","q":"#8a7434","m":"#63615a","s":"rgba(0,0,0,0.30)"},"rows":["128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","62.2r2q62.","57.2r2qr2R2r5q57.","52.r2q2r4R2rR2r2q3r5q52.","47.2q3r3R2r6Rr2q6r2q2r5q47.","42.q4r2R2r6R2r5R6r2q6r2qr5q42.","37.5rR2r6R2r6R2r3R4r2q6r2q6r7q37.","32.7r6R2r6R2r6R2rR2r2q6r2q6r2q6r6q32.","27.4rqr6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r5q27.","22.3r2q6R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2q5r5q22.","17.2r2qr5R2r6R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2q6r2q4r5q17.","12.r2q2r4R2r6R2r6R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2q6r2q6r2q3r5q12.","7.2q3r3R2r6R2r6R2r6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r2q6r2q6r2q2r5q7.","2.q4r2R2r6R2r6R2r6R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2q6r2q6r2q6r2qr5q2.","vrR2r6R2r6R2r6R2r6R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2q6r2q6r2q6r2q6r3qv","v2w2R2r6R2r6R2r6R2r6R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2q6r2q6r2q6r2q6r2qr3v","v4w2R2r6R2r6R2r6R2r6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r2q6r2q6r2q6r2qr5v","v6w2R2r6R2r6R2r6R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2q6r2q6r2q6r2qr7v","v8w2R2r6R2r6R2r6R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2q6r2q6r2q6r2qr9v","v10w2R2r6R2r6R2r6R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2q6r2q6r2q6r2qr11v","v12w2R2r6R2r6R2r6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r2q6r2q6r2qr13v","v14w2R2r6R2r6R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2q6r2q6r2qr15v","v16w2R2r6R2r6R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2q6r2q6r2qr17v","v18w2R2r6R2r6R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2q6r2q6r2qr19v","v14wl5w2R2r6R2r6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r2q6r2qr21v","v14wl7w2R2r6R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2q6r2qr23v","v14wl9w2R2r6R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2q6r2qr25v","v14wl11w2R2r6R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2q6r2qr27v","v11w2mwl13w2R2r6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r2qr29v","v11w4m15w2R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2qr31v","v11w6m15w2R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2qr33v","v11w8m15w2R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2qr35v","v11w9m10wl5w2R2r6R2r6R2r6Rr2q6r2q6r2q6r2qr37v","v11w9m10wl7w2R2r6R2r6R2r5R6r2q6r2q6r2qr39v","v11w9m10wl9w2R2r6R2r6R2r3R4r2q6r2q6r2qr41v","v13w7m10wl11w2R2r6R2r6R2rR2r2q6r2q6r2qr43v","v14wl5m10wl13w2R2r6R2r6Rr2q6r2q6r2qr45v","v14wl2w3m10wl15w2R2r6R2r5R6r2q6r2qr47v","v14wl4wm10wl17w2R2r6R2r3R4r2q6r2qr49v","v14wl15wl19w2R2r6R2rR2r2q6r2qr51v",".2v12wl15wl15wl5w2R2r6Rr2q6r2qr52v.","3.2v10wl15wl15wl7w2R2r5R6r2qr52v3.","5.2v8wl15wl2wl12wl9w2R2r3R4r2qr15v2m35v5.","7.2v6wl15wl3w2l10wl11w2R2rR2r2qr15v4m33v7.","9.2v4wl15wl3w2v2l8wl13w2Rr2qr15v6m31v9.","11.2v2wl15wl3w4v2l6wl15wRr15v8m29v11.","13.2vl15wl3w6v2l4wl16w15v9m27v13.","15.2v14wl3w8v2l2wl16w15v9m25v15.","17.2v12wl3w10v3l16w15v9m23v17.","19.2v10wl3w11vwl16w15v7m23v19.","21.2v8wl3w11vwl16w15v5m23v21.","23.2v6wl3w11vwl16w15v3m23v23.","25.2v4wl3w11vwl16w15vm23v25.","27.2v2wl3w11vwl16w37v27.","29.2vl3w11vwl16w35v29.","31.2v2w11vwl16w33v31.","33.13vwl16w31v33.","35.11vwl16w29v35.","36.10vwl16w27v37.","38.8vwl16w25v39.","40.6vwl16w23v41.","42.4vwl16w21v43.","44.3vl16w19v45.","47.2v15w17v47.","49.2v13w15v49.","51.2v11w13v51.","53.2v9w11v53.","55.2v7w9v55.","57.2v5w7v57.","59.2v3w5v59.","61.2vw3v61.","63.2v63."]},"bld_storehouse":{"w":128,"h":112,"ax":64,"ay":80,"pal":{"v":"#57402a","w":"#7a5b39","l":"#9c7a4c","u":"#57402a","E":"#b8683f","e":"#96402e","Q":"#6f3220","m":"#63615a","s":"rgba(0,0,0,0.30)"},"rows":["128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","61.3e3Q61.","54.Q8eE2e8Q54.","48.Q5eE2e6Ee2Q6e8Q48.","42.Q5eE2e6E2e5E6e2Q6e8Q42.","35.2Q5eE2e6E2e6E2e3E4e2Q6e2Q6e9Q35.","29.2Q4e2E2e6E2e6E2e6E2eE2e2Q6e2Q6e2Q6e2Qe6Q29.","22.e2Q4e2E2e6E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Q6e2Qe7Q22.","16.e2Q3e3E2e6E2e6E2e6E2e6E2e5E6e2Q6e2Q6e2Q6e2Q6e2Q2e6Q16.","10.e2Q3e3E2e6E2e6E2e6E2e6E2e6E2e3E4e2Q6e2Q6e2Q6e2Q6e2Q6e2Q2e6Q10.","3.2e2Q3e3E2e6E2e6E2e6E2e6E2e6E2e6E2eE2e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q2e7Q3.","v2e4E2e6E2e6E2e6E2e6E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q3e2Qv","v2w6E2e6E2e6E2e6E2e6E2e6E2e6E2e5E6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q5e3v","v4w6E2e6E2e6E2e6E2e6E2e6E2e6E2e3E4e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q5e5v","v6w6E2e6E2e6E2e6E2e6E2e6E2e6E2eE2e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q5e7v","v8w6E2e6E2e6E2e6E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q5e9v","v10w6E2e6E2e6E2e6E2e6E2e6E2e5E6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q5e11v","v12w6E2e6E2e6E2e6E2e6E2e6E2e3E4e2Q6e2Q6e2Q6e2Q6e2Q6e2Q5e13v","v14w6E2e6E2e6E2e6E2e6E2e6E2eE2e2Q6e2Q6e2Q6e2Q6e2Q6e2Q5e15v","2v15w6E2e6E2e6E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Q6e2Q6e2Q5e16vu","vw2v15w6E2e6E2e6E2e6E2e6E2e5E6e2Q6e2Q6e2Q6e2Q6e2Q5e16v2uv","v3w2v15w6E2e6E2e6E2e6E2e6E2e3E4e2Q6e2Q6e2Q6e2Q6e2Q5e16v2u3v","v5w2v15w6E2e6E2e6E2e6E2e6E2eE2e2Q6e2Q6e2Q6e2Q6e2Q5e16v2u5v","v7w2v15w6E2e6E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Q6e2Q5e16v2u7v","v9w2v15w6E2e6E2e6E2e6E2e5E6e2Q6e2Q6e2Q6e2Q5e16v2u9v","2v9wm2v15w6E2e6E2e6E2e6E2e3E4e2Q6e2Q6e2Q6e2Q5e16v2u10vu","vw2v7w3m2v15w6E2e6E2e6E2e6E2eE2e2Q6e2Q6e2Q6e2Q5e16v2u10v2uv","v3w2v5w5m2v15w6E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Q5e16v2u10v2u3v","v5w2v3w7m2v15w6E2e6E2e6E2e5E6e2Q6e2Q6e2Q5e16v2u10v2u5v","v7w2vw8mw2v15w6E2e6E2e6E2e3E4e2Q6e2Q6e2Q5e16v2u10v2u7v","v9wv8m3w2v15w6E2e6E2e6E2eE2e2Q6e2Q6e2Q5e16v2u10v2u9v","2v10w7m5w2v15w6E2e6E2e6Ee2Q6e2Q6e2Q5e16v2u10v2u10vu","vw2v10w5m7w2v15w6E2e6E2e5E6e2Q6e2Q5e16v2u10v2u10v2uv","v3w2v10w3m9w2v15w6E2e6E2e3E4e2Q6e2Q5e16v2u10v2u10v2u3v","v5w2v10wmv10w2vu14w6E2e6E2eE2e2Q6e2Q5e16v2u10v2u10v2u5v",".2v5w2v10w2v10wvu15w6E2e6Ee2Q6e2Q5e16v2u10v2u10v2u6v.","3.2v5w2v10w2v8wvu2v15w6E2e5E6e2Q5e16v2u10v2u10v2u6v3.","5.2v5w2v10w2v6w2vu3v15w6E2e3E4e2Q5e16v2u10v2u10v2u6v5.","7.2v5w2v10w2v4w3vu4v15w6E2eE2e2Q5e16v2u10v2u10v2u6v7.","9.2v5w2v10w2v2w3vu6v15w6Ee2Q5e16v2u10v2u10v2u6v9.","11.2v5w2v10w6vu7v15w5E5e16v2u10v2u10v2u6v11.","13.2v5w2v10w5vu8v15w3E3e16v2u10v2u10v2u6v13.","15.2v5w2v8w6vu9v15wEe16v2u10v2u10v2u6v15.","17.2v5w2v6w6vu10v2u13w15v2u10v2u10v2u6v17.","19.2v5w2v4w7vu7v2u3v12w13v2u10v2u10v2u6v19.","21.2v5w2v2w8vu4v2u4vw2v10w11v2u10v2u10v2u6v21.","23.2v5w10vu2v2u6v3w2v8w9v2u10v2u10v2u6v23.","25.2v5w8v3u8v5w2v6w7v2u10v2u10v2u6v25.","27.2v3w6v2u2vu8v7w2v4w5v2u10v2u10v2u6v27.","29.2vw4v2u4vu8v9w2v2w3v2u10v2u10v2u6v29.","31.3v2u7vu8v10wvw2vu10v2u10v2u6v31.","32.2u10vu6vw2v10w11v2u10v2u6v33.","34.10vu6v3w2v8w9v2u10v2u6v35.","36.9vu5v5w2v6w7v2u10v2u6v37.","38.8vu4v7w2v4w5v2u10v2u6v39.","40.7vu3v9w2v2w3v2u10v2u6v41.","42.5vu4v10wvw2vu10v2u6v43.","44.4vu2vw2v10w11v2u6v45.","46.3vuv3w2v8w9v2u6v47.","48.vuv5w2v6w7v2u6v49.","50.u2v5w2v4w5v2u6v51.","53.2v5w2v2w3v2u6v53.","55.2v5wvw2vu6v55.","57.2v5w7v57.","59.2v3w5v59.","61.2vw3v61.","63.2v63."]},"bld_farm":{"w":128,"h":112,"ax":64,"ay":80,"pal":{"v":"#57402a","w":"#7a5b39","l":"#9c7a4c","R":"#c9b264","r":"#ab9449","G":"#c9a24b","L":"#e6cd7a","F":"#6b5236","s":"rgba(0,0,0,0.30)"},"rows":["128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","63.Rr63.","58.6R6r58.","53.11R11r53.","47.17R17r47.","42.22R22r42.","36.28R28r36.","32.32R32r32.","34.30R30r34.","35.v28R28rv35.","35.v2w26R26r3v35.","35.v4w24R24r5v35.","35.v6w22R22r7v35.","35.v8w20R20r9v35.","35.v10w18R18r11v35.","35.v12w16R16r13v35.","35.v14w14R14r15vL34.","35.v16w12R12r17v35.","35.2v17w10R10r19vG34.","37.2v17w8R8r19v37.","39.2v17w6R6r19v39.","41.2v17w4R4r19v7.F7.L25.","43.2v17w2R2r19vG6.2F34.","45.2v17w19v7.2F10.G25.","47.2v15w17v7.2F38.","49.2v13w15v7.2F40.","51.2v11w13vG6.2F16.2F8.L15.","53.2v9w11v7.2F11.G4.2F26.","55.2v7w9v7.2F16.2F12.G15.","57.2v5w7v7.2F16.2F30.","59.2v3w5v.G5.2F16.2F8.L8.F14.","61.2vw3v7.2F11.G4.2F17.2F15.","63.2v7.2F16.2F12.G4.2F17.","70.2F7.L8.2F17.2F13.G5.","62.G5.2F16.2F17.2F7.L13.","66.2F11.G4.2F11.G5.2F18.F4.","64.2F6.L9.2F17.2F11.G6.2F5.","54.G7.2F16.2F17.2F18.2F7.","60.2F10.G5.2F17.2F18.2F9.","58.2F16.2F11.G5.2F18.2F11.","56.2F16.2F17.2F11.G6.2F13.","47.G6.2F16.2F17.2F18.2F15.","52.2F10.G5.2F17.2F18.2F17.","50.2F16.2F11.G5.2F18.2F19.","48.2F6.L9.2F17.2F12.G5.2F21.","39.G6.2F16.2F17.2F18.2F23.","44.2F10.G5.2F17.2F8.L9.2F25.","42.2F16.2F12.G4.2F18.2F27.","40.2F16.2F17.2F12.G5.2F29.","38.2F16.2F8.L8.2F18.2F31.","36.2F11.G4.2F17.2F18.2F33.","52.2F12.G4.2F18.2F35.","50.2F17.2F12.G5.2F37.","48.2F17.2F18.2F39.","46.2F17.2F18.2F41.","58.G4.2F18.2F43.","61.2F13.G4.2F45.","59.2F7.L10.2F47.","57.2F18.2F49.","55.2F11.G6.2F51.","73.2F53.","71.2F55.","69.2F57.","67.2F59.","65.2F61.","128."]},"bld_barracks":{"w":128,"h":112,"ax":64,"ay":80,"pal":{"m":"#63615a","n":"#8f8a7f","w":"#7a5b39","v":"#57402a","l":"#9c7a4c","E":"#b8683f","e":"#96402e","Q":"#6f3220","s":"rgba(0,0,0,0.30)"},"rows":["128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","61.3e3Q61.","56.7eE2e6Q56.","51.4eQe6Ee2Q6e5Q51.","45.4e2Q6E2e5E6e2Q5e6Q45.","40.3e2Q6E2e6E2e3E4e2Q6e2Q5e5Q40.","35.2e2Qe5E2e6E2e6E2eE2e2Q6e2Q6e2Q4e5Q35.","29.2e2Q2e4E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Q3e6Q29.","24.e2Q2e4E2e6E2e6E2e6E2e5E6e2Q6e2Q6e2Q6e2Q3e5Q24.","19.2Q3e3E2e6E2e6E2e6E2e6E2e3E4e2Q6e2Q6e2Q6e2Q6e2Q2e5Q19.","13.2Q4e2E2e6E2e6E2e6E2e6E2e6E2eE2e2Q6e2Q6e2Q6e2Q6e2Q6e2Qe6Q13.","8.Q4e2E2e6E2e6E2e6E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Qe5Q8.","3.5eE2e6E2e6E2e6E2e6E2e6E2e6E2e5E6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e7Q3.","v4e6E2e6E2e6E2e6E2e6E2e6E2e6E2e3E4e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e3Qv","v2w2E2e6E2e6E2e6E2e6E2e6E2e6E2e6E2eE2e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Qe3v","v4w2E2e6E2e6E2e6E2e6E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Qe5v","v6w2E2e6E2e6E2e6E2e6E2e6E2e6E2e5E6e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Qe7v","v8w2E2e6E2e6E2e6E2e6E2e6E2e6E2e3E4e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Qe9v","v10w2E2e6E2e6E2e6E2e6E2e6E2e6E2eE2e2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Qe11v","v12w2E2e6E2e6E2e6E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Q6e2Q6e2Q6e2Qe13v","v14w2E2e6E2e6E2e6E2e6E2e6E2e5E6e2Q6e2Q6e2Q6e2Q6e2Q6e2Qe15v","v16w2E2e6E2e6E2e6E2e6E2e6E2e3E4e2Q6e2Q6e2Q6e2Q6e2Q6e2Qe17v","v18w2E2e6E2e6E2e6E2e6E2e6E2eE2e2Q6e2Q6e2Q6e2Q6e2Q6e2Qe19v","v20w2E2e6E2e6E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Q6e2Q6e2Qe21v","v22w2E2e6E2e6E2e6E2e6E2e5E6e2Q6e2Q6e2Q6e2Q6e2Qe23v","v24w2E2e6E2e6E2e6E2e6E2e3E4e2Q6e2Q6e2Q6e2Q6e2Qe25v","v11w2m13w2E2e6E2e6E2e6E2e6E2eE2e2Q6e2Q6e2Q6e2Q6e2Qe27v","v11w4m13w2E2e6E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Q6e2Qe29v","n11w6m13w2E2e6E2e6E2e6E2e5E6e2Q6e2Q6e2Q6e2Qe30vm","3n9w8m13w2E2e6E2e6E2e6E2e3E4e2Q6e2Q6e2Q6e2Qe30v3m","5n7w9m14w2E2e6E2e6E2e6E2eE2e2Q6e2Q6e2Q6e2Qe30v5m","7n5w9m16w2E2e6E2e6E2e6Ee2Q6e2Q6e2Q6e2Qe30v7m","9n5w7m18w2E2e6E2e6E2e5E6e2Q6e2Q6e2Qe30v9m","11n5w5m20w2E2e6E2e6E2e3E4e2Q6e2Q6e2Qe30v11m","13n5w3m22w2E2e6E2e6E2eE2e2Q6e2Q6e2Qe30v13m",".14n5wm24w2E2e6E2e6Ee2Q6e2Q6e2Qe30v14m.","3.14n30w2E2e6E2e5E6e2Q6e2Qe30v14m3.","5.14n30w2E2e6E2e3E4e2Q6e2Qe30v14m5.","7.14n12w2l16w2E2e6E2eE2e2Q6e2Qe30v14m7.","9.14n10w2v2l16w2E2e6Ee2Q6e2Qe30v14m9.","11.14n8w4v2l16w2E2e5E6e2Qe13v2m15v14m11.","13.14n6w6v2l16w2E2e3E4e2Qe13v4m13v14m13.","15.14n4w8v2l16w2E2eE2e2Qe13v6m11v14m15.","17.14n2w10v2l16w2Ee2Qe13v8m9v14m17.","19.14n12v2l16wEe14v9m7v14m19.","21.12n14v2l15w15v9m5v14m21.","23.10n15v16w15v7m5v14m23.","25.8n15v16w15v5m5v14m25.","27.6n15v16w15v3m5v14m27.","29.4n15v16w15vm5v14m29.","31.2n15v16w19v14m31.","33.15v16w17v14m33.","34.14vn15w15v14m35.","36.12v3n13w13v14m37.","38.10v5n11w11v14m39.","40.8v7n9w9v14m41.","42.6v9n7w7v14m43.","44.4v11n5w5v14m45.","46.2v13n3w3v14m47.","49.14nwv14m49.","51.13n13m51.","53.11n11m53.","55.9n9m55.","57.7n7m57.","59.5n5m59.","61.3n3m61.","63.nm63."]},"bld_factory":{"w":128,"h":112,"ax":64,"ay":80,"pal":{"m":"#63615a","n":"#8f8a7f","M":"#b5b0a4","w":"#7a5b39","l":"#9c7a4c","v":"#57402a","s":"rgba(0,0,0,0.30)"},"rows":["128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","79.M48.","128.","77.M50.","128.","75.M52.","128.","128.","128.","72.M55.","128.","128.","128.","128.","128.","69.2m57.","67.2m2n2m55.","63.2v2m6n2m53.","61.2v12n2m51.","59.2v16n2m49.","57.2v20n2m47.","55.2v2w20n2m47.","53.2v4w18n4m47.","51.2v6w16n6m47.","49.2v8w14n8m47.","47.2v10w12n10m47.","45.2v12w11n11m2v45.","43.2v14w11n11m2w2v43.","41.2v16w11n11m4w2v41.","39.2v18w11n11m6w2v39.","37.2v20w11n11m8w2v37.","35.2v22w11n11m10w2v35.","33.2v24w11n11m12w2v33.","31.2v26w11n11m14w2v31.","29.2v28w11n11m16w2v29.","27.2v30w11n11m18w2v27.","25.2v32w11n11m20w2v25.","23.2v34w11n11m22w2v23.","21.2v36w11n11m24w2v21.","19.2v38w11n11m26w2v19.","17.2v40w11n11m28w2v17.","15.2v42w11n11m30w2v15.","13.2v44w11n11m32w2v13.","11.2v46w11n11m34w2v11.","9.2v48w11n11m36w2v9.","7.2v50w11n11m38w2v7.","5.2v52w11n11m40w2v5.","3.2v54w11n11m42w2v3.",".2v56w11n11m44w2v.","m58w11n11m46wm","m2n56w11n11m44w3m","m4n54w11n11m42w5m","m6n52w11n11m40w7m","m8n50w11n11m38w9m","m10n48w11n11m36w11m","m12n46w11n11m34w13m","m14n44w11n11m32w15m","m16n42w11n11m30w17m","m18n40w11n11m28w19m","m20n40w9n9m28w21m","m22n40w7n7m28w23m","m24n40w5n5m28w25m","m26n40w3n3m28w27m","m11n2m15n40wnm28w29m","m11n4m15n66w31m","m11n6m15n62w33m","m11n8m15n58w35m","m11n9m16n54w37m","m11n9m18n50w39m","m13n7m20n46w41m","m15n5m22n42w43m",".2m15n3m24n38w44m.","3.2m15nm26n34w44m3.","5.2m26nv15n30w44m5.","7.2m24n3v15n26w44m7.","9.2m22n5v15n22w44m9.","11.2m20n7v15n18w44m11.","13.2m18n9v15n14w44m13.","15.2m16n11v15n10w44m15.","17.2m14n13v15n6w44m17.","19.2m12n13v17n2w44m19.","21.2m10n13v18n43m21.","23.2m8n13v18n41m23.","25.2m6n13v18n39m25.","27.2m4n13v18n37m27.","29.2m2n13v18n35m29.","31.2m13v18n33m31.","33.13v18n31m33.","34.12v18n29m35.","36.10v18n27m37.","38.8v18n25m39.","40.6v18n23m41.","42.4v18n21m43.","44.2vm17n19m45.","47.2m15n17m47.","49.2m13n15m49.","51.2m11n13m51.","53.2m9n11m53.","55.2m7n9m55.","57.2m5n7m57.","59.2m3n5m59.","61.2mn3m61.","63.2m63."]},"bld_hq":{"w":192,"h":150,"ax":96,"ay":102,"pal":{"v":"#57402a","w":"#7a5b39","l":"#9c7a4c","R":"#c9b264","r":"#ab9449","q":"#8a7434","m":"#63615a","W":"#4d84a5","s":"rgba(0,0,0,0.30)"},"rows":["192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","192.","94.qr2q94.","89.5rRr7q89.","84.7r5R6r6q84.","79.4rqr6R2r3R4r2q6r5q79.","74.3r2q6R2r6R2rR2r2q6r2q5r5q74.","70.r2qr5R2r6R2r6Rr2q6r2q6r2q4r4q70.","65.2q3r3R2r6R2r6R2r5R6r2q6r2q6r2q2r5q65.","60.q4r2R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2qr5q60.","55.5rR2r6R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2q6r7q55.","51.6r6R2r6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r2q6r5q51.","46.3r2q6R2r6R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2q6r2q5r5q46.","41.2r2qr5R2r6R2r6R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2q6r2q6r2q4r5q41.","36.r2q2r4R2r6R2r6R2r6R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2q6r2q6r2q6r2q3r5q36.","31.2q3r3R2r6R2r6R2r6R2r6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r2q6r2q6r2q6r2q2r5q31.","27.4r2R2r6R2r6R2r6R2r6R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2q6r2q6r2q6r2q6r2qr4q27.","25.4r6R2r6R2r6R2r6R2r6R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2q6r2q6r2q6r2q6r2q6r3q25.","27.4r6R2r6R2r6R2r6R2r6R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2q6r2q6r2q6r2q6r2q6r3q27.","29.4r6R2r6R2r6R2r6R2r6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r2q6r2q6r2q6r2q6r3q29.","31.rR2r6R2r6R2r6R2r6R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2q6r2q6r2q6r2q6r3q31.","32.v2R2r6R2r6R2r6R2r6R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2q6r2q6r2q6r2q6r2qrv32.","32.v2w2R2r6R2r6R2r6R2r6R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2q6r2q6r2q6r2q6r2qr3v32.","32.v4w2R2r6R2r6R2r6R2r6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r2q6r2q6r2q6r2qr5v32.","32.v6w2R2r6R2r6R2r6R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2q6r2q6r2q6r2qr7v32.","32.v8w2R2r6R2r6R2r6R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2q6r2q6r2q6r2qr9v32.","32.v10w2R2r6R2r6R2r6R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2q6r2q6r2q6r2qr11v32.","27.v4.v12w2R2r6R2r6R2r6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r2q6r2q6r2qr13v32.","27.3v2.v14w2R2r6R2r6R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2q6r2q6r2qr15v32.","27.v2w2v15wlw2R2r6R2r6R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2q6r2q6r2qr17v32.","28.2v17wl3w2R2r6R2r6R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2q6r2q6r2qr19v32.","30.2v12w2mwl5w2R2r6R2r6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r2q6r2qr21v32.","32.v11w4m7w2R2r6R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2q6r2qr23v32.","32.v11w6m7w2R2r6R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2q6r2qr25v32.","32.v11w8m7w2R2r6R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2q6r2qr27v32.","32.v4wv6w10m7w2R2r6R2r6R2r6R2r6Rr2q6r2q6r2q6r2q6r2qr29v32.","32.v4w2v7w8m9w2R2r6R2r6R2r6R2r5R6r2q6r2q6r2q6r2qr31v32.","32.v4w2v9w6m9wlw2R2r6R2r6R2r6R2r3R4r2q6r2q6r2q6r2qr33v32.","32.v4w2v11w4m9wl3w2R2r6R2r6R2r6R2rR2r2q6r2q6r2q6r2qr35v32.","32.v4w2v13w2m9wl5w2R2r6R2r6R2r6Rr2q6r2q6r2q6r2qr37v32.","32.v4w2v8wl15wl7w2R2r6R2r6R2r5R6r2q6r2q6r2qr39v32.","31.sv4w2v8wl15wl9w2R2r6R2r6R2r3R4r2q6r2q6r2qr41vs31.","31.sv4w2v8wl15wl11w2R2r6R2r6R2rR2r2q6r2q6r2qr43vs17.2v12.","30.2sv4w2v8wl15wl13w2R2r6R2r6Rr2q6r2q6r2qr45v2s16.2v12.","30.2sv4w2v8wl15wl15w2R2r6R2r5R6r2q6r2qr47v2s16.2v12.","30.3s2v2w2v8wl31wlw2R2r6R2r3R4r2q6r2qr7vm40v3s15.vwv12.","30.5s4v8wl31wl3w2R2r6R2rR2r2q6r2qr7v3m38v5s13.2v.2v12.","31.6s2v8wl31wl5w2R2r6Rr2q6r2qr7v5m36v6s12.2v3.2v12.","31.8s2v6wl15wl15wl7w2R2r5R6r2qr7v7m34v8s10.2v4.vwv12.","32.9s2v4wl15wl15wl9w2R2r3R4r2qr7v9m32v9s9.2v4.2v.2v12.","33.10s2v2wl15wl2w3v10wl11w2R2rR2r2qr8v10m11v2W17v10s8.2v4.2v3.2v12.","34.11s2vl15wl2w5v8wl13w2Rr2qr10v10m9v6W13v11s7.2v4.2v19.","35.12s2v14wl2w7v6wl15wRr12v9m8v10W9v12s6.2v4.2v21.","36.13s2v12wl2w9v21w13v7m8v14W5v13s5.2v4.2v23.","38.13s2v10wl2w11v19w13v5m8v18Wv13s5.2v4.2v25.","40.13s2v8wl2w13v17w13v3m3vw6v18W6sv5s.2v2.2v4.2v27.","42.13s2v6wl2w14v16w13vm5v3w6v14W6s3v3s3.4v4.2v29.","44.13s2v4wl2w14v16w19v5w6v10W6s5vs5.2v4.2v31.","47.12s2v2wl2w14v16w19v7w6v6W6s7v5.vwv2.2v33.","51.10s2vl2w14v16w19v9w6v2W6s9v3.2v.4v35.","54.9s2vw14v16w19v11w3v7s11v.2v3.2v37.","59.6s15v17w19v11wv5s.14v4.vwv37.","64.2s14v12wv5w20v10w2v2.14v4.2v.2v37.","68.12v12w2v4w22vwv8w14v4.2v3.2v37.","70.10v12w2v2wvw23v.2v7w11v4.2v44.","72.8v12w2v2w23v5.2v5w9v4.2v46.","74.6v12w2v2w21v9.2v3w7v4.2v48.","76.4v12w2v2w19v13.2vw5v4.2v50.","78.3v11w2v2w17v14.2v.4v4.2v52.","81.2v9w2v2w15v16.2v.2v4.2v54.","83.2v7w2v2w13v18.vwv4.2v56.","85.2v5w2v2w11v19.vwv3.2v58.","87.2v3w2v2w9v19.2v.2v.2v60.","89.2vw2v2w7v19.2v3.vwv62.","91.3v2w5v19.2v4.vwv63.","93.2vw3v19.2v4.2v.2v63.","95.2v19.2v4.2v3.2v63.","114.2v4.2v70.","112.2v4.2v72.","110.2v4.2v74.","108.2v4.2v76.","101.2v3.2v4.2v78.","101.2v.2v4.2v80.","101.vwv4.2v82.","101.2v3.2v84.","101.2v.2v86.","101.vwv88.","101.2v89.","101.2v89.","101.2v89.","192.","192.","192.","192."]},"bld_zagroda":{"w":128,"h":112,"ax":64,"ay":80,"pal":{"v":"#57402a","w":"#7a5b39","l":"#9c7a4c","d":"#6b5236","g":"#8b6f47","i":"#a58a5f","y":"#79924a","R":"#c9b264","r":"#ab9449","q":"#8a7434","H":"#6b5236","h":"#8b6f47","u":"#57402a","W":"#4d84a5","s":"rgba(0,0,0,0.30)"},"rows":["128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","128.","23.18lr86.","37.Rr3Rr20.lv63.","36.RrR2.2Rr19.wv63.","35.RrR4.2Rr18.wv63.","34.RrR6.2Rr17.w2l62.","32.R2rR8.3Rr15.w2v2l60.","31.Rr2R10.3Rr14.w4v2l58.","30.RrR14.2Rr13.w6v2l56.","29.RrR16.2Rr12.wv2.5v2l54.","28.RrR18.2Rr11.w2l3.5v3l51.","27.RrR20.2Rr10.w2v2l3.6v2l49.","26.RrR19.2l.2Rr9.w4v2l3.5vw2l47.","25.RrR18.2l2v2.2Rr8.w6v2l4.4vw3l44.","24.RrR17.2l4vdyg2Rrgdyd2gy2s2g5v2lygdg4v2w2l42.","22.3rlv7.lv6.2l5v2g2ylvR3r3gyg2dydy5v3lyg6vw2l4.lv34.","23.2Rwv2r5.wv.g2d2l5vgy3grwvrRg2d4gdg2d2id6v2l2g6vw2lygwv34.","24.vw3v5r13v5rvw4v4di2gd16h2g5vw2lwvy33.","24.qwv7q4r5q4r6qwv3q3gidgdg16H2l2g5vw2li4y29.","24.qwv11q5r10qwv3qd3gdi2gu16Hw2l2d5vw2ldgydgd26.","24.qwv26qwv3q2g2dgdgu19Hw2lig6v2l6g24.","23.gqwv3qr7R15qwv3qdi2gigug20Hvw2l2g6v2l2gidyg22.","20.gydgqwv3q8R4qr5R5qwv3qig2idu2g21H2vw2lwvi5v2l3gdgyd19.","19.ydgidqwv3q8R4q6R5qwv3qd3gu3g16udg4Hu2vw2l2dg5v2ldy3gi18.","17.ygy2g2lqwv3q8R4q6R5qwv3qg2d2gd3gd2udid2udig2udid2g4H4vw2l3g5v3lydigd16.","15.d4g2lw2vw2vi2g2lw5v2gd6Rg3dgwvdg2dgd2gidigd2u3g2ugdg2u2d2gdgdi2g6v2lgig5vw2lg2ygy14.","14.2g2y2lw4vwvg3lw4vi2g3id3idgd2gigwvg3d3gi3d2i2ud2g2u2gd2uig2d3gdgdgd6v2l3g4v2w2l2gyg13.","13.g2y2l6vd2sl2w5vsd2gdi2gigig2i4g2sgigd5gigdg2u3g2ugdg2u2d2gd4gd2g2sd5v2l2gd5vw2ly2g12.","11.i2g2l6vdg2lw6vgd4gi3gd2gdgdg2idgidgigd2gd2gd2g2ugdi2ud2g2u2gi2g2d5gigdid5v2lidg5vw3lyg10.","5.lv3.gi2l5v2di2lw6v6gd4g2d3g2dgd2gd2gdgd2gd3g25sg2dgdigdi5v3l2g5v2w2lg2.lv5.","5.wv2.g2l5vgdg2lw5vdg2dgd7gidg3d5gdgd3gdgdigigi3gd3gi2gd5g2d2gd5g7dgd5vw2ldi6vw2l.wv5.","5.wv.2l5vdid2lw5vdgdig2dg2d2gd2gi2gd4g3d2gdid2gi2d3gd3gigidgi8gidgdgigi2d2gd2g3d2i4v2w2l2d6vw2lv5.","5.w2l5v2ig2l6v3d2gdid2gd6gd8g2dg2dgdi4dgdid2gd2gdig2i5gd2gidgd3gi2gdi2gd2g2d2g5vw2ldig5v2l5.","5.w5v3g2l6vgi2d4gdg2d2gidgdid2g2di3gd2gdigdi4dgd4gdig2dg2dgigigi2dgid2gd2gd2g2dgdi3g2igi5vw3l2dv2l3w4.","5.4v2lg2l5v2gdigdi2dgigigdgdgi2gidi2gid4gi5gdi7gdigd2g2igid2gidi2dgdg2d2gd5g2dg2dgdig2dg5v2w3lw4v4.","5.6v2l4vgid2g2dgidg2i7gdgdgd4gdgig2did2gi3digd4gi2g2di2g4d2gd3gd2i2d5gd3gid4gdgid2g4v2lw6v4.","5.wvy5v3l2gd3gigdgd2g3di2gdgi3g2i7gigidg3dg2d3gididi4gid3gdgdgidi2g2idi2gdg4digigdig4dgdg2lw5vlvi4.","5.w2l8v2l2d2gdgd4gidgd3gd2g2dgd3gd3g2d4gdgi2d2gd3gdgdigd3gdgdgi4d2gi2gdgd2gdg3igd4g3d2g2lw7v2ld4.","5.w5vi6v2lgid4gd2g2dgi4gigdgdgd2g3didgi4gid3g2i2gdgd2gd4gigdgidgigd2gidg2d2i2g2dgigd2g2dg2lw5vgv2l3w4.","5.4v2ldgig5vlwd5gdgdgd2gidgdgi2d2gi2di3g2i2g4d4g2dgd2gd2gdgdgi2g5dg2dgd2i4dg2d2gigdg2i2lw5v2g2lw4v4.","5.6v2l2d2g5v3l2d3gdgd3g3idg2d5gd2gdgdg3dgd2g2i5g4dgd3gd2gdgd2gdgid2gd2g3w3g2dgd2l6vgd2lw6v3s.","4.y2sgv4s3li2g5vw2lgdi6gd2i3d2gid3igidi2g2d4gdidgidgd4gdgd4gd2igdidgdg2ilvg6wgd2l6v2i2lw5v6s.","5.dgig6sv2lgi6vw2l2dgi4gd3gdgdi4g2dgdgi2d4gd2gd4gdg2dgigvdi2g2dgd2gdidgvwv2gd7w4v2dg2lw5vd6s2.","5.2dg2dg7s2l2gi5vw2ld2glvgdgd2gigigdgd3i2gigigd2gig3dgd3gi2g2dv14lvwvgdig2l7w2g2lw5v7s4.","5.y5g3d6slw2dg5vw2lgwv2gi5gdgdi2gd8gi2gdi2dg2dgid2gidvw12Wwvwvig2l5v7w5v6syid4.","5.d2gy3gigdg6s3l2g5vw2lv2gd5gid5g2d2g2d6g3digd2gigdgivw12Wwvwv2l6vg2il3w4v6sd2g2y4.","5.d2gygdi4gdg6sw2l2g5vw2ld3g2d2gd2g2d12g2d2gdid2gi4gv14wvw6v2gdi2l6v6s5gyg4.","6.y2gi6g2dgdv5sw2lgi6v2l2dg2idi3gid2i5g2d2gd3gd4gd4g16vw4vi2dg2l5vg5sgdgi3g2y5.","6.yi2gdg2di3gdgig6sw2lgd6v2l2d2gd2gid3igi4gd3g2d3gdgd4gdvigd2gig2d5gvw2vdig3l5vd6sgi2gd2gy2g5.","7.i3g2dgigigdgi2gd7s2lgw6v2lgig2d3gdgdg2dgdi2gd5gd3g2digd3gi2gi2g2digigwv2g2l6v7sigdigigdgyg6.","8.2gydgd4g2id5g7s2lvdi5v2li2digdgigdgd2gid2ig2dg2d2g4digdg2dgid4gd3iwv2l6v7sgdgd2gig2y2g7.","8.d2yg2dgd2g3dg2dgd3g6s2ld2g5v3lgd6gi2dgdgidg2d3gi2g2d3gdgd3gdgd3gdiw6vg6sgig3d5gdy2g7.","9.dgd10gd2gigid2g7sl2dg6v2l2dgdidg2didgi2g3d3gdgi7gi2d5gidgw4v7s2gi2g2digd4g2d8.","10.d2gydg2dgdg2idgd5g2i6s2ldgd6vwl2i2d3gdgd3gdidi3dg2dgidg3d6gdgdgw2vi6s6gdgd4gygyg9.","11.gd3ydg2id3gdgdidgigdgwv5s2li2gd5v3ldg3dgiglv4gdigigdg2d4gdidgi2d3gwv5s5dg2d2gdidgygdgi10.","13.2gyigigd2gd5gidgig2sd6s2l2g2d5vw2ligd3gwvg2dg2d4gdgi2gd2gd3gd2gig6sgi2gdg2d5gi3gy12.","14.y2gygdgdg2dgdigididig2d2g7s2l3d6v2ligdgwv3d2gdi4gd4gi3gi3g7sd3gd2gdg2dgi4g2y13.","15.ygy3gigd2g2id4gdgd2gdidi6s2l2id6v2lgdwvidgdid3gigdgd3g2d2gd6s4gdgi5gid4gydi14.","17.i5gd2gdg2dg2dgd2gdidigdg6swlgdig5v2lwv2d3gi2gd2gdi2gd2gig6sgi2didgid4gd3gd2gd16.","19.ygydg2d4gd6g3dgigd2g6s3lgdi5vwv3gd5g2dgd2gdgi6si3gi2gi2g2d2ig2dg2dg18.","20.d3gy7gd2ig2dgd2g2d2gdid5sw2l2gi3vwvwd4gd4gd4g5s2gd2gig3d3gi2gdyg2ygy19.","23.2gy3gd2gdgi3gdig2d5gig6sv2l2gdvw2vd3gdgd2gd3g6sdi2g2dg2igd2gd2gi3gy22.","25.yid3gidgdgi2gi3gigdgdg2dg7s2l2gw2v6gdigi7sgdgd5gi3d2idy3gy24.","27.y4gyd2g2di2gd2gigd7g7s2lwv2gd2g2d2g7s2d2id2gi3gdg4ydgdg26.","30.gy3gi2ygid2g2dgd2igd2g2dgi6swvd4g2d6sg3i2gd3gdigdgydgydi29.","34.g2dg2igdgd2gi4gd2g2dgdg5svw5g5sdgdgigi2gi3g2yd3g33.","37.y4g2dyg2d3gdgdg5dg6sd6si5gy5gdi2gyi36.","42.yg3yg3dyd2gyd2gy2dg9sd6g2i3g2yg41.","49.gyd3gy3gigiy7siygd6g48.","64.y63.","128.","128.","128."]},"worker_red":{"w":24,"h":32,"ax":12,"ay":29,"pal":{"b":"#c8a06a","c":"#e0bd8d","d":"#8f2b2b","e":"#b53f3f","f":"#d86f6f","j":"#ab9449","k":"#c9b264","t":"#7a5b39","u":"#57402a","y":"#6b5236","w":"#9aa2ab","s":"rgba(0,0,0,0.30)"},"rows":["9.6j9.","9.2k4j9.","8.j2k5j8.","8.8j8.","5.14j5.","8.3c5b8.","8.3c5b8.","8.2c6b2.5w.","8.c7b2.4w2.","9.6b3.4w2.","10.4b4.3w3.","7.3e4f3d3.t3.","4.3b6f4e3bt3.","4.3b5f5e3bt3.","4.3b4f6e3bt3.","4.3b3f6ed3bt3.","4.3b2f6e2d3bt3.","4.3bf4ede3d3bt3.","4.3b6e4d3bt3.","4.3c5e5d3bt3.","4.3c2e8d3bt3.","6.3de8d2.t3.","8.3y2.3y4.t3.","8.3y2.3y8.","8.3y2.3y8.","8.3y2.3y8.","8.3y2.3y8.","6.s4u2s4us6.","4.3s4u2s4u3s4.","4.16s4.","6.12s6.","24."]}};
+function buildSpr(def) {
+  const c = document.createElement('canvas'); c.width = def.w; c.height = def.h;
+  const g = c.getContext('2d');
+  for (let y = 0; y < def.h; y++) {
+    const row = def.rows[y]; let x = 0, i = 0;
+    while (i < row.length) {
+      let n = 0, hasNum = false;
+      while (i < row.length && row[i] >= '0' && row[i] <= '9') { n = n * 10 + (+row[i]); i++; hasNum = true; }
+      if (!hasNum) n = 1;
+      const ch = row[i++];
+      if (ch !== '.') { g.fillStyle = def.pal[ch]; g.fillRect(x, y, n, 1); }
+      x += n;
+    }
+  }
+  return { c, ax: def.ax, ay: def.ay };
+}
+// zwierzęta łowne: rzędy konia, inna paleta (placeholder do bloków graficznych, jak wzorzec frakcyjny budynków)
+// bizon: ciężki ciemny brąz; bydło: kremowo-białe
+SPRITE_DEFS.bizon = { ...SPRITE_DEFS.horse, pal: { ...SPRITE_DEFS.horse.pal, H: '#4a3626', h: '#5d4430', i: '#75593e', u: '#3a2a1c' } };
+SPRITE_DEFS.bydlo = { ...SPRITE_DEFS.horse, pal: { ...SPRITE_DEFS.horse.pal, H: '#8a8070', h: '#a89a85', i: '#c4b6a0', u: '#6e6455' } };
+const SPR = {};
+for (const k in SPRITE_DEFS) SPR[k] = buildSpr(SPRITE_DEFS[k]);
+// frakcyjne stylistyki budynków: te same rzędy RLE, inna paleta (wzorzec worker_red z jednostek).
+// amerykanie: bielone deski, brązowy gont, niebieski sztandar; meksykanie: bielone adobe, terakotowe dachy, zieleń; bandyci: spróchniałe ciemne drewno, rdzawy dach, czerwony sztandar
+// nienadpisywane litery (s, u, H, h, y, G, L, F) zostają: cień, belki, trawa w zagrodzie, pole farmy
+const FAC_PAL = {
+  us:  { v:'#8a8272', w:'#d4ccb8', l:'#f0ead8', d:'#8a8272', g:'#d4ccb8', i:'#f0ead8', R:'#b5793e', r:'#96602c', q:'#74481f', E:'#b5793e', e:'#96602c', Q:'#74481f', m:'#d8d4c8', n:'#b8b4a8', M:'#d0ccc0', W:'#4d84a5' },
+  mx:  { v:'#8f7f6e', w:'#d8ccc0', l:'#f2ecdc', d:'#8f7f6e', g:'#d8ccc0', i:'#f2ecdc', R:'#c96a3a', r:'#a84e26', q:'#7e3a1a', E:'#c96a3a', e:'#a84e26', Q:'#7e3a1a', m:'#e0d8c8', n:'#b8b0a0', M:'#d8d0c0', W:'#3a7a4a' },
+  ban: { v:'#34281c', w:'#4c3f30', l:'#635542', d:'#34281c', g:'#4c3f30', i:'#635542', R:'#85663f', r:'#6b5230', q:'#4e3c22', E:'#7e5030', e:'#5e3a20', Q:'#402612', m:'#4f4a42', n:'#6b655c', M:'#8a857c', W:'#8f2b2b' }
+};
+// frakcja gry -> stylistyka nacji (meksykanie gotowi na ekran wyboru frakcji, narazie nieużywani)
+const FAC_OF = { player: 'us', enemy: 'ban', neutral: 'us' };
+for (const t of ['hq', 'house', 'farm', 'storehouse', 'barracks', 'factory', 'zagroda'])
+  for (const f of ['us', 'mx', 'ban'])
+    SPR['bld_' + t + '_' + f] = buildSpr({ ...SPRITE_DEFS['bld_' + t], pal: { ...SPRITE_DEFS['bld_' + t].pal, ...FAC_PAL[f] } });
+function bldSpr(type, fac) {
+  // tepee czeka na własny sprite (painted, jak domy nacji), narazie uczciwy placeholder na domu
+  if (type === 'tepee') return SPR.bld_house;
+  return SPR['bld_' + type + '_' + (FAC_OF[fac] || 'us')] || SPR['bld_' + type];
+}
+// mgła wojenna: kafel z ditherowanym brzegiem zamiast twardego rombu (miękkość w stylu retro)
+function makeFogTile() {
+  const c = document.createElement('canvas'); c.width = CFG.tileW; c.height = CFG.tileH;
+  const g = c.getContext('2d');
+  const w = CFG.tileW / 2, h = CFG.tileH / 2;
+  g.fillStyle = 'rgba(10,8,6,0.45)';
+  g.beginPath(); g.moveTo(w, 0); g.lineTo(2 * w, h); g.lineTo(w, 2 * h); g.lineTo(0, h); g.closePath(); g.fill();
+  // dither: na przemian wycięte piksele dwóch skrajnych słupków każdego wiersza rombu
+  for (let y = 0; y < 2 * h; y++) {
+    const pw = w * (1 - Math.abs(y + 0.5 - h) / h); // półszerokość rombu w wierszu y
+    for (let x = 0; x < 2 * w; x++) {
+      const dx = Math.abs(x + 0.5 - w);
+      if (dx <= pw && dx > pw - 2 && (x + y) % 2 === 0) g.clearRect(x, y, 1, 1);
+    }
+  }
+  return { c, ax: w, ay: h };
+}
+// kafel wody: romb w tonach błękitno-szarych z deterministycznym szumem (błyski, ciemniejsze smugi, krawędź)
+function makeWaterTile(seed) {
+  const c = document.createElement('canvas'); c.width = CFG.tileW; c.height = CFG.tileH;
+  const g = c.getContext('2d');
+  const w = CFG.tileW / 2, h = CFG.tileH / 2;
+  g.fillStyle = '#3a6272';
+  g.beginPath(); g.moveTo(w, 0); g.lineTo(2 * w, h); g.lineTo(w, 2 * h); g.lineTo(0, h); g.closePath(); g.fill();
+  for (let y = 0; y < 2 * h; y++) {
+    const pw = w * (1 - Math.abs(y + 0.5 - h) / h);
+    for (let x = 0; x < 2 * w; x++) {
+      const dx = Math.abs(x + 0.5 - w);
+      if (dx > pw) continue;
+      const n = sprNoise(x + seed * 13, y + seed * 7, seed + 20);
+      if (n < 0.05) { g.fillStyle = '#5a8a9a'; g.fillRect(x, y, 2, 1); }
+      else if (n > 0.985) { g.fillStyle = '#8ab8c4'; g.fillRect(x, y, 1, 1); }
+      else if (dx > pw - 2 && n > 0.4 && n < 0.5) { g.fillStyle = '#2a4a56'; g.fillRect(x, y, 1, 1); }
+    }
+  }
+  return { c, ax: w, ay: h };
+}
+SPR.fog = makeFogTile();
+SPR.water0 = makeWaterTile(3);
+SPR.water1 = makeWaterTile(4);
+function blitSpr(s, px, py) { ctx.drawImage(s.c, Math.round(px - s.ax), Math.round(py - s.ay)); }
+function sprNoise(x, y, seed) {
+  let n = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(seed, 1442695041)) | 0;
+  n = Math.imul(n ^ (n >>> 13), 1274126177); n ^= n >>> 16;
+  return (n >>> 0) / 4294967296;
+}
+// ============================== DŹWIĘK ==============================
+// syntetyczne efekty WebAudio, zero plików audio (retro: oscylatory + szum generowany);
+// inicjacja dopiero po pierwszym geście użytkownika (polityka autoplay przeglądarek)
+let AC = null, noiseBuf = null;
+const sfxLast = {};
+function ensureAudio() {
+  if (S.muted) return;
+  if (!AC) {
+    try {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+      noiseBuf = AC.createBuffer(1, Math.floor(AC.sampleRate * 0.12), AC.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    } catch (e) { AC = null; }
+  }
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+// domyślne przerwy per rodzaj dźwięku (s); jawny minGap w wywołaniu wygrywa
+const SFX_GAP = { step: 0.12, hoof: 0.1, sel: 0.05, order: 0.08, place: 0.3, ok: 0.25, warn: 0.35 };
+function sfx(kind, x, y, minGap) {
+  if (!AC || S.muted) return;
+  const now = AC.currentTime;
+  if (sfxLast[kind] !== undefined && now - sfxLast[kind] < (minGap || SFX_GAP[kind] || 0.07)) return; // throttling: bitwa nie kakofonuje
+  if (x !== undefined) { // dźwięki świata: filtr kadru; UI (bez pozycji) gra zawsze
+    const [sx, sy] = tileToScreen(x, y);
+    if (sx < -40 || sx > canvasW / ZOOM + 40 || sy < -40 || sy > canvasH / ZOOM + 40) return; // graj tylko to, co w kadrze
+  }
+  sfxLast[kind] = now;
+  const g = AC.createGain(); g.connect(AC.destination);
+  if (kind === 'shot') {
+    const src = AC.createBufferSource(); src.buffer = noiseBuf; src.playbackRate.value = 0.8 + Math.random() * 0.4;
+    const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.7;
+    src.connect(f); f.connect(g);
+    g.gain.setValueAtTime(0.16, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+    src.start(now); src.stop(now + 0.1);
+  } else if (kind === 'melee') {
+    const o = AC.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(140, now); o.frequency.exponentialRampToValueAtTime(55, now + 0.09);
+    o.connect(g);
+    g.gain.setValueAtTime(0.22, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    o.start(now); o.stop(now + 0.13);
+  } else if (kind === 'death') {
+    const o = AC.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(190, now); o.frequency.exponentialRampToValueAtTime(45, now + 0.28);
+    o.connect(g);
+    g.gain.setValueAtTime(0.1, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    o.start(now); o.stop(now + 0.31);
+  } else if (kind === 'boom') {
+    const o = AC.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(90, now); o.frequency.exponentialRampToValueAtTime(30, now + 0.4);
+    const src = AC.createBufferSource(); src.buffer = noiseBuf; src.playbackRate.value = 0.4;
+    o.connect(g); src.connect(g);
+    g.gain.setValueAtTime(0.28, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    o.start(now); src.start(now); o.stop(now + 0.46); src.stop(now + 0.46);
+  } else if (kind === 'chop') {
+    // rąbanie drewna: głuche uderzenie siekiery plus cichy trzask łamiącego się drewna
+    const o = AC.createOscillator(); o.type = 'triangle';
+    o.frequency.setValueAtTime(180, now); o.frequency.exponentialRampToValueAtTime(70, now + 0.07);
+    o.connect(g);
+    g.gain.setValueAtTime(0.14, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+    o.start(now); o.stop(now + 0.1);
+    const src = AC.createBufferSource(); src.buffer = noiseBuf; src.playbackRate.value = 1.5;
+    const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2400; f.Q.value = 1.2;
+    const g2 = AC.createGain();
+    g2.gain.setValueAtTime(0.05, now); g2.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    src.connect(f); f.connect(g2); g2.connect(AC.destination);
+    src.start(now); src.stop(now + 0.06);
+  } else if (kind === 'mine') {
+    // kopanie złota: metaliczny stuk kilufa o rudę
+    const o = AC.createOscillator(); o.type = 'square';
+    o.frequency.setValueAtTime(1100, now); o.frequency.exponentialRampToValueAtTime(700, now + 0.05);
+    o.connect(g);
+    g.gain.setValueAtTime(0.06, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    o.start(now); o.stop(now + 0.07);
+  } else if (kind === 'build') {
+    // budowa: stuk młotka plus cichy klekot desek
+    const o = AC.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(220, now); o.frequency.exponentialRampToValueAtTime(120, now + 0.05);
+    o.connect(g);
+    g.gain.setValueAtTime(0.12, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    o.start(now); o.stop(now + 0.08);
+    const src = AC.createBufferSource(); src.buffer = noiseBuf; src.playbackRate.value = 1.1;
+    const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 3200; f.Q.value = 2;
+    const g2 = AC.createGain();
+    g2.gain.setValueAtTime(0.06, now); g2.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    src.connect(f); f.connect(g2); g2.connect(AC.destination);
+    src.start(now); src.stop(now + 0.06);
+  } else if (kind === 'sel') {
+    // zaznaczenie: krótki tik
+    const o = AC.createOscillator(); o.type = 'triangle';
+    o.frequency.setValueAtTime(520, now); o.frequency.exponentialRampToValueAtTime(400, now + 0.03);
+    o.connect(g);
+    g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+    o.start(now); o.stop(now + 0.04);
+  } else if (kind === 'order') {
+    // potwierdzenie rozkazu: niższy, pewny klep
+    const o = AC.createOscillator(); o.type = 'square';
+    o.frequency.setValueAtTime(300, now); o.frequency.exponentialRampToValueAtTime(240, now + 0.04);
+    o.connect(g);
+    g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    o.start(now); o.stop(now + 0.06);
+  } else if (kind === 'place') {
+    // postawienie budowli: głuche wbicie w ziemię
+    const o = AC.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(130, now); o.frequency.exponentialRampToValueAtTime(60, now + 0.1);
+    o.connect(g);
+    g.gain.setValueAtTime(0.16, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    o.start(now); o.stop(now + 0.13);
+    const src = AC.createBufferSource(); src.buffer = noiseBuf; src.playbackRate.value = 0.9;
+    const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 500; f.Q.value = 1;
+    const g2 = AC.createGain();
+    g2.gain.setValueAtTime(0.06, now); g2.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    src.connect(f); f.connect(g2); g2.connect(AC.destination);
+    src.start(now); src.stop(now + 0.07);
+  } else if (kind === 'ok') {
+    // sukces (ukończenie budowy, badania, szkolenia): podwójny dzwoneczek
+    const o1 = AC.createOscillator(); o1.type = 'sine'; o1.frequency.value = 660;
+    const o2 = AC.createOscillator(); o2.type = 'sine'; o2.frequency.value = 880;
+    o1.connect(g); o2.connect(g);
+    g.gain.setValueAtTime(0.001, now); g.gain.setValueAtTime(0.07, now + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+    o1.start(now); o1.stop(now + 0.08); o2.start(now + 0.07); o2.stop(now + 0.15);
+  } else if (kind === 'warn') {
+    // alert: niski niepokojujący brzdęk
+    const o = AC.createOscillator(); o.type = 'square';
+    o.frequency.setValueAtTime(150, now); o.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+    o.connect(g);
+    g.gain.setValueAtTime(0.09, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+    o.start(now); o.stop(now + 0.15);
+  } else if (kind === 'step') {
+    // krok piechura: bardzo cichy tup
+    const o = AC.createOscillator(); o.type = 'triangle';
+    o.frequency.setValueAtTime(120, now); o.frequency.exponentialRampToValueAtTime(70, now + 0.03);
+    o.connect(g);
+    g.gain.setValueAtTime(0.03, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+    o.start(now); o.stop(now + 0.04);
+  } else if (kind === 'hoof') {
+    // kopyta: głębszy, wyraźniejszy stuk
+    const o = AC.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(95, now); o.frequency.exponentialRampToValueAtTime(55, now + 0.04);
+    o.connect(g);
+    g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    o.start(now); o.stop(now + 0.06);
+  }
+}
+const UNIT_SPR = { worker: 'worker', piechota: 'soldier', desperado: 'bandit', bandleader: 'leader', jezdiec: 'rider', konnobanda: 'rider_red', horse: 'horse', bizon: 'bizon', bydlo: 'bydlo',
+  // Sioux: placeholdery graficzne na istniejących sylwetkach (squaw na robotniku, wojownik na bandycie, łucznik na żołnierzu, medicine man i wódz na przywódcy), docelowo painted
+  squaw: 'worker', wojownik: 'bandit', lucznik: 'soldier', medicine: 'leader', wodz: 'leader' };
+// warianty sprite'ów dla wroga (odróżnienie frakcji bez palety kontekstu)
+const ENEMY_UNIT_SPR = { worker: 'worker_red' };
+function drawTileShape(sx, sy, fill) {
+  const w = CFG.tileW / 2, h = CFG.tileH / 2;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy); ctx.lineTo(sx + w, sy + h); ctx.lineTo(sx, sy + 2 * h); ctx.lineTo(sx - w, sy + h);
+  ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+}
+// burza: ciemna chmura na gruncie i migająca błyskawica (faza z pozostałego czasu, deterministyczna)
+function drawStorm(st, sx, sy) {
+  const R = CFG.abilities.storm.r;
+  ctx.globalAlpha = 0.25;
+  ctx.fillStyle = '#24304a';
+  ctx.beginPath(); ctx.ellipse(sx, sy, R * CFG.tileW / 2, R * CFG.tileH / 2, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+  const ph = Math.floor((CFG.abilities.storm.dur - st.t) * 4) % 3;
+  if (ph === 0) {
+    ctx.strokeStyle = '#e8e8ff'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    let lx = sx + (sprNoise(Math.floor(st.x), Math.floor(st.y), 11) * 40 - 20), ly = sy - 70;
+    ctx.moveTo(lx, ly);
+    for (let i = 0; i < 4; i++) { lx += (i % 2 ? 6 : -6); ly += 18; ctx.lineTo(lx, ly); }
+    ctx.stroke();
+  }
+}
+function render() {
+  ctx.fillStyle = '#14100a';
+  ctx.fillRect(0, 0, canvasW, canvasH);
+  ctx.save();
+  ctx.scale(ZOOM, ZOOM); // cały świat w skali: sprite'y, teren, mgła, efekty rosną jednolicie
+  const VW = canvasW / ZOOM, VH = canvasH / ZOOM; // widoczny fragment w px świata (do kullingu)
+  const items = [];
+  // teren
+  for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
+    const i = idx(x, y);
+    if (!S.explored[i]) continue;
+    const [sx, sy] = tileToScreen(x, y);
+    if (sx < -80 || sx > VW + 80 || sy < -60 || sy > VH + 80) continue;
+    const t = S.terrain[i];
+    if (t === T_WATER) {
+      blitSpr(SPR['water' + (sprNoise(x, y, 6) < 0.5 ? 0 : 1)], sx, sy + CFG.tileH / 2);
+    } else if (t === T_GOLD) {
+      blitSpr(SPR['dirt' + (sprNoise(x, y, 5) < 0.5 ? 0 : 1)], sx, sy + CFG.tileH / 2);
+      items.push({ d: x + y, kind: 'gold', sx, sy: sy + CFG.tileH / 2 });
+    } else if (t === T_MEAT) {
+      blitSpr(SPR['dirt' + (sprNoise(x, y, 5) < 0.5 ? 0 : 1)], sx, sy + CFG.tileH / 2);
+      items.push({ d: x + y, kind: 'meat', sx, sy: sy + CFG.tileH / 2 });
+    } else if (t === T_THICK) {
+      // gęsty las: ciemniejszy nalot i dwa drzewa na kafel zamiast jednego, czytelny tuneł
+      blitSpr(SPR['grass' + Math.floor(sprNoise(x, y, 1) * 4)], sx, sy + CFG.tileH / 2);
+      ctx.globalAlpha = 0.45;
+      drawTileShape(sx, sy, '#1c240c');
+      ctx.globalAlpha = 1;
+      for (let k = 0; k < 2; k++) {
+        const jx = sprNoise(x, y, 7 + 10 * k) * 10 - 5, jy = sprNoise(x, y, 9 + 10 * k) * 6 - 3;
+        const tn = sprNoise(x, y, 2 + 10 * k);
+        const v = tn < 0.30 ? 0 : tn < 0.72 ? 1 : tn < 0.87 ? 2 : 3;
+        items.push({ d: x + y + k * 0.01, kind: 'tree', sx: sx + jx, sy: sy + CFG.tileH / 2 + jy, v });
+      }
+    } else {
+      blitSpr(SPR['grass' + Math.floor(sprNoise(x, y, 1) * 4)], sx, sy + CFG.tileH / 2);
+      if (t === T_FOREST) {
+        ctx.globalAlpha = 0.3;
+        drawTileShape(sx, sy, '#262a10');
+        ctx.globalAlpha = 1;
+        // jitter: każde drzewo lekko przesunięte deterministycznie, las nie jest szpalerem
+        const jx = sprNoise(x, y, 7) * 8 - 4, jy = sprNoise(x, y, 9) * 4 - 2;
+        // miksu gatunków: 30% liściaste, 42% sosny, 15% uschłe, 13% liściaste2 (preria: sosny i snagi na wagę)
+        const tn = sprNoise(x, y, 2);
+        const v = tn < 0.30 ? 0 : tn < 0.72 ? 1 : tn < 0.87 ? 2 : 3;
+        items.push({ d: x + y, kind: 'tree', sx: sx + jx, sy: sy + CFG.tileH / 2 + jy, v });
+      } else {
+        // drobne rekwizyty terenu: kwiaty, kamienie, krzaki (deterministycznie z pozycji kafla)
+        drawProp(x, y, sx, sy + CFG.tileH / 2);
+      }
+    }
+  }
+  // budynki i jednostki
+  for (const b of S.buildings) {
+    if (!S.explored[idx(Math.min(MAP - 1, Math.floor(b.cx)), Math.min(MAP - 1, Math.floor(b.cy)))]) continue;
+    items.push({ d: b.cx + b.cy, kind: 'b', o: b });
+  }
+  for (const u of S.units) {
+    const ux = Math.min(MAP - 1, Math.floor(u.x)), uy = Math.min(MAP - 1, Math.floor(u.y));
+    if ((u.fac === 'enemy' || u.fac === 'neutral') && !S.visible[idx(ux, uy)]) continue;
+    if (!S.explored[idx(ux, uy)]) continue;
+    items.push({ d: u.x + u.y, kind: 'u', o: u });
+  }
+  // burze medicine mana: rysowane nad jednostkami, pod efektami trafień
+  for (const st of S.storms) {
+    const [ssx, ssy] = tileToScreen(st.x, st.y);
+    items.push({ d: st.x + st.y + 0.2, kind: 'storm', o: st, sx: ssx, sy: ssy });
+  }
+  items.sort((a, b) => a.d - b.d);
+  for (const it of items) {
+    if (it.kind === 'tree') drawTree(it.sx, it.sy, it.v || 0);
+    else if (it.kind === 'gold') blitSpr(SPR.gold, it.sx, it.sy);
+    else if (it.kind === 'meat') drawCarcass(it.sx, it.sy);
+    else if (it.kind === 'storm') drawStorm(it.o, it.sx, it.sy);
+    else if (it.kind === 'b') drawBuilding(it.o);
+    else drawUnit(it.o);
+  }
+  // traserzy strzałów: informacja zwrotna kto strzela i do kogo
+  for (const sh of S.shots) {
+    const [ax, ay] = tileToScreen(sh.x0, sh.y0);
+    const [bx, by] = tileToScreen(sh.x1, sh.y1);
+    const a = 1 - sh.age / 0.25;
+    ctx.globalAlpha = a * 0.9;
+    ctx.strokeStyle = '#ffd66a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(ax, ay - 6); ctx.lineTo(bx, by - 6); ctx.stroke();
+    if (sh.age < 0.1) {
+      ctx.fillStyle = '#ffe9a0';
+      ctx.beginPath(); ctx.arc(ax, ay - 6, 3, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // iskry trafień, obłoczki śmierci, wybuchy budynków
+  for (const h of S.hits) {
+    const [hx, hy] = tileToScreen(h.x, h.y);
+    const a = 1 - h.age / 0.3;
+    if (h.death) {
+      ctx.globalAlpha = a * 0.8; ctx.fillStyle = '#b8b0a0';
+      ctx.beginPath(); ctx.arc(hx, hy - 6, 5 + h.age * 6, 0, 7); ctx.fill();
+      ctx.globalAlpha = a * 0.5;
+      ctx.beginPath(); ctx.arc(hx, hy - 6, 8 + h.age * 10, 0, 7); ctx.fill();
+    } else if (h.boom) {
+      ctx.globalAlpha = a * 0.9; ctx.fillStyle = '#d9894a';
+      ctx.beginPath(); ctx.arc(hx, hy - 10, 10 + h.age * 24, 0, 7); ctx.fill();
+      ctx.globalAlpha = a * 0.6; ctx.fillStyle = '#ffd66a';
+      ctx.beginPath(); ctx.arc(hx, hy - 10, 6 + h.age * 16, 0, 7); ctx.fill();
+    } else if (h.lvlUp) {
+      // awans poziomu: złota poświata rozchodząca się od jednostki
+      ctx.globalAlpha = a * 0.8; ctx.strokeStyle = '#ffd66a';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(hx, hy - 8, 3 + h.age * 18, 0, 7); ctx.stroke();
+    } else if (h.miss) {
+      // pudło: krótka szara smuga ukośna obok celu
+      ctx.globalAlpha = a * 0.7; ctx.strokeStyle = '#a8a094';
+      ctx.lineWidth = 1.5;
+      const mx = hx + 5, my = hy - 10;
+      ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx + 3, my + 5 + h.age * 6); ctx.stroke();
+    } else {
+      // iskra: rozbryzg odłamków, żółty przy pocisku, jasnoszary przy ciosie
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = h.melee ? '#d8d0c0' : '#ffd66a';
+      ctx.lineWidth = 1.5;
+      const r = 2 + h.age * 8;
+      ctx.beginPath();
+      ctx.moveTo(hx - r, hy - 6 - r * 0.6); ctx.lineTo(hx - r * 0.4, hy - 6 - r * 0.2);
+      ctx.moveTo(hx + r, hy - 6 - r * 0.6); ctx.lineTo(hx + r * 0.4, hy - 6 - r * 0.2);
+      ctx.moveTo(hx, hy - 6 + r); ctx.lineTo(hx, hy - 6 + r * 0.4);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // mgła: przyciemnienie obszarów poza widokiem
+  for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
+    const i = idx(x, y);
+    if (!S.explored[i] || S.visible[i]) continue;
+    const [sx, sy] = tileToScreen(x, y);
+    if (sx < -80 || sx > VW + 80 || sy < -60 || sy > VH + 80) continue;
+    blitSpr(SPR.fog, sx, sy + CFG.tileH / 2);
+  }
+  // zaznaczenie
+  for (const u of S.selected.units) {
+    const [sx, sy] = tileToScreen(u.x, u.y);
+    ctx.strokeStyle = '#7fff7f'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(sx, sy + 8, 13, 6, 0, 0, 7); ctx.stroke();
+  }
+  if (S.selected.building) {
+    const b = S.selected.building;
+    // obrys rombu podstawy (izometria) zamiast prostokąta AABB; wierzchołki = rogi footprintu
+    const n = tileToScreen(b.tx, b.ty), e = tileToScreen(b.tx + b.w, b.ty), s = tileToScreen(b.tx + b.w, b.ty + b.h), wv = tileToScreen(b.tx, b.ty + b.h);
+    ctx.strokeStyle = '#7fff7f'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(n[0], n[1]); ctx.lineTo(e[0], e[1]); ctx.lineTo(s[0], s[1]); ctx.lineTo(wv[0], wv[1]); ctx.closePath(); ctx.stroke();
+  }
+  // duch budynku
+  if (S.placing) {
+    const [px, py] = screenToTile(mouse.x, mouse.y);
+    const tx = Math.floor(px), ty = Math.floor(py);
+    const def = CFG.buildings[S.placing];
+    let ok = canAfford(def.cost);
+    for (let y = ty; y < ty + def.h && ok; y++) for (let x = tx; x < tx + def.w; x++)
+      if (!inMap(x, y) || isBlocked(x, y)) { ok = false; break; }
+    // cały footprint jako romb izometryczny, wypełniony półprzezroczyście; rogi jak w zaznaczeniu budynku
+    const n = tileToScreen(tx, ty), e = tileToScreen(tx + def.w, ty), s = tileToScreen(tx + def.w, ty + def.h), wv = tileToScreen(tx, ty + def.h);
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = ok ? '#7fff7f' : '#ff5f5f';
+    ctx.beginPath(); ctx.moveTo(n[0], n[1]); ctx.lineTo(e[0], e[1]); ctx.lineTo(s[0], s[1]); ctx.lineTo(wv[0], wv[1]); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = ok ? '#7fff7f' : '#ff5f5f';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  // znacznik rozkazu: natychmiastowa informacja zwrotna po PPM
+  if (S.fx && S.fx.age < 0.5) {
+    const [fxs, fys] = tileToScreen(S.fx.x, S.fx.y);
+    const p = S.fx.age / 0.5;
+    ctx.strokeStyle = '#7fff7f';
+    ctx.globalAlpha = 1 - p;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(fxs, fys, 8 + p * 16, 4 + p * 8, 0, 0, 7);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore(); // koniec skali świata; poniżej rysowanie w px ekranu
+  // deszcz medicine mana: smugi na całym widocznym fragmencie, faza z zegara gry (deterministyczna)
+  if (S.rainT && S.rainT.player > 0) {
+    ctx.strokeStyle = 'rgba(140,180,210,0.35)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 60; i++) {
+      const px = (i * 137 + Math.floor(S.time * 300)) % canvasW;
+      const py = (i * 271 + Math.floor(S.time * 500)) % canvasH;
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - 3, py + 10); ctx.stroke();
+    }
+  }
+  // ramka zaznaczania podczas przeciągania (było niewidoczne, klik działał "w ciemno")
+  if (mouse.down && mouse.dragging) {
+    ctx.strokeStyle = '#7fff7f';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(Math.min(mouse.sx, mouse.x) + 0.5, Math.min(mouse.sy, mouse.y) + 0.5, Math.abs(mouse.x - mouse.sx), Math.abs(mouse.y - mouse.sy));
+  }
+  renderMinimap();
+}
+const TREE_KINDS = ['tree0', 'pine', 'dead', 'tree1'];
+function drawTree(sx, sy, v) {
+  blitSpr(SPR[TREE_KINDS[v || 0]], sx, sy);
+}
+// rekwizyt terenowy: pozycja deterministyczna z pozycji kafla, zawsze wewnątrz rombu (max |ox|/32+|oy|/16 = 0.875 < 1)
+function drawProp(x, y, cx, cy) {
+  const r = sprNoise(x, y, 11);
+  if (r >= 0.155) return;
+  const ox = (sprNoise(x, y, 12) - 0.5) * 28, oy = (sprNoise(x, y, 13) - 0.5) * 14;
+  const px = cx + ox, py = cy + oy;
+  if (r < 0.045) {
+    // kamień: bryłka w trzech tonach z cieniem na gruncie
+    ctx.fillStyle = '#4d4a44'; ctx.fillRect(px - 2, py, 5, 1);
+    ctx.fillStyle = '#8f8a7f'; ctx.fillRect(px - 2, py - 2, 4, 2);
+    ctx.fillStyle = '#b5b0a4'; ctx.fillRect(px - 1, py - 2, 2, 1);
+  } else if (r < 0.115) {
+    // kwiat: łodyga i główka w jednym z trzech przygaszonych kolorów
+    ctx.fillStyle = '#355c2b'; ctx.fillRect(px, py - 2, 1, 2);
+    const fc = sprNoise(x, y, 14);
+    ctx.fillStyle = fc < 0.34 ? '#e8c34a' : fc < 0.67 ? '#e0d8c0' : '#b5605a';
+    ctx.fillRect(px - 1, py - 4, 2, 2);
+  } else {
+    // krzak: ciemna kępka z akcentem światła z lewego górnego
+    ctx.fillStyle = '#2c4a1e'; ctx.fillRect(px - 3, py - 3, 6, 4);
+    ctx.fillStyle = '#55823a'; ctx.fillRect(px - 2, py - 3, 3, 2);
+  }
+}
+function drawBuilding(b) {
+  const def = CFG.buildings[b.type];
+  const [sx, sy] = tileToScreen(b.cx, b.cy);
+  const w = b.w * CFG.tileW / 2, h = b.h * CFG.tileH;
+  if (!b.built) {
+    // duch budynku: bryła materializuje się wraz z postępem, rusztowanie = przerywana elipsa
+    ctx.globalAlpha = 0.15 + 0.5 * b.progress;
+    blitSpr(bldSpr(b.type, b.fac), sx, sy);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#c9a35f'; ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.ellipse(sx, sy, w, h / 2, 0, 0, 7); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#e8d9b0'; ctx.font = '12px Georgia'; ctx.textAlign = 'center';
+    ctx.fillText(Math.floor(b.progress * 100) + '%', sx, sy - h / 4);
+    return;
+  }
+  blitSpr(bldSpr(b.type, b.fac), sx, sy);
+  ctx.fillStyle = b.fac === 'enemy' ? '#ff8f6f' : '#f0e2bd';
+  ctx.font = '11px Georgia'; ctx.textAlign = 'center';
+  ctx.fillText(def.label, sx, sy + b.h * CFG.tileH / 2 - 6);
+  if (b.hp < b.maxHp) drawHpBar(sx, sy + b.h * CFG.tileH / 2 + 6, w, b.hp / b.maxHp, b.fac === 'enemy');
+  if (b.queue.length) {
+    ctx.fillStyle = '#ffd97a'; ctx.font = '11px Georgia';
+    ctx.fillText('⏳' + Math.ceil(b.queue[0].remaining) + 's', sx, sy + b.h * CFG.tileH / 2 - 18);
+  }
+}
+// padlina po zwierzynie: ciemna bryła mięsa z jaśniejszym rozłupem i kreską kości
+function drawCarcass(sx, sy) {
+  ctx.fillStyle = '#6e3a26';
+  ctx.beginPath(); ctx.ellipse(sx, sy - 4, 14, 6, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#8a4a2e';
+  ctx.beginPath(); ctx.ellipse(sx - 2, sy - 5, 9, 3.5, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#d8d0c0'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(sx - 8, sy - 3); ctx.lineTo(sx + 6, sy - 7); ctx.stroke();
+}
+function drawUnit(u) {
+  const [sx, sy] = tileToScreen(u.x, u.y);
+  const spr = SPR[(u.fac === 'enemy' && ENEMY_UNIT_SPR[u.type]) || UNIT_SPR[u.type]] || SPR.worker;
+  // animacja: bobbing w marszu (jeźdźcy mocniej, wolniej), tremor przy pracy, odrzut po strzale
+  let by = 0, kx = 0;
+  const mounted = u.type === 'jezdiec' || u.type === 'konnobanda';
+  const moving = u.path.length && ['toNode', 'toDeposit', 'toBuild', 'toFarm', 'toCapture', 'flee', 'attack'].includes(u.state);
+  if (moving) by = Math.sin(S.time * (mounted ? 7 : 10) + u.id * 1.7) * (mounted ? 2.5 : 1.4);
+  else if (u.state === 'gather' || u.state === 'farming' || u.state === 'building') by = Math.sin(S.time * 16 + u.id) * 0.7;
+  if (u.kick > 0) kx = u.facing * 2 * (u.kick / 0.15);
+  // cień na gruncie: zostaje na ziemi, gdy sylwetka unosi się w bobbingu, i słabnie z uniesieniem
+  const lift = Math.max(0, by);
+  ctx.fillStyle = 'rgba(0,0,0,' + (0.18 * (1 - Math.min(0.5, lift / 5))).toFixed(3) + ')';
+  ctx.beginPath(); ctx.ellipse(sx, sy + 8, 11 - lift * 0.5, 5 - lift * 0.25, 0, 0, 7); ctx.fill();
+  blitSpr(spr, sx + kx, sy + 4 + by);
+  const topY = sy + 4 + by - spr.ay;
+  if (u.carry > 0) {
+    ctx.fillStyle = u.carryType === 'wood' ? '#8a6b45' : '#e8c34a';
+    ctx.fillRect(sx + 6, sy - 14, 6, 6);
+  }
+  if (u.hp < u.maxHp) drawHpBar(sx, topY - 2, 18, u.hp / u.maxHp, u.fac === 'enemy');
+  if (u.state === 'flee') {
+    ctx.fillStyle = '#ff4a4a'; ctx.font = 'bold 13px Georgia'; ctx.textAlign = 'center';
+    ctx.fillText('!', sx, topY - 6);
+  } else if (u.morale < 60) {
+    ctx.fillStyle = '#000'; ctx.fillRect(sx - 10, topY - 8, 20, 4);
+    ctx.fillStyle = '#e8c34a'; ctx.fillRect(sx - 9, topY - 7, 18 * Math.max(0, u.morale / 100), 2);
+  }
+  // doświadczenie: trzecia statystyka oryginału, pasek po drodze do progu + poziom (gwiazdka z cyfrą)
+  if (u.xp > 0) {
+    const X = CFG.xp;
+    const prev = u.lvl > 0 ? X.thresholds[u.lvl - 1] : 0;
+    const next = u.lvl < X.thresholds.length ? X.thresholds[u.lvl] : null;
+    const frac = next ? (u.xp - prev) / (next - prev) : 1;
+    ctx.fillStyle = '#000'; ctx.fillRect(sx - 10, topY - 13, 20, 3);
+    ctx.fillStyle = '#5a8fd4'; ctx.fillRect(sx - 9, topY - 12, 18 * Math.max(0, Math.min(1, frac)), 1);
+    if (u.lvl > 0) {
+      ctx.fillStyle = '#8ab4ea'; ctx.font = '10px Georgia'; ctx.textAlign = 'left';
+      ctx.fillText('✦' + u.lvl, sx + 12, topY - 5);
+    }
+  }
+}
+function drawHpBar(sx, sy, w, frac, enemy) {
+  ctx.fillStyle = '#000'; ctx.fillRect(sx - w / 2 - 1, sy - 1, w + 2, 5);
+  ctx.fillStyle = enemy ? '#d14a1e' : '#5fae4a';
+  ctx.fillRect(sx - w / 2, sy, w * Math.max(0, frac), 3);
+}
+function renderMinimap() {
+  mctx.fillStyle = '#000'; mctx.fillRect(0, 0, 160, 160);
+  const px = 160 / MAP;
+  for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
+    const i = idx(x, y);
+    if (!S.explored[i]) continue;
+    const t = S.terrain[i];
+    mctx.fillStyle = t === T_FOREST ? '#2c4a1e' : t === T_GOLD ? '#e8c34a' : t === T_WATER ? '#3a6272' : t === T_MEAT ? '#a05a3a' : t === T_THICK ? '#1c3812' : '#8a7634';
+    mctx.fillRect(x * px, y * px, px, px);
+  }
+  for (const b of S.buildings) {
+    if (!S.explored[idx(Math.min(MAP - 1, Math.floor(b.cx)), Math.min(MAP - 1, Math.floor(b.cy)))]) continue;
+    mctx.fillStyle = b.fac === 'enemy' ? '#ff5f5f' : '#7fd4ff';
+    mctx.fillRect(b.tx * px, b.ty * px, b.w * px, b.h * px);
+  }
+  for (const u of S.units) {
+    const ux = Math.min(MAP - 1, Math.floor(u.x)), uy = Math.min(MAP - 1, Math.floor(u.y));
+    if ((u.fac === 'enemy' || u.fac === 'neutral') && !S.visible[idx(ux, uy)]) continue;
+    mctx.fillStyle = u.fac === 'enemy' ? '#ff8f6f' : u.fac === 'neutral' ? '#c9a35f' : '#fff';
+    mctx.fillRect(u.x * px - 1, u.y * px - 1, 2.5, 2.5);
+  }
+  // prostokąt widoku
+  const [wx, wy] = screenToTile(0, 0);
+  const [wx2, wy2] = screenToTile(canvasW, canvasH);
+  mctx.strokeStyle = '#fff'; mctx.lineWidth = 1;
+  mctx.strokeRect(wx * px, wy * px, (wx2 - wx) * px, (wy2 - wy) * px);
+}
+
+// ============================== MAIN ==============================
+const STEP_MS = 1000 / 60;
+const MAX_FRAME_MS = 250;
+let prevTime = 0, acc = 0, uiTimer = 0;
+function frame(now) {
+  acc += Math.min(now - prevTime, MAX_FRAME_MS);
+  prevTime = now;
+  let stepped = false;
+  while (acc >= STEP_MS) { update(STEP_MS / 1000); acc -= STEP_MS; stepped = true; }
+  // kamera (cs w px świata: przy zoomie 2x ta sama prędkość na ekranie wymaga 2x większego kroku)
+  const cs = 12 * ZOOM;
+  if (keys.ArrowLeft || keys.a) cam.x += cs;
+  if (keys.ArrowRight || keys.d) cam.x -= cs;
+  if (keys.ArrowUp || keys.w) cam.y += cs;
+  if (keys.ArrowDown || keys.s) cam.y -= cs;
+  if (mouse.x < 24) cam.x += cs; if (mouse.x > canvasW - 24) cam.x -= cs;
+  if (mouse.y < 24) cam.y += cs; if (mouse.y > canvasH - 24) cam.y -= cs;
+  clampCam();
+  render();
+  uiTimer += 1;
+  if (stepped && uiTimer % 15 === 0) { updateTopbar(); updatePanels(); }
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) prevTime = performance.now(); });
+
+resize();
+newGame((Date.now() % 2147483647) >>> 0);
+updateTopbar(); updatePanels();
+showMenu();
+requestAnimationFrame(t => { prevTime = t; requestAnimationFrame(frame); });
+</script>
+</body>
+</html>
