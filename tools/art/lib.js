@@ -92,13 +92,17 @@ function saveStatic(key, res, group) {
   entries[key] = { file: writePng(group + '/' + key + '.png', res.sprite), shadow: writePng(group + '/' + key + '_shadow.png', res.shadow), w, h, ax: Math.round(res.anchor[0]), ay: Math.round(res.anchor[1]) };
   return entries[key];
 }
-// arkusz klatek (jednostki): kierunki × fazy; maska drużyny jako osobny PNG (przebarwiana w grze)
+// arkusz klatek (jednostki): kierunki (wiersze) × fazy (kolumny). Kolor drużyny wypieczony w osobnych arkuszach (_p gracz, _e wróg):
+// przebarwianie w grze wymagałoby odczytu pikseli, a canvas z obrazem z file:// jest w Chromium "tainted"
+const TEAM_COLORS = { p: [0.12, 0.30, 0.78], e: [0.75, 0.15, 0.12] };
 function saveSheet(key, frames, group, opts) {
-  const sheet = pt.packSheet(frames, { columns: opts.columns, padding: 1 });
+  const packer = opts.packer || pt, sheet = packer.packSheet(frames, { columns: opts.columns, padding: 1 });
   const m = sheet.meta, fw = m.frame_size[0], fh = m.frame_size[1];
-  entries[key] = { file: writePng(group + '/' + key + '.png', sheet.rgba), shadow: writePng(group + '/' + key + '_shadow.png', sheet.shadow), mask: opts.team ? writePng(group + '/' + key + '_team.png', sheet.team) : null,
-    fw, fh, cols: opts.columns, rows: Math.ceil(frames.length / opts.columns), pad: m.padding || 1, ax: Math.round(m.anchor[0]), ay: Math.round(m.anchor[1]), dirs: opts.dirs, phases: opts.phases };
-  return entries[key];
+  const e = { shadow: writePng(group + '/' + key + '_shadow.png', sheet.shadow), fw, fh, cols: opts.columns, rows: Math.ceil(frames.length / opts.columns), pad: m.padding || 1, ax: Math.round(m.anchor[0]), ay: Math.round(m.anchor[1]), dirs: opts.dirs, phases: opts.phases };
+  if (opts.team) { for (const t of ['p', 'e']) e['file_' + t] = writePng(group + '/' + key + '_' + t + '.png', packer.swapTeamColor(sheet.rgba, sheet.team, TEAM_COLORS[t])); }
+  else e.file = writePng(group + '/' + key + '.png', sheet.rgba);
+  entries[key] = e;
+  return e;
 }
 function writeManifest(extra) {
   const file = path.join(ASSETS, 'manifest.json');

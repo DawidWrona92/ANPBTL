@@ -739,6 +739,7 @@ function update(dt) {
 function stepSnd(u, dist) {
   // kroki liczone przebytym dystansem, nie czasem: jednostka stojąca nie hałasuje
   u.stepAcc = (u.stepAcc || 0) + dist;
+  u.walkD = (u.walkD || 0) + dist;   // przebyty dystans: faza animacji chodu
   const hoof = u.type === 'jezdiec' || u.type === 'konnobanda';
   if (u.stepAcc >= (hoof ? 0.4 : 0.5)) { u.stepAcc = 0; sfx(hoof ? 'hoof' : 'step', u.x, u.y); }
 }
@@ -750,6 +751,7 @@ function followPath(u, dt) {
   const tx = nx + 0.5, ty = ny + 0.5;
   const dx = tx - u.x, dy = ty - u.y;
   const d = Math.hypot(dx, dy);
+  if (d > 0.01) { u.fdx = dx; u.fdy = dy; }   // kierunek ruchu (rysowanie 8-kierunkowe)
   // koszt terenowy: rzeka 0.5 dla Indian, gęsty las 1.5/2.0, trawa 1.0 (tempo = speed / koszt)
   const step = def.speed * dt / terrainCost(def, Math.floor(u.x), Math.floor(u.y));
   if (d <= step) { u.x = tx; u.y = ty; stepSnd(u, Math.min(d, step)); u.pathI++; if (u.pathI >= u.path.length) { u.path = []; return true; } }
@@ -771,6 +773,7 @@ function stepToward(u, tx, ty, dt) {
   if (d < 0.001) return;
   const step = Math.min(d, def.speed * dt / terrainCost(def, Math.floor(u.x), Math.floor(u.y)));
   const nx = u.x + dx / d * step, ny = u.y + dy / d * step;
+  u.fdx = dx; u.fdy = dy;
   if (!passableFor(def, Math.floor(nx), Math.floor(ny))) return;
   u.x = nx; u.y = ny;
   if (Math.abs(dx) > 0.01) u.facing = dx > 0 ? 1 : -1;
@@ -2266,7 +2269,7 @@ function loadAssets() {
     let pending = 0, failed = 0, started = false; const imgs = {};
     const check = () => { if (started && pending === 0) resolve(failed === 0); };
     const img = src => { if (!src) return null; if (imgs[src]) return imgs[src]; const im = new Image(); pending++; im.onload = () => { pending--; check(); }; im.onerror = () => { failed++; pending--; check(); }; im.src = src; return imgs[src] = im; };
-    for (const k in man) { const e = man[k]; e._img = img(e.file); e._sh = img(e.shadow); e._mk = img(e.mask); }
+    for (const k in man) { const e = man[k]; e._img = img(e.file); e._sh = img(e.shadow); e._imgp = img(e.file_p); e._imge = img(e.file_e); }
     started = true; check();
   });
 }
@@ -2642,7 +2645,7 @@ function render() {
   for (const u of S.selected.units) {
     const [sx, sy] = tileToScreen(u.x, u.y);
     ctx.strokeStyle = '#7fff7f'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.ellipse(sx, sy + 8, 13, 6, 0, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(sx, sy + (ART === 'prerender' ? 3 : 8), 13, 6, 0, 0, 7); ctx.stroke();
   }
   if (S.selected.building) {
     const b = S.selected.building;
@@ -2803,8 +2806,38 @@ function drawCarcass(sx, sy) {
   ctx.strokeStyle = '#d8d0c0'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(sx - 8, sy - 3); ctx.lineTo(sx + 6, sy - 7); ctx.stroke();
 }
+// kierunek rysowania: ruch, cel ataku/szturmu, miejsce pracy; indeks 0-7 wg kolejności kierunków w arkuszu (yaw painted = kierunek w osiach (x, -y) gry)
+function unitHeading(u) {
+  let dx = u.fdx, dy = u.fdy;
+  if (u.state === 'attack' && u.attackTarget) { dx = u.attackTarget.x - u.x; dy = u.attackTarget.y - u.y; }
+  else if (u.state === 'assault' && u.orderBuilding) { dx = u.orderBuilding.cx - u.x; dy = u.orderBuilding.cy - u.y; }
+  else if (u.state === 'gather' && u.node) { dx = u.node[0] + 0.5 - u.x; dy = u.node[1] + 0.5 - u.y; }
+  else if (u.state === 'building' && u.buildTarget) { dx = u.buildTarget.cx - u.x; dy = u.buildTarget.cy - u.y; }
+  else if (u.state === 'farming' && u.farm) { dx = u.farm.cx - u.x; dy = u.farm.cy - u.y; }
+  if (dx === undefined || (Math.abs(dx) < 1e-3 && Math.abs(dy) < 1e-3)) return u.hd === undefined ? 7 : u.hd;
+  let yaw = Math.atan2(-dy, dx) * 180 / Math.PI; if (yaw < 0) yaw += 360;
+  u.hd = Math.round(yaw / 45) % 8;
+  return u.hd;
+}
+function drawUnitPre(u, sx, sy) {
+  const e = window.ASSETS[u.type]; if (!e) return false;
+  const row = unitHeading(u);
+  const moving = u.path.length && ['move', 'toNode', 'toDeposit', 'toBuild', 'toFarm', 'toCapture', 'flee', 'attack', 'assault'].includes(u.state);
+  const col = e.phases > 1 && moving ? Math.floor((u.walkD || 0) / 0.42) % e.phases : 0;
+  let by = 0, kx = 0;
+  if (u.state === 'gather' || u.state === 'farming' || u.state === 'building') by = Math.sin(S.time * 16 + u.id) * 0.7;
+  if (u.kick > 0) kx = u.facing * 2 * (u.kick / 0.15);
+  const img = e.file_p ? (u.fac === 'enemy' ? e._imge : e._imgp) : e._img;
+  const fx = col * (e.fw + e.pad), fy = row * (e.fh + e.pad), dx = Math.round(sx + kx - e.ax * AK), dy = Math.round(sy + 2 + by - e.ay * AK);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(e._sh, fx, fy, e.fw, e.fh, dx, dy, e.fw * AK, e.fh * AK);
+  ctx.drawImage(img, fx, fy, e.fw, e.fh, dx, dy, e.fw * AK, e.fh * AK);
+  return sy + 2 + by - e.ay * AK;   // górna krawędź sprite'a (do pasków nad jednostką)
+}
 function drawUnit(u) {
   const [sx, sy] = tileToScreen(u.x, u.y);
+  let topPre = null;
+  if (ART === 'prerender') topPre = drawUnitPre(u, sx, sy);
   const spr = SPR[(u.fac === 'enemy' && ENEMY_UNIT_SPR[u.type]) || UNIT_SPR[u.type]] || SPR.worker;
   // animacja: bobbing w marszu (jeźdźcy mocniej, wolniej), tremor przy pracy, odrzut po strzale
   let by = 0, kx = 0;
@@ -2815,10 +2848,12 @@ function drawUnit(u) {
   if (u.kick > 0) kx = u.facing * 2 * (u.kick / 0.15);
   // cień na gruncie: zostaje na ziemi, gdy sylwetka unosi się w bobbingu, i słabnie z uniesieniem
   const lift = Math.max(0, by);
-  ctx.fillStyle = 'rgba(0,0,0,' + (0.18 * (1 - Math.min(0.5, lift / 5))).toFixed(3) + ')';
-  ctx.beginPath(); ctx.ellipse(sx, sy + 8, 11 - lift * 0.5, 5 - lift * 0.25, 0, 0, 7); ctx.fill();
-  blitSpr(spr, sx + kx, sy + 4 + by);
-  const topY = sy + 4 + by - spr.ay;
+  if (topPre === null) {
+    ctx.fillStyle = 'rgba(0,0,0,' + (0.18 * (1 - Math.min(0.5, lift / 5))).toFixed(3) + ')';
+    ctx.beginPath(); ctx.ellipse(sx, sy + 8, 11 - lift * 0.5, 5 - lift * 0.25, 0, 0, 7); ctx.fill();
+    blitSpr(spr, sx + kx, sy + 4 + by);
+  }
+  const topY = topPre !== null ? topPre : sy + 4 + by - spr.ay;
   if (u.carry > 0) {
     ctx.fillStyle = u.carryType === 'wood' ? '#8a6b45' : '#e8c34a';
     ctx.fillRect(sx + 6, sy - 14, 6, 6);
