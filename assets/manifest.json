@@ -597,5 +597,113 @@
   ],
   "phases": 1,
   "file": "assets/units/bydlo.png"
+ },
+ "frontiersman": {
+  "shadow": "assets/units/frontiersman_shadow.png",
+  "fw": 91,
+  "fh": 82,
+  "cols": 4,
+  "rows": 8,
+  "pad": 1,
+  "ax": 64,
+  "ay": 61,
+  "dirs": [
+   0,
+   45,
+   90,
+   135,
+   180,
+   225,
+   270,
+   315
+  ],
+  "phases": 4,
+  "file_p": "assets/units/frontiersman_p.png",
+  "file_e": "assets/units/frontiersman_e.png"
+ },
+ "frontierswoman": {
+  "shadow": "assets/units/frontierswoman_shadow.png",
+  "fw": 80,
+  "fh": 70,
+  "cols": 4,
+  "rows": 8,
+  "pad": 1,
+  "ax": 55,
+  "ay": 53,
+  "dirs": [
+   0,
+   45,
+   90,
+   135,
+   180,
+   225,
+   270,
+   315
+  ],
+  "phases": 4,
+  "file_p": "assets/units/frontierswoman_p.png",
+  "file_e": "assets/units/frontierswoman_e.png"
+ },
+ "szeryf": {
+  "shadow": "assets/units/szeryf_shadow.png",
+  "fw": 109,
+  "fh": 95,
+  "cols": 4,
+  "rows": 8,
+  "pad": 1,
+  "ax": 69,
+  "ay": 70,
+  "dirs": [
+   0,
+   45,
+   90,
+   135,
+   180,
+   225,
+   270,
+   315
+  ],
+  "phases": 4,
+  "file_p": "assets/units/szeryf_p.png",
+  "file_e": "assets/units/szeryf_e.png"
+ },
+ "armata": {
+  "shadow": "assets/units/armata_shadow.png",
+  "fw": 166,
+  "fh": 115,
+  "cols": 1,
+  "rows": 8,
+  "pad": 1,
+  "ax": 101,
+  "ay": 74,
+  "dirs": [
+   0,
+   45,
+   90,
+   135,
+   180,
+   225,
+   270,
+   315
+  ],
+  "phases": 1,
+  "file_p": "assets/units/armata_p.png",
+  "file_e": "assets/units/armata_e.png"
+ },
+ "bld_bank_us": {
+  "file": "assets/buildings/bld_bank_us.png",
+  "shadow": "assets/buildings/bld_bank_us_shadow.png",
+  "w": 365,
+  "h": 251,
+  "ax": 210,
+  "ay": 167
+ },
+ "bld_ranch_us": {
+  "file": "assets/buildings/bld_ranch_us.png",
+  "shadow": "assets/buildings/bld_ranch_us_shadow.png",
+  "w": 363,
+  "h": 284,
+  "ax": 205,
+  "ay": 172
  }
 }

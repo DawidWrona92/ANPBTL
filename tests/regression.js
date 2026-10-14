@@ -66,7 +66,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       for (let i = 0; i < 300; i++) update(1 / 60); render();
       const man = window.ASSETS, broken = Object.keys(man).filter(k => man[k]._img && !(man[k]._img.complete && man[k]._img.naturalWidth > 0));
       const missU = Object.keys(CFG.units).filter(t => !man[t]), missB = [];
-      for (const t of Object.keys(CFG.buildings)) for (const n of t === 'tepee' ? ['sx'] : ['us', 'ban']) if (!man['bld_' + t + '_' + n]) missB.push(t + '_' + n);
+      for (const t of Object.keys(CFG.buildings)) for (const n of t === 'tepee' ? ['sx'] : (t === 'bank' || t === 'ranch') ? ['us'] : ['us', 'ban']) if (!man['bld_' + t + '_' + n]) missB.push(t + '_' + n);
       return { layer: !!S.groundLayer, assets: Object.keys(man).length, broken, missU, missB };
     });
     await p2.close();
@@ -434,6 +434,72 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       finally { window.drawUnit = orig; }
     });
     eq(r, [false, true], 'ukryty/widoczny');
+  });
+  console.log('C3a: Osadnicy');
+  await test('C3: limit banków (5) liczy się od startu budowy, a bank daje złoto i podnosi limit', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); S.res = { wood: 5000, food: 500, gold: 5000, guns: 0, horses: 0 };
+      const man = addUnit('frontiersman', 'player', 14.5, 14.5); S.selected.units = [man];
+      let placed = 0; for (let i = 0; i < 7; i++) { const n = S.buildings.length; tryPlace('bank', 12 + (i % 4) * 3, 12 + Math.floor(i / 4) * 3); if (S.buildings.length > n) placed++; }
+      // żaden bank nie jest ukończony, a limit już działa
+      const unbuilt = S.buildings.filter(b => b.type === 'bank' && !b.built).length;
+      const capBefore = resCapOf('gold');
+      for (const b of S.buildings.filter(b => b.type === 'bank')) { b.built = true; b.progress = 1; }
+      const capAfter = resCapOf('gold');
+      S.res.gold = 0; T.run(10);
+      const gold10 = Math.round(S.res.gold);
+      return { placed, unbuilt, capBefore, capAfter, gold10 };
+    });
+    eq([r.placed, r.unbuilt], [5, 5], 'liczba banków przy starcie budowy'); eq(r.capAfter - r.capBefore, 2500, 'limit złota +500 za bank'); ok(r.gold10 >= 45 && r.gold10 <= 55, 'przychód 5 banków przez 10 s: ' + r.gold10);
+  });
+  await test('C3: ranczo podnosi limit żywności o 150, nadwyżka ponad limit przepada', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); const c0 = resCapOf('food'); const b = addBuilding('ranch', 14, 14, 'player'); const c1 = resCapOf('food'); b.built = true; const c2 = resCapOf('food');
+      S.res.food = c2 - 10; addRes('food', 100); return [c0, c1, c2, S.res.food];
+    });
+    eq(r, [500, 500, 650, 650], 'limit żywności');
+  });
+  await test('C3: podział ról – frontierswoman rąbie i farmi, ale nie buduje; frontiersman buduje i kopie, ale nie rąbie', async () => {
+    const r = await page.evaluate(() => {
+      const w = { type: 'frontierswoman' }, m = { type: 'frontiersman' };
+      return { w: [canGatherRes(w, T_FOREST), canGatherRes(w, T_GOLD), unitRole(w, 'farmer'), unitRole(w, 'builder')],
+        m: [canGatherRes(m, T_FOREST), canGatherRes(m, T_GOLD), unitRole(m, 'farmer'), unitRole(m, 'builder')] };
+    });
+    eq(r.w, [true, false, true, false], 'frontierswoman'); eq(r.m, [false, true, false, true], 'frontiersman');
+  });
+  await test('C3: szeryf widzi dalej (wzrok 10) i podnosi morale jak przywódca', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); S.visible.fill(0);
+      const sh = addUnit('szeryf', 'player', 20.5, 20.5); computeFog();
+      const seen = (dx, dy) => !!S.visible[idx(20 + dx, 20 + dy)];
+      const far = seen(9, 0), tooFar = seen(11, 0);
+      const f = addUnit('piechota', 'player', 22.5, 20.5); f.morale = 40; updateMorale(); const m1 = f.morale;
+      S.units = S.units.filter(u => u !== sh); f.morale = 40; updateMorale(); const m2 = f.morale;
+      return { far, tooFar, gain: m1 - m2 };
+    });
+    ok(r.far && !r.tooFar, 'zasięg widzenia'); ok(r.gain > 0.4, 'aura morale: ' + r.gain);
+  });
+  await test('C3: armata bije obszarowo (r 1.5), bez friendly fire, a budynki niszczy szybciej niż piechota', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh();
+      const c = addUnit('armata', 'player', 20.5, 20.5); c.stance = 'norm';
+      const a = addUnit('desperado', 'enemy', 20.5, 29.5), b = addUnit('desperado', 'enemy', 21.5, 29.5), far = addUnit('desperado', 'enemy', 25.5, 29.5), own = addUnit('piechota', 'player', 20.5, 30);
+      for (const e of [a, b, far]) e.stance = 'hold';
+      const hp = [a, b, far, own].map(u => u.hp);
+      c.attackTarget = a; c.ordered = true; c.state = 'attack';
+      for (let i = 0; i < 60 * 12; i++) { update(1 / 60); for (const e of [a, b, far]) e.x = e.x; }
+      const after = [a, b, far, own].map(u => S.units.includes(u) ? u.hp : 0);
+      return { dropA: hp[0] - after[0], dropB: hp[1] - after[1], dropFar: hp[2] - after[2], dropOwn: hp[3] - after[3] };
+    });
+    ok(r.dropA > 0 && r.dropB > 0, 'trafia cel i sąsiada: ' + r.dropA + '/' + r.dropB); eq(r.dropFar, 0, 'poza promieniem'); eq(r.dropOwn, 0, 'friendly fire');
+  });
+  await test('C3: limit populacji 200 i start Osadników z podziałem na mężczyzn i kobiety', async () => {
+    const r = await page.evaluate(() => {
+      newGame(2, 'settler'); const start = S.units.filter(u => u.fac === 'player').map(u => u.type).sort();
+      for (let i = 0; i < 40; i++) addBuilding('house', 1 + (i % 10) * 2, 20 + Math.floor(i / 10) * 2, 'player').built = true;
+      return { start, cap: popCap('player') };
+    });
+    eq(r.start, ['frontiersman', 'frontiersman', 'frontierswoman', 'frontierswoman'], 'start'); eq(r.cap, 200, 'limit');
   });
   console.log('Smoke');
   for (const race of ['settler', 'sioux']) {

@@ -9,6 +9,9 @@ const DIRS = pt.directions(8), PH = 4;
 const HUMAN = { scale: 0.68 };   // ludzie ok. 1/3 wysokości domu, jak w oryginale
 const LOOK = {
   worker:    { kind: 'foot', o: { hat: 'cowboy', hatColor: [0.55, 0.45, 0.30], shirt: [0.70, 0.62, 0.45], pants: [0.30, 0.24, 0.18], weapon: 'pickaxe', team: 'sleeves' } },
+  frontiersman:   { kind: 'foot', o: { hat: 'cowboy', hatColor: [0.34, 0.30, 0.26], shirt: [0.46, 0.55, 0.68], pants: [0.30, 0.26, 0.20], weapon: 'pickaxe', team: 'sleeves' } },
+  frontierswoman: { kind: 'foot', o: { scale: 0.62, hat: 'cap', hatColor: [0.86, 0.82, 0.74], shirt: [0.80, 0.72, 0.80], pants: [0.46, 0.30, 0.24], weapon: 'none', team: 'sleeves' } },
+  szeryf:         { kind: 'foot', o: { scale: 0.74, hat: 'cowboy', hatColor: [0.76, 0.66, 0.46], shirt: [0.82, 0.78, 0.64], pants: [0.18, 0.18, 0.26], weapon: 'rifle', team: 'hat' } },
   piechota:  { kind: 'foot', o: { hat: 'cap', shirt: [0.20, 0.28, 0.50], pants: [0.28, 0.26, 0.30], weapon: 'rifle', team: 'torso' } },
   desperado: { kind: 'foot', o: { hat: 'cowboy', hatColor: [0.20, 0.15, 0.10], shirt: [0.36, 0.26, 0.18], pants: [0.20, 0.18, 0.15], weapon: 'rifle', team: 'sleeves' } },
   bandleader:{ kind: 'foot', o: { scale: 0.74, hat: 'cowboy', hatColor: [0.12, 0.10, 0.08], shirt: [0.16, 0.12, 0.12], pants: [0.18, 0.14, 0.10], weapon: 'rifle', team: 'hat' } },
@@ -43,7 +46,28 @@ function quadruped(kind) {
   m.cylinder('fur2', [-L1 + 0.05, 0, 0.7], [-L1 - 0.12, 0, 0.35], 0.04, 0.02, 6);
   return m;
 }
+// armata Osadników: bryła prerendera (drewniana laweta, żelazna lufa wzdłuż +x), 8 kierunków, pasek koloru drużyny na tarczy
+function cannon() {
+  const m = model(null);
+  for (const sd of [-1, 1]) {
+    m.box('timber', [0.0, sd * 0.3, 0.46], [1.15, 0.1, 0.16]);
+    rt.wheel(m, [0.05, sd * 0.46, 0.36], { radius: 0.36, thickness: 0.1 });
+  }
+  m.box('timber', [0.1, 0, 0.5], [0.5, 0.62, 0.1]);
+  m.beam('timber', [-0.3, 0, 0.46], [-1.05, 0, 0.1], 0.1, 0.1, [0, 1, 0]);
+  m.cylinder('iron', [-0.3, 0, 0.64], [0.95, 0, 0.78], 0.19, 0.13, 14);
+  m.cylinder('iron', [0.93, 0, 0.775], [1.02, 0, 0.785], 0.16, 0.16, 14);
+  m.box('team', [0.35, 0, 0.9], [0.04, 0.34, 0.3]);
+  m.blob('iron', [-0.35, 0, 0.64], [0.15, 0.15, 0.15], { seed: 3, roughness: 0.05, subdivisions: 2 });
+  return m;
+}
 function animals(lap) {
+  const cam2 = () => cam(2.6, [0, 0, 0.55], 0.6);
+  {
+    const frames = DIRS.map(d => rt.renderSprite(cannon(), cam2(), { groundTexture: TX.ochre, trim: false, viewAngleDeg: d.yaw }));
+    L.saveSheet('armata', frames, 'units', { columns: 1, dirs: DIRS.map(d => d.yaw), phases: 1, team: true, packer: rt });
+    lap('armata');
+  }
   for (const kind of ['bizon', 'bydlo']) {
     const frames = DIRS.map(d => rt.renderSprite(quadruped(kind), cam(2.2, [0, 0, 0.5], 0.62), { groundTexture: TX.ochre, trim: false, viewAngleDeg: d.yaw }));
     L.saveSheet(kind, frames, 'units', { columns: 1, dirs: DIRS.map(d => d.yaw), phases: 1, team: false, packer: rt });
@@ -65,6 +89,7 @@ function preview(file) {
     DIRS.forEach((d, col) => {
       const look = LOOK[key]; let res;
       if (look) { const P = pt.sprite(look.kind === 'foot' ? FH : FR); if (look.kind === 'foot') pt.humanoid(P, Object.assign({ yaw: d.yaw, phase: 0, moving: true }, HUMAN, look.o)); else pt.horse(P, Object.assign({ yaw: d.yaw, phase: 0, moving: true, scale: 0.78 }, look.o)); res = P.render(); }
+      else if (key === 'armata') res = rt.renderSprite(cannon(), cam(2.6, [0, 0, 0.55], 0.6), { groundTexture: TX.ochre, trim: true, viewAngleDeg: d.yaw });
       else res = rt.renderSprite(quadruped(key), cam(2.2, [0, 0, 0.5], 0.62), { groundTexture: TX.ochre, trim: true, viewAngleDeg: d.yaw });
       const ox = 10 + col * cell + cell / 2 - res.anchor[0], oy = 10 + row * cell + cell * 0.8 - res.anchor[1];
       for (const layer of [res.shadow, res.sprite]) for (let y = 0; y < layer.height; y++) for (let x = 0; x < layer.width; x++) {

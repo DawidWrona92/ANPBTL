@@ -62,6 +62,7 @@ const CFG = {
   map: 40, tileW: 64, tileH: 32,
   startRes: { wood: 300, food: 150, gold: 0, guns: 0, horses: 0 },
   resCap: { wood: 500, food: 500, gold: 2000, guns: 200, horses: 20 },
+  popMax: 200,   // twardy limit populacji [Ź 19.1]
   carry: 10, chop: 2.5, mine: 1.5, butcher: 3,
   fogRadius: 6, fogHq: 8,
   morale: { tick: 1.0, deathR: 6, deathPenalty: 2, hitPenalty: 1, regen: 0.2, restR: 10, restRegen: 1.0, hqAuraR: 8, hqAura: 0.5, leaderAuraR: 6, leaderAura: 0.5, fleeAt: 30, fleeTime: 5, fleeBreak: 30, fleeDist: 4, wodzDeath: 30 },
@@ -85,16 +86,22 @@ const CFG = {
     veryhard: { label: 'Bardzo trudny', workers: 5, armyBase: 6, waveMul: 0.67, firstWave: 320, hitsBuildings: true },
   },
   units: {
-    worker:    { hp: 50,  dmg: 4,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 30 }, train: 12, aggro: 0, letter: 'W', color: '#3a7bd5', kind: 'melee', hunter: true, builder: true, farmer: true },
+    worker:    { hp: 50,  dmg: 4,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 30 }, train: 12, aggro: 0, letter: 'W', color: '#3a7bd5', kind: 'melee', hunter: true, builder: true, farmer: true, gather: ['forest', 'gold', 'meat'] },
+    // Osadnicy [Ź role, P liczby 19.2]: frontiersman buduje, kopie, poluje i walczy wręcz, nie farmi i nie rąbi; frontierswoman farmi i rąbi, nie buduje; 'worker' zostaje ogólnym robotnikiem Desperado do C4
+    frontiersman:   { hp: 50, dmg: 4, range: 1, cd: 1.0, speed: 1.0, cost: { food: 30 }, train: 15, aggro: 0, letter: 'F', color: '#3a7bd5', kind: 'melee', hunter: true, builder: true, gather: ['gold', 'meat'] },
+    frontierswoman: { hp: 40, dmg: 2, range: 1, cd: 1.0, speed: 1.0, cost: { food: 25 }, train: 12, aggro: 0, letter: 'N', color: '#d58aa5', kind: 'melee', farmer: true, gather: ['forest'], fleesOnHit: true },
+    // szeryf: wzrok 10 [Ź fakt, P wartość], aura morale jak przywódca (leader); armata: wolna [Ź], obszar r 1.5, z fabryki (koszt z tabeli jednostek 19.2; wiersz fabryki podaje 50D+100Zł, sprzeczność w dokumentacji)
+    szeryf:         { hp: 70, dmg: 15, range: 6, cd: 1.2, speed: 1.0, cost: { food: 60, gold: 40, guns: 1 }, train: 30, aggro: 7, letter: 'Z', color: '#e0b030', kind: 'gun', leader: true, sight: 10 },
+    armata:         { hp: 150, dmg: 35, range: 12, cd: 3.0, speed: 0.6, cost: { gold: 150, wood: 100 }, train: 60, aggro: 12, letter: 'A', color: '#555560', kind: 'art', splash: 1.5 },
     // frakcja Sioux, statystyki z 19.2 [Ź]: squaw buduje i farmi, nie rąbie; wojownik rąbie, kopie i poluje; łuk kosztuje drewno, nie broń palną
     squaw:     { hp: 35,  dmg: 2,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 20 }, train: 10, aggro: 0, letter: 'S', color: '#c46a8a', kind: 'melee', builder: true, farmer: true, swim: true, fleesOnHit: true },
-    wojownik:  { hp: 55,  dmg: 7,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 25 }, train: 10, aggro: 5, letter: 'I', color: '#a05a30', kind: 'melee', hunter: true, woodcutter: true, swim: true },
+    wojownik:  { hp: 55,  dmg: 7,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 25 }, train: 10, aggro: 5, letter: 'I', color: '#a05a30', kind: 'melee', hunter: true, gather: ['forest', 'gold', 'meat'], swim: true },
     lucznik:   { hp: 45,  dmg: 9,  range: 7, cd: 1.1, speed: 1.0, cost: { food: 30, wood: 5 }, train: 12, aggro: 6, letter: 'Ł', color: '#7a9a4a', kind: 'bow', swim: true },
     medicine:  { hp: 50,  dmg: 3,  range: 6, cd: 1.5, speed: 1.0, cost: { food: 50, gold: 30 }, train: 25, aggro: 0, letter: 'M', color: '#4a8a6a', kind: 'bow', swim: true },
-    wodz:      { hp: 100, dmg: 12, range: 1, cd: 1.0, speed: 1.1, cost: { food: 60, gold: 50 }, train: 30, aggro: 5, letter: 'C', color: '#d1a02f', kind: 'melee', limit: 1, swim: true },
+    wodz:      { hp: 100, dmg: 12, range: 1, cd: 1.0, speed: 1.1, cost: { food: 60, gold: 50 }, train: 30, aggro: 5, letter: 'C', color: '#d1a02f', kind: 'melee', limit: 1, leader: true, swim: true },
     piechota:  { hp: 60,  dmg: 12, range: 5, cd: 1.0, speed: 1.0, cost: { food: 40, gold: 10, guns: 1 }, train: 20, aggro: 6, letter: 'P', color: '#2f5d8a', kind: 'gun' },
     desperado: { hp: 50,  dmg: 10, range: 4, cd: 1.2, speed: 1.1, cost: { food: 40, gold: 10 }, train: 15, aggro: 6, letter: 'D', color: '#a12f2f', kind: 'gun', hunter: true },
-    bandleader:{ hp: 90,  dmg: 14, range: 5, cd: 1.0, speed: 1.1, cost: { food: 80, gold: 20 }, train: 25, aggro: 6, letter: 'B', color: '#d14a1e', kind: 'gun' },
+    bandleader:{ hp: 90,  dmg: 14, range: 5, cd: 1.0, speed: 1.1, cost: { food: 80, gold: 20 }, train: 25, aggro: 6, letter: 'B', color: '#d14a1e', kind: 'gun', leader: true },
     jezdiec:   { hp: 70,  dmg: 12, range: 4, cd: 1.2, speed: 1.8, cost: { food: 40, gold: 10, guns: 1, horses: 1 }, train: 25, aggro: 6, letter: 'J', color: '#6a4a8a', kind: 'gun', cav: true },
     konnobanda:{ hp: 60,  dmg: 12, range: 1, cd: 0.9, speed: 1.7, cost: { food: 40, gold: 10, horses: 1 }, train: 20, aggro: 7, letter: 'J', color: '#c03a2a', kind: 'melee', cav: true },
     horse:     { hp: 40,  dmg: 0,  range: 0, cd: 1.0, speed: 0.7, cost: {}, train: 0, aggro: 0, letter: 'K', color: '#8a5a3a' },
@@ -110,6 +117,9 @@ const CFG = {
     factory:    { w: 2, h: 2, hp: 300, cost: { wood: 120, gold: 80 }, build: 45, gunTime: 15, gunCost: { wood: 5, gold: 10 }, label: 'FABRYKA', color: '#4a4a5a' },
     zagroda:    { w: 2, h: 2, hp: 220, cost: { wood: 70, gold: 40 }, build: 30, horseTime: 30, horseCost: { food: 20, gold: 10 }, label: 'ZAGRODA', color: '#8a6a4a' },
     tepee:      { w: 2, h: 2, hp: 120, cost: { wood: 30 }, build: 10, pop: 5, label: 'TEPEE', color: '#9a6a3a' },
+    // Osadnicy [P 19.2/19.3]: ranczo podnosi limit żywności o 150; bank (limit 5 sprawdzany przy STARCIE budowy, poprawka błędu oryginału) daje 1 złoto/s i limit złota +500
+    ranch:      { w: 2, h: 2, hp: 250, cost: { wood: 80, gold: 50 }, build: 35, capBonus: { food: 150 }, label: 'RANCZO', color: '#8a6a3a' },
+    bank:       { w: 2, h: 2, hp: 350, cost: { wood: 150, gold: 100 }, build: 50, limit: 5, income: { gold: 1 }, capBonus: { gold: 500 }, label: 'BANK', color: '#6a5a3a' },
   },
   techs: {
     siekiery: { bld: 'hq', cost: { food: 50 }, time: 30, name: 'Ostrzone siekiery', desc: 'wycinka +20%' },
@@ -124,18 +134,19 @@ const CFG = {
 const RACES = {
   settler: {
     label: 'Osadnicy', nation: 'us', biome: 'ochre', playable: true,
-    desc: 'Robotnicy budują, rąbią, kopią i farmią; piechota z fabryki broni, jazda ze stajni.',
-    startUnits: ['worker', 'worker', 'worker', 'worker'], startOrders: ['forest', 'forest', 'gold', null],
+    desc: 'Frontiersmani budują i kopią, frontierswomen farmią i rąbią; piechota, jazda, szeryf i armata; bank i ranczo.',
+    startUnits: ['frontiersman', 'frontierswoman', 'frontierswoman', 'frontiersman'], startOrders: ['gold', 'forest', 'forest', null],
     build: [
       { type: 'house', key: 'H', name: 'Dom' }, { type: 'farm', key: 'F', name: 'Farma' },
       { type: 'storehouse', key: 'M', name: 'Magazyn' }, { type: 'barracks', key: 'K', name: 'Koszary' },
       { type: 'factory', key: 'B', name: 'Fabryka broni' }, { type: 'zagroda', key: 'Z', name: 'Zagroda koni' },
+      { type: 'ranch', key: 'R', name: 'Ranczo' }, { type: 'bank', key: 'N', name: 'Bank' },
     ],
-    train: { hq: ['worker'], barracks: ['piechota', 'jezdiec'] },
+    train: { hq: ['frontiersman', 'frontierswoman'], barracks: ['piechota', 'jezdiec', 'szeryf'], factory: ['armata'] },
     noTechs: [],
     test: { res: { wood: 500, food: 500, gold: 1000, guns: 50, horses: 20 },
-      buildings: ['storehouse', 'farm', 'barracks', 'factory', 'zagroda', 'house', 'house', 'farm'],
-      units: { worker: 6, piechota: 8, jezdiec: 4 } },
+      buildings: ['storehouse', 'farm', 'barracks', 'factory', 'zagroda', 'house', 'house', 'farm', 'ranch', 'bank'],
+      units: { frontiersman: 3, frontierswoman: 3, piechota: 8, jezdiec: 4, szeryf: 1, armata: 1 } },
   },
   // Sioux: tepee zamiast domu (pop +5), bez fabryki broni (łuki z drewna) i bez zagrody (brak kawalerii); koszary produkują łuczników i medicine manów
   sioux: {
@@ -468,10 +479,20 @@ function pay(cost, fac) {
   for (const k in cost) R[k] -= cost[k];
   return true;
 }
+// limit magazynu: baza z CFG.resCap + premie ukończonych budynków (bank: złoto, ranczo: żywność)
+function resCapOf(type, fac) {
+  let c = CFG.resCap[type];
+  for (const b of S.buildings) {
+    const bonus = b.built && b.fac === (fac || 'player') && CFG.buildings[b.type].capBonus;
+    if (bonus && bonus[type]) c += bonus[type];
+  }
+  return c;
+}
 function addRes(type, n, fac) {
   const R = facRes(fac || 'player');
-  const over = R[type] + n > CFG.resCap[type];
-  R[type] = Math.min(CFG.resCap[type], R[type] + n);
+  const cap = resCapOf(type, fac);
+  const over = R[type] + n > cap;
+  R[type] = Math.min(cap, R[type] + n);
   // nadwyżka przepada: gracz musi o tym wiedzieć (alert raz na 30 s na surowiec)
   if (over && (fac || 'player') === 'player' && S.time - (S.alertCooldown['cap_' + type] ?? -99) > 30) {
     S.alertCooldown['cap_' + type] = S.time;
@@ -481,7 +502,7 @@ function addRes(type, n, fac) {
 function popCap(fac) {
   let p = 0;
   for (const b of S.buildings) if (b.fac === (fac || 'player') && b.built) p += CFG.buildings[b.type].pop || 0;
-  return p;
+  return Math.min(CFG.popMax, p);
 }
 function popUsed(fac) { return S.units.filter(u => u.fac === (fac || 'player')).length; }
 // jednostki w kolejkach WSZYSTKICH budynków frakcji: miejsce rezerwuje się przy zamówieniu, nie przy wyjściu z budynku
@@ -672,16 +693,17 @@ function executeOrder(c) {
     u.state = 'move';
   }
 }
-// role zawodowe jednostek: builder (buduje), farmer (uprawia), woodcutter (rąbie)
+// role zawodowe jednostek: builder (buduje), farmer (uprawia); zbieranie z mapy opisuje lista 'gather'
 function unitRole(u, role) {
   const d = CFG.units[u.type];
   return !!(d && d[role]);
 }
-// kto może zbierać surowiec z mapy: robotnik wszystko, wojownik (woodcutter) drewno, złoto i padlinę, squaw nic [Ź 6.2, przydział złota i padliny decyzja własna]
+// kto może zbierać surowiec z mapy: lista 'gather' w danych jednostki (las, złoto, padlina). Robotnik wszystko, wojownik wszystko, squaw nic, frontierswoman drewno,
+// frontiersman złoto i padlinę [Ź podział ról 6.2, przydział złota i padliny decyzja własna]
 function canGatherRes(u, ter) {
-  if (u.type === 'worker') return true;
-  const d = CFG.units[u.type];
-  return !!(d && d.woodcutter && (ter === T_FOREST || ter === T_GOLD || ter === T_MEAT));
+  const d = CFG.units[u.type], g = d && d.gather;
+  if (!g) return false;
+  return (ter === T_FOREST && g.includes('forest')) || (ter === T_GOLD && g.includes('gold')) || (ter === T_MEAT && g.includes('meat'));
 }
 // przydziel robotników do budowy (nowej albo przerwanej)
 function assignBuilders(b, workers) {
@@ -696,6 +718,8 @@ function tryPlace(type, tx, ty) {
   for (let y = ty; y < ty + def.h; y++) for (let x = tx; x < tx + def.w; x++)
     if (!inMap(x, y) || isBlocked(x, y)) { uiAlert('Nie można tu budować'); return; }
     else if (!S.explored[idx(x, y)]) { uiAlert('Nie można budować w nieodkrytym terenie'); return; }
+  // limit zabudowy liczy się od STARTU budowy (budynki w trakcie budowy też): w oryginale sprawdzano go przy ukończeniu i dało się obejść [Ź 14.5]
+  if (def.limit && S.buildings.filter(x => x.fac === 'player' && x.type === type).length >= def.limit) { uiAlert('Limit: maksymalnie ' + def.limit + ' (' + def.label.toLowerCase() + ')'); return; }
   if (!pay(def.cost)) { uiAlert('Brak surowców'); return; }
   const b = addBuilding(type, tx, ty, 'player');
   sfx('place', b.cx, b.cy);
@@ -989,6 +1013,7 @@ function updateUnit(u, dt) {
           t.morale = Math.max(0, t.morale - CFG.morale.hitPenalty);
           t.lastThreat = u;
           gainXp(u, CFG.xp.hit);
+          if (def.splash) applySplash(u, t, def);
           if (t.hp <= 0) { gainXp(u, CFG.xp.kill); killUnit(t); }
           else if (tdef && tdef.fleesOnHit && t.state !== 'flee') startFlee(t); // squaw nie walczy, ucieka
         } else {
@@ -1029,6 +1054,20 @@ function updateUnit(u, dt) {
       }
       break;
     }
+  }
+}
+// obrażenia obszarowe armaty [P: połowa obrażeń, bez rzutu na trafienie, bez friendly fire]; cel główny rozlicza wywołujący
+function applySplash(att, t, def) {
+  const R2 = def.splash * def.splash;
+  for (const e of S.units.slice()) {
+    if (e === t || e.dead || e.fac === att.fac || e.fac === 'neutral') continue;
+    if ((e.x - t.x) ** 2 + (e.y - t.y) ** 2 > R2) continue;
+    const edef = CFG.units[e.type];
+    if (edef && edef.animal) continue;
+    e.hp -= rollDamage(def.dmg * 0.5, att.lvl, typeMult(def, edef, false), 0);
+    e.morale = Math.max(0, e.morale - CFG.morale.hitPenalty);
+    e.lastThreat = att;
+    if (e.hp <= 0) { gainXp(att, CFG.xp.kill); killUnit(e); }
   }
 }
 // po przerwaniu (walka, panika) jednostka wraca do tego, co robiła: szturm, zbiór, farma, budowa; inaczej stoi bezczynnie
@@ -1201,7 +1240,7 @@ function updateMorale() {
     const hq = hqs[u.fac];
     if (hq && (hq.cx - u.x) ** 2 + (hq.cy - u.y) ** 2 <= M.hqAuraR * M.hqAuraR) m += M.hqAura;
     for (const l of S.units) {
-      if (l.fac !== u.fac || (l.type !== 'bandleader' && l.type !== 'wodz')) continue;
+      if (l.fac !== u.fac || !CFG.units[l.type].leader) continue;
       if ((l.x - u.x) ** 2 + (l.y - u.y) ** 2 <= M.leaderAuraR * M.leaderAuraR) { m += M.leaderAura; break; }
     }
     let enemyNear = false;
@@ -1407,6 +1446,12 @@ function updateBuilding(b, dt) {
         }
       }
     }
+  }
+  // bank: pasywny przychód (zbierany w całych jednostkach, żeby nadwyżka ponad limit przepadała jak każda inna)
+  const inc = CFG.buildings[b.type].income;
+  if (inc) {
+    b.incAcc = b.incAcc || {};
+    for (const k in inc) { b.incAcc[k] = (b.incAcc[k] || 0) + inc[k] * dt; const w = Math.floor(b.incAcc[k]); if (w > 0) { b.incAcc[k] -= w; addRes(k, w, b.fac); } }
   }
   // fabryka: produkcja broni
   if (b.type === 'factory' && b.on) {
@@ -1619,7 +1664,7 @@ function computeFog() {
   S.visible.fill(0);
   for (const u of S.units) {
     if (u.fac !== 'player') continue;
-    const r = CFG.fogRadius;
+    const r = CFG.units[u.type].sight || CFG.fogRadius;
     const ux = Math.floor(u.x), uy = Math.floor(u.y);
     for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
       if (dx * dx + dy * dy > r * r) continue;
@@ -2029,7 +2074,7 @@ function updatePanels() {
   // odświeżanie treści bez ruszania DOM
   const nameEl = bpanel.querySelector('.name');
   nameEl.textContent = CFG.buildings[b.type].label + (b.built ? '' : ' (budowa ' + Math.floor(b.progress * 100) + '%)');
-  const UNIT_NAMES = { worker: 'Robotnik', piechota: 'Piechota', jezdiec: 'Jeździec', squaw: 'Squaw', wojownik: 'Wojownik', wodz: 'Wódz', lucznik: 'Łucznik', medicine: 'Medicine man' };
+  const UNIT_NAMES = { worker: 'Robotnik', frontiersman: 'Frontiersman', frontierswoman: 'Frontierswoman', szeryf: 'Szeryf', armata: 'Armata', piechota: 'Piechota', jezdiec: 'Jeździec', squaw: 'Squaw', wojownik: 'Wojownik', wodz: 'Wódz', lucznik: 'Łucznik', medicine: 'Medicine man' };
   // sloty kolejki: kliknięcie anuluje slot i zwraca zapłacony koszt; przyciski odbudowywane tylko przy zmianie składu kolejki
   const slotsEl = bpanel.querySelector('.slots');
   if (slotsEl) {

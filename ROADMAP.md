@@ -1,7 +1,7 @@
 # Mapa drogowa: America: No Peace Beyond the Line (prototyp)
 
 Gra to `index.html` (canvas 2D, bez zależności); po migracji grafiki dojdzie katalog `assets/`. Źródłem zasad jest [docs/dokumentacja-zasad.md](docs/dokumentacja-zasad.md); oznaczenia `[Ź]` (źródło) i `[P]` (projekt własny) są tam wyjaśnione w sekcji 19.0.
-Testy: `npm install && npx playwright install chromium && npm test` (21 sprawdzeń na prawdziwym `index.html`).
+Testy: `npm install && npx playwright install chromium && npm test` (42 sprawdzenia na prawdziwym `index.html`).
 
 ## 1. Stan na dziś
 
@@ -40,27 +40,29 @@ Nie zweryfikowane: odczucie z gry (tempo, balans po zmianie `aggro` wojownika), 
 
 Cel: **jak najwierniejsze odtworzenie oryginału.** Przy sprzeczności lub luce szukamy w źródłach, nie zgadujemy (hierarchia: manual > recenzje z 2001 > patch notes > wiki > teksty maszynowe). Każda mechanika ma status `[Ź]` (źródło) albo `[P]` (rekonstrukcja); wartości `[Ź]` nie „poprawiamy" dla wygody balansu. Ustalenia i źródła: [docs/zrodla.md](docs/zrodla.md).
 
-## 4. Co zostało: kolejność chunków
+## 4. Fazy i podpunkty
 
-Rozmiary: S = kilka godzin, M = dzień, L = kilka dni. Definicja ukończenia chunku: mechanika + sprite'y (po G2) + test w `tests/regression.js` + budżet regresji balansu + wpis tutaj.
+Fazy to grube tematy, podpunkty ich szczegóły. Te same numery są w planie prac. ✅ zrobione, 🔶 w toku, ⬜ do zrobienia. W nawiasach dawne nazwy chunków (G2, C2...), żeby stare commity dało się odnaleźć. Definicja ukończenia podpunktu: mechanika + zasoby graficzne + test w `tests/regression.js` + budżet regresji balansu (5 seedów) + wpis tutaj.
 
-| Faza | Chunk | Rozmiar | Zakres |
-|---|---|---|---|
-| A | **G1 Spike grafiki** | S–M | cztery próbki (dom, drzewo, humanoid, koń) w stylu AoE2; decyzja właściciela: hybryda `rts-prerender-3d` (budynki, drzewa, teren) + `painted-rts-sprites` (jednostki, zwierzęta) / tylko painted / tylko prerender. Sprite'y w 128 px, `CFG` zostaje 64×32 i `ZOOM=2` |
-| A | **C1 Komendy i UX** — **zrobione** | M | punkt zbiórki (`P`, przycisk albo PPM przy zaznaczonym budynku), Shift+PPM = trasa, `X` stop, `Q` atak-ruch, podwójny klik zaznacza typ na ekranie, sloty kolejki anulowane kliknięciem ze zwrotem, kolejka czeka przy braku surowców, alert „Atak z …” i spacja na jego miejsce. Odstępstwo od 19.7 `[P]`: skróty `X/Q/P` zamiast `S/A/H`, bo `S` i `A` to kamera (WASD), a `H` to Dom; `H` (trzymaj pozycję) jest już pod `T`. **Zmiana ekonomii:** koszt jednostki pobierany przy starcie slotu, nie przy zamówieniu; wpływa na baseline B1 |
-| A | **R0 Badania źródłowe** | S | w tle; wyniki w `docs/zrodla.md`, dalsze po odblokowaniu domen (manual PDF, filmy) |
-| B | **B1 Balans: bot + baseline** (+ B0 rejestr parametrów) — **narzędzia i pierwsze wyniki gotowe** | M | bot z build orderem, `npm run balance`, `npm run balance:duels`, ≥20 seedów; wyniki w sekcji 6. Zostaje: lepszy bot (złoto), bot Sioux, N ≥ 100 dla porównań wyników partii |
-| B | **G2 Migracja grafiki** | L | **zrobione**: zasoby w `assets/` (teren ochra/oliwka, drzewa, rekwizyty, budynki wg stylu nacji, jednostki 8-kierunkowe, zwierzyna), stary zestaw retro usunięty, generator w `tools/art/` (`node tools/art/build_assets.js`); test pokrycia zasobów w `tests/regression.js` |
-| C | **C2 Fundament** | M | **zrobione**: `RACES` (frakcje jako dane: jednostki startowe, menu budowy i produkcji, styl budynków, teren, zestaw testowy), wybór frakcji i 5 poziomów trudności w menu, zapis/odczyt (localStorage, wersjonowany JSON, stany obu RNG; test: po wczytaniu przebieg identyczny), testy z 14.5 (grupa przez las, postawy, brak duchów we mgle); **nie zrobione**: wybór frakcji wroga (czeka na C4b), kapitulacja AI i zwiadowca przed falą (C4b) |
-| D | **C3 Osadnicy** | M | bank (limit sprawdzany przy starcie budowy), szeryf, armata, ranczo, frontiersman/woman, wóz kryty, cap 200 |
-| D | **C8a Pakowanie tepee** | S–M | wymagane przez Sioux 2 |
-| D | **M0 Mechaniki misyjne** | M | ukrycie i wykrywanie (traperzy), etapy celów zmieniane w trakcie, eskorta A→B, rabunek jako cel |
-| D | **M1 Misje Sioux 1–2 i USA 1–2** | L | The Santee Sioux Uprising, Battle of North Platte River, The Trek West, Remember the Alamo; format JSON z triggerami (19.8); klątwa szamana |
-| E | **C4 Desperado grywalni** | L | brak własnej produkcji, wszystko z napadów, destylarnia → whisky; bandleader, łowca, zabójca, trzaska bicza; rabunek z przewozem do obozu |
-| E | **C4b AI dla każdej frakcji** | L | poziomy trudności 19.9, fale `5+2n` cap 40, alokacja robotników, zagroda dla AI (konne bandy), kapitulacja, `cpuon/cpuoff` |
-| E | **M2 Misje Desperado 1–2** | M | Band Terror + misja 2 (tytuł do ustalenia) |
-| F | **C7 Meksykanie** + **M3 Misje Meksyku 1–2** | L + M | leczenie, konwersja padre, mobilna armata, gaucho; Trade Routes, Border Protection |
-| Backlog | | | add-on (technologie, tartak, obóz treningowy, restauracja, namiot starszyzny, tomahawk, pionier, Gatling, miotacz ognia, sabotuer, dyliżans), jednostki rzeczne, tutoriale (4 poziomy Indian), misje 3+, mapy 64/128/192 i A*, edytor poziomów, **multiplayer (mgliste TODO)** |
+| Faza | Temat | Status |
+|---|---|---|
+| 1 | Naprawy błędów i testy regresyjne | ✅ |
+| 2 | Źródła i wierność oryginałowi (`docs/zrodla.md`, `docs/parametry.md`; R0) | ✅ stale uzupełniana |
+| 3 | Komendy i interfejs (C1) | ✅ |
+| 4 | Narzędzia balansu (B0, B1) | ✅ |
+| 5 | Grafika w stylu oryginału (G1, G1b, G2) | ✅ |
+| 6 | Fundament: frakcje jako dane, trudność, zapis (C2) | ✅ |
+| 7 | Frakcja Osadnicy (C3) | 🔶 7.1 mechanika ✅, 7.2 grafika ✅, 7.3 bot i balans ✅ (bez ablacji banku), 7.4 dokumenty |
+| 8 | Teren i brzegi (nowe, uwagi z oglądania sprite'ów) | ⬜ 8.1 brzeg wody, 8.2 szuwary i trzciny, 8.3 kolor trawy (mniej pomarańczu), 8.4 zielone kępki i żwir, 8.5 skały (wyglądają jak bułki), 8.6 kontrola |
+| 9 | Mechaniki misyjne i Sioux (C8a, M0) | ⬜ 9.1 pakowanie tepee, 9.2 skradanie i wykrywanie, 9.3 etapy celów, 9.4 wóz kryty, eskorta, rabunek |
+| 10 | Kampanie Sioux i USA, misje 1–2 (M1) | ⬜ 10.1 szkielet misji, 10.2 Sioux, 10.3 USA |
+| 11 | Desperado, AI wszystkich frakcji, misje Desperado (C4, C4b, M2) | ⬜ |
+| 12 | Meksykanie i ich misje (C7, M3) | ⬜ |
+| 13 | Backlog | ⬜ add-on (technologie, tartak, obóz treningowy, restauracja, namiot starszyzny, tomahawk, pionier, Gatling, miotacz ognia, sabotuer, dyliżans), jednostki rzeczne, tutoriale (4 poziomy Indian), misje 3+, mapy 64/128/192 i A*, edytor poziomów, **multiplayer (mgliste TODO)** |
+
+Szczegóły zrobionych faz: 1 i 3 w sekcji 2 (dziennik napraw); 4 w sekcji 6; 5 w sekcji 5; 6: tabela `RACES`, 5 poziomów trudności (docs/parametry.md), zapis/odczyt w localStorage (wersjonowany JSON, stany obu RNG, test identycznego przebiegu po wczytaniu), testy z 14.5. Nie zrobione z fazy 6, przeniesione do fazy 11: wybór frakcji wroga, kapitulacja AI, zwiadowca przed falą.
+
+**Faza 7 (Osadnicy), stan:** bank (limit 5 od startu budowy, +1 złoto/s, limit złota +500), ranczo (limit żywności +150), szeryf (wzrok 10, aura jak przywódca), armata (obszar r 1.5), frontiersman i frontierswoman (osobne role), populacja do 200; sprite'y jednostek i budynków wygenerowane. Bot balansu przepisany: pierwsza piechota mediana 238 s (5 seedów) wobec 314 s przed fazą 7; **wyniki nie są porównywalne** (zmienił się i skład startowy, i bot), więc to nowy punkt odniesienia, a 306 s z dokumentacji przestaje być miarą zgodności. Żywność jest wąskim gardłem (at300s: 21), co wymaga decyzji, ile kobiet na start; nieznane (`[P]`).
 
 Zdolności i technologie frakcyjne (klątwa szamana, leczenie, konwersja) wchodzą razem z frakcją.
 

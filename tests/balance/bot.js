@@ -1,7 +1,7 @@
 // Bot gracza (Osadnicy) dla badań balansu. Wstrzykiwany do strony; gra tylko przez te same funkcje, których używa interfejs
 // (tryPlace, tryTrain, executeOrder, orderGatherAuto), więc nie omija reguł gry. Prosty build order bez mikro.
 (function () {
-  const P = { workers: 8, farmsMax: 3, armyToAttack: 10, attackAfter: 720, stepEvery: 1.0 };
+  const P = { men: 3, women: 5, farmsMax: 3, armyToAttack: 10, attackAfter: 720, stepEvery: 1.0 };
   const bot = { P, next: 0, log: { infantry: [], res: {} }, attacked: false };
   const origAdd = addUnit;
   addUnit = function (type, fac, x, y) { const u = origAdd(type, fac, x, y); if (fac === 'player' && type === 'piechota') bot.log.infantry.push(+S.time.toFixed(1)); return u; };
@@ -31,9 +31,11 @@
   bot.step = function () {
     if (S.time < bot.next) return; bot.next = S.time + P.stepEvery;
     const hq = blds('hq', true)[0]; if (!hq) return;
-    const workers = mine(u => u.type === 'worker');
-    const queuedW = hq.queue.filter(q => q.type === 'worker').length;
-    if (workers.length + queuedW < P.workers) tryTrain(hq, 'worker');
+    // Osadnicy od C3: frontiersmani budują i kopią złoto, frontierswomen rąbią i farmią
+    const men = mine(u => u.type === 'frontiersman'), women = mine(u => u.type === 'frontierswoman'), workers = men.concat(women);
+    const qn = t => hq.queue.filter(q => q.type === t).length;
+    if (women.length + qn('frontierswoman') < P.women && (women.length <= men.length || men.length + qn('frontiersman') >= P.men)) tryTrain(hq, 'frontierswoman');
+    else if (men.length + qn('frontiersman') < P.men) tryTrain(hq, 'frontiersman');
     const unbuilt = S.buildings.some(b => b.fac === 'player' && !b.built);
     const farms = blds('farm'), houses = blds('house');
     if (!unbuilt) {
@@ -45,14 +47,10 @@
     const barr = blds('barracks', true)[0];
     if (barr && barr.queue.length < 2) tryTrain(barr, 'piechota');
     for (const w of workers.filter(u => u.state === 'idle')) {
+      if (w.type === 'frontiersman') { if (!unbuilt) orderGatherAuto(w, T_GOLD); continue; }   // mężczyźni zostają wolni, gdy trwa budowa
       const f = blds('farm', true).find(x => !x.busy);
       if (f) executeOrder({ units: [w], x: f.tx, y: f.ty, targetUnit: null, targetHorse: null, silent: true });
-      else {
-        // przydział wg proporcji z dok. 19.9: drewno przeważa, złoto 1-2 górników po postawieniu koszar
-        const gatherers = workers.filter(u => u.node), gold = gatherers.filter(u => u.carryType === 'gold').length, wood = gatherers.length - gold;
-        const wantGold = blds('barracks').length ? 2 : 1;
-        orderGatherAuto(w, gold < wantGold && wood >= 2 ? T_GOLD : T_FOREST);
-      }
+      else orderGatherAuto(w, T_FOREST);
     }
     const army = mine(u => u.type === 'piechota' || u.type === 'jezdiec');
     const ehq = S.buildings.find(b => b.fac === 'enemy' && b.type === 'hq');

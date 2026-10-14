@@ -68,6 +68,31 @@ function workshop(style) {   // fabryka broni: warsztat z dużym kominem i kołe
   return m;
 }
 const hxOf = w => w / 2;
+function bank(style) {   // bank: dwupiętrowy dom z desek, fałszywy front z szyldem, kolumny przed wejściem, kamienne schody
+  const m = plank(style, { w: 3.2, d: 2.5, floors: 2, h1: 1.4, rise: 0.55, porch: false });
+  const hx = 1.6, hy = 1.25;
+  m.box('planks', [hx - 0.05, 0, 3.0], [0.14, 2.7, 0.8]);                        // fałszywy front ponad dachem
+  m.box('team', [hx + 0.04, 0, 3.0], [0.04, 2.0, 0.42]);                         // szyld
+  m.box('stone', [hx + 0.55, 0, 0.1], [1.1, 1.8, 0.2]); m.box('stone', [hx + 0.85, 0, 0.05], [0.5, 1.8, 0.1]);   // schody
+  for (const sy of [-0.75, 0.75]) m.cylinder('timber', [hx + 0.75, sy, 0.2], [hx + 0.75, sy, 1.85], 0.1, 0.1, 10);
+  m.box('planks', [hx + 0.55, 0, 1.9], [1.2, 1.9, 0.08]);
+  for (const sy of [-0.4, 0.4]) m.box('iron', [hx + 0.02, sy * 1.5, 1.0], [0.04, 0.05, 0.7]);   // kraty w oknie
+  rt.crate(m, hx + 1.4, 0.95, { size: 0.5, angle: 0.3 });
+  return m;
+}
+function ranch() {   // ranczo: stodoła z dwuskrzydłowymi wrotami, stóg siana i fragment płotu
+  const m = plank('fresh', { w: 3.6, d: 2.6, floors: 1, h1: 1.7, rise: 1.15, porch: false });
+  const hx = 1.8;
+  m.box('timber', [hx + 0.03, 0, 0.8], [0.06, 1.5, 1.5]);
+  for (const sy of [-0.38, 0.38]) m.box('planks', [hx + 0.06, sy, 0.8], [0.04, 0.7, 1.4]);
+  m.beam('timber', [hx + 0.09, -0.74, 0.1], [hx + 0.09, 0.0, 1.45], 0.04, 0.05, [1, 0, 0]);
+  m.box('timber', [hx + 0.05, 0, 2.05], [0.05, 0.9, 0.55]); m.box('planks', [hx + 0.08, 0, 2.05], [0.03, 0.7, 0.4]);   // luk strychu
+  m.blob('thatch', [hx + 0.95, 0.9, 0.35], [0.5, 0.45, 0.4], { seed: 5, roughness: 0.2, subdivisions: 2 });
+  for (let i = 0; i < 5; i++) { const y = -1.3 + i * 0.5; m.box('timber', [hx + 1.2, y - 1.9, 0.4], [0.1, 0.1, 0.8]); }
+  m.beam('planks', [hx + 1.2, -3.2, 0.35], [hx + 1.2, -1.1, 0.35], 0.04, 0.06, [0, 0, 1]); m.beam('planks', [hx + 1.2, -3.2, 0.62], [hx + 1.2, -1.1, 0.62], 0.04, 0.06, [0, 0, 1]);
+  rt.barrel(m, hx + 0.5, -1.1);
+  return m;
+}
 function corral(style) {   // zagroda koni: ogrodzenie, poidło, siano, mała wiata
   const m = model(style), S = 1.5, post = 0.12, step = 0.5;
   for (const [ax, ay, bx, by] of [[-S, -S, S, -S], [S, -S, S, S], [S, S, -S, S], [-S, S, -S, -S]]) {
@@ -125,6 +150,8 @@ function all(lap) {
   put('bld_storehouse_us', shed('ruin'), 4.2, [0.3, 0, 0.8], 0.56);
   put('bld_zagroda_us', corral('fresh'), 4.2, [0, 0, 0.5], 0.6);
   put('bld_farm_us', farmField('fresh'), 4.2, [0, 0, 0.3], 0.6);
+  put('bld_bank_us', bank('fresh'), 5.0, [0.3, 0, 1.6], 0.5);
+  put('bld_ranch_us', ranch(), 5.4, [0.3, 0, 1.3], 0.5);
   // Desperado (ban): szare, zniszczone deski
   put('bld_house_ban', plank('ruin', { w: 3.2, d: 2.4, floors: 2, rise: 0.7, ruin: true }), 4.8, [0.3, 0, 1.3], 0.48);
   put('bld_hq_ban', plank('ruin', { w: 4.4, d: 3.4, floors: 2, h1: 1.3, rise: 0.8, ruin: true, sign: true }), 6.2, [0.4, 0, 1.6], 0.58);
@@ -143,9 +170,9 @@ function all(lap) {
 }
 // podgląd wszystkich budynków w jednej scenie (tylko do oceny przez człowieka): wiersze nacji us, ban, sx
 function preview(results, file) {
-  const fs = require('fs'), c = new rt.Camera({ tilePx: L.TILE, halfExtent: 3.6 }), W = 2900, H = 1400, origin = [300, 260];
+  const fs = require('fs'), c = new rt.Camera({ tilePx: L.TILE, halfExtent: 3.6 }), W = 2900, H = 2400, origin = [300, 260];
   const ground = rt.groundLayer(c, W, H, origin, TX.ochre, { gain: rt.groundGain(c, { groundTexture: TX.ochre }) });
-  const rows = { us: ['house', 'hq', 'barracks', 'factory', 'storehouse', 'zagroda', 'farm'], ban: ['house', 'hq', 'barracks', 'factory', 'storehouse', 'zagroda', 'farm'], sx: ['tepee', 'hq', 'barracks', 'storehouse', 'farm'] };
+  const rows = { us: ['house', 'hq', 'barracks', 'factory', 'storehouse', 'zagroda', 'farm', 'bank', 'ranch'], ban: ['house', 'hq', 'barracks', 'factory', 'storehouse', 'zagroda', 'farm'], sx: ['tepee', 'hq', 'barracks', 'storehouse', 'farm'] };
   const items = []; let row = 0;
   for (const nation of ['us', 'ban', 'sx']) { rows[nation].forEach((t, i) => { const r = results['bld_' + t + '_' + nation]; if (r) items.push({ res: r, x: i * 3.0 + row * 4.4, y: -i * 3.0 + row * 4.4 }); }); row++; }
   fs.writeFileSync(file, rt.encodePng(rt.composeScene(items, c, W, H, origin, ground)));

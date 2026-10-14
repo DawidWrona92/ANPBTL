@@ -74,3 +74,20 @@ Prototyp ma słabszą bazę AI niż ta tabela (3 robotników, wyprawa po 480 s c
 | Bardzo trudny | 5 | 6 | ×0.67 | 320 | tak |
 
 Nie zrobione: kapitulacja AI na „bardzo łatwym", zwiadowca przed falą, mikro (słabe/standardowe/koncentracja ognia), niszczenie gospodarki na „trudnym" (C4b). Poziomy nie mają jeszcze pomiaru balansu (N ≥ 20 na poziom), więc ich realna trudność jest nieznana.
+
+
+## Osadnicy, faza 7 [P]
+| Parametr | Wartość | Uwaga |
+|---|---|---|
+| Armata, koszt | 150 złota + 100 drewna, 60 s | Sprzeczność w dokumentacji 19.2/19.3: tabela jednostek mówi 150 Zł + 100 D, wiersz fabryki 50 D + 100 Zł. Przyjęta tabela jednostek |
+| Armata, cd 3.0 s, zasięg 12, HP 150, szybkość 0.6 | | cd `[P]`; reszta z 19.2 |
+| Armata, obszar | promień 1.5, połowa obrażeń, bez rzutu na trafienie, bez friendly fire | `[P]` (doc podaje tylko „obsz.") |
+| Bank | 1 złoto/s, +500 limitu złota, limit 5 od startu budowy | `[P]` z 19.3; 5 banków daje 5 złota/s, więc ablacja bankowa jest wymagana przed uznaniem wartości |
+| Ranczo | +150 limitu żywności | hisgames podaje 80 `[Ź niska wiarygodność]` |
+| Szeryf | 60 Ż, 40 Zł, 1 broń, 30 s, HP 70, dmg 15, zasięg 6, wzrok 10, aura jak przywódca (0.5 morale/s w promieniu 6) | wzrok i aura jako fakt `[Ź]`, liczby `[P]`; doc podaje +10 w promieniu 5, w prototypie aura działa jak u bandleadera |
+| Frontiersman | buduje, kopie złoto, poluje, walczy wręcz; 30 Ż, 15 s, HP 50 | role `[Ź]` „buduje", kto kopie `[P]` |
+| Frontierswoman | farmi i rąbi, nie buduje; 25 Ż, 12 s, HP 40, ucieka po trafieniu | `[Ź]` role, ucieczka jak squaw `[P]` |
+| Start Osadników | 2 frontiersmani + 2 frontierswomen | skład `[P]`; wpływa na tempo ekonomii (pierwsza piechota 238 s vs 314 s przy starym starcie 4×robotnik) |
+| Limit populacji | 200 | `[Ź]` |
+
+Jednostka `worker` zostaje jako ogólny robotnik Desperado (AI) do fazy 11.
