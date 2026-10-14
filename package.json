@@ -1,0 +1,11 @@
+{
+  "name": "america-npbtl-prototype",
+  "private": true,
+  "description": "Prototyp gry America: No Peace Beyond the Line (jeden plik index.html)",
+  "scripts": {
+    "test": "node tests/regression.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
