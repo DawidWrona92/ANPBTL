@@ -248,7 +248,8 @@ function genMap() {
   // stada dzikich koni (neutralne, do schwytania przez każdą frakcję)
   for (const [hx, hy] of [[28, 24], [12, 26], [20, 10]]) {
     let placed = 0, tries = 0;
-    while (placed < 5 + Math.floor(rng() * 4) && tries < 40) {
+    const herd = 5 + Math.floor(rng() * 4); // wielkość stada losowana raz; w warunku pętli zaniżała średnią i rozjeżdżała strumień rng
+    while (placed < herd && tries < 40) {
       tries++;
       const x = hx + Math.floor(rng() * 7) - 3, y = hy + Math.floor(rng() * 7) - 3;
       if (!inMap(x, y) || isBlocked(x, y)) continue;
@@ -260,7 +261,8 @@ function genMap() {
   // padlina po ubiciu staje się kafl żywności (T_MEAT), więc stada to drugie, odnawialne źródło prowiantu po farmach
   for (const [hx, hy, type, base, spread] of [[30, 12, 'bizon', 4, 4], [8, 22, 'bizon', 4, 4], [16, 18, 'bizon', 4, 4], [26, 30, 'bydlo', 3, 2], [12, 8, 'bydlo', 3, 2]]) {
     let placed = 0, tries = 0;
-    while (placed < base + Math.floor(rng() * spread) && tries < 40) {
+    const herd = base + Math.floor(rng() * spread);
+    while (placed < herd && tries < 40) {
       tries++;
       const x = hx + Math.floor(rng() * 7) - 3, y = hy + Math.floor(rng() * 7) - 3;
       if (!inMap(x, y) || isBlocked(x, y)) continue;
@@ -1539,7 +1541,7 @@ function clampCam() {
   cam.y = Math.max(canvasH / ZOOM - bh, Math.min(0, cam.y));
 }
 
-let mouse = { x: 400, y: 300, down: false, dragging: false, sx: 0, sy: 0 };
+let mouse = { x: 400, y: 300, down: false, dragging: false, sx: 0, sy: 0, inside: false };
 const keys = {};
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointerdown', e => {
@@ -1548,7 +1550,9 @@ canvas.addEventListener('pointerdown', e => {
   mouse.sx = e.offsetX; mouse.sy = e.offsetY;
   mouse.x = e.offsetX; mouse.y = e.offsetY;
 });
-canvas.addEventListener('pointermove', e => { mouse.x = e.offsetX; mouse.y = e.offsetY; if (mouse.down && (Math.abs(mouse.x - mouse.sx) > 4 || Math.abs(mouse.y - mouse.sy) > 4)) mouse.dragging = true; });
+// kursor poza płótnem (okno, panel UI) nie przewija krawędzią: ostatnia pozycja przy brzegu zostawała na zawsze
+canvas.addEventListener('pointerleave', () => { mouse.inside = false; });
+canvas.addEventListener('pointermove', e => { mouse.inside = true; mouse.x = e.offsetX; mouse.y = e.offsetY; if (mouse.down && (Math.abs(mouse.x - mouse.sx) > 4 || Math.abs(mouse.y - mouse.sy) > 4)) mouse.dragging = true; });
 // puszczenie przycisku nad panelem UI: bez tego następny klik robił gigantyczną ramkę zaznaczania
 window.addEventListener('pointerup', () => { mouse.down = false; mouse.dragging = false; });
 canvas.addEventListener('pointerup', e => {
@@ -1619,13 +1623,17 @@ mini.addEventListener('pointerdown', e => {
   const mx = (e.clientX - r.left) / r.width * MAP, my = (e.clientY - r.top) / r.height * MAP;
   centerCameraOn(mx, my);
 });
+// klawisze znakowe małą literą: Shift i CapsLock zmieniają e.key, więc wielka litera zostawiała kamerę "wciśniętą" albo ją wyłączała
+const keyName = e => e.key.length === 1 ? e.key.toLowerCase() : e.key;
 document.addEventListener('keydown', e => {
-  keys[e.key] = true;
+  keys[keyName(e)] = true;
   const k = e.key.toUpperCase();
+  // skróty gry tylko bez Ctrl/Alt/Meta, żeby nie przechwytywać Ctrl+C, Ctrl+F, Ctrl+K itp.
+  const plain = !e.ctrlKey && !e.altKey && !e.metaKey;
   ensureAudio();
-  if (k === 'C' && !e.repeat) { S.muted = !S.muted; if (!S.muted) ensureAudio(); }
+  if (plain && k === 'C' && !e.repeat) { S.muted = !S.muted; if (!S.muted) ensureAudio(); }
   if (S.placing && e.key === 'Escape') S.placing = null;
-  const item = buildMenuFor(S.playerRace).find(m => m.key === k);
+  const item = plain && buildMenuFor(S.playerRace).find(m => m.key === k);
   if (item && S.selected.units.some(u => unitRole(u, 'builder'))) S.placing = item.type;
   // zdolności medicine mana: R deszcz, B burza; B nie koliduje, bo fabrykę (B) stawiają tylko Osadnicy, a medicine man jest jednostką Sioux
   if (!e.ctrlKey && !e.altKey && !e.repeat && (k === 'R' || k === 'B')) {
@@ -1659,7 +1667,9 @@ document.addEventListener('keydown', e => {
     }
   }
 });
-document.addEventListener('keyup', e => { keys[e.key] = false; });
+document.addEventListener('keyup', e => { keys[keyName(e)] = false; });
+// utrata fokusu (Alt+Tab) nie dostarcza keyup: bez tego kamera jedzie dalej
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.inside = false; });
 
 // ============================== UI ==============================
 const topbar = document.getElementById('topbar');
@@ -2577,11 +2587,14 @@ function renderMinimap() {
     mctx.fillStyle = u.fac === 'enemy' ? '#ff8f6f' : u.fac === 'neutral' ? '#c9a35f' : '#fff';
     mctx.fillRect(u.x * px - 1, u.y * px - 1, 2.5, 2.5);
   }
-  // prostokąt widoku
-  const [wx, wy] = screenToTile(0, 0);
-  const [wx2, wy2] = screenToTile(canvasW, canvasH);
+  // widok kamery: w izometrii ekranowy prostokąt to romb w kaflach, więc rysujemy cztery narożniki, nie dwa
   mctx.strokeStyle = '#fff'; mctx.lineWidth = 1;
-  mctx.strokeRect(wx * px, wy * px, (wx2 - wx) * px, (wy2 - wy) * px);
+  mctx.beginPath();
+  [[0, 0], [canvasW, 0], [canvasW, canvasH], [0, canvasH]].forEach(([sx, sy], i) => {
+    const [tx, ty] = screenToTile(sx, sy);
+    if (i === 0) mctx.moveTo(tx * px, ty * px); else mctx.lineTo(tx * px, ty * px);
+  });
+  mctx.closePath(); mctx.stroke();
 }
 
 // ============================== MAIN ==============================
@@ -2599,8 +2612,10 @@ function frame(now) {
   if (keys.ArrowRight || keys.d) cam.x -= cs;
   if (keys.ArrowUp || keys.w) cam.y += cs;
   if (keys.ArrowDown || keys.s) cam.y -= cs;
-  if (mouse.x < 24) cam.x += cs; if (mouse.x > canvasW - 24) cam.x -= cs;
-  if (mouse.y < 24) cam.y += cs; if (mouse.y > canvasH - 24) cam.y -= cs;
+  if (mouse.inside) {
+    if (mouse.x < 24) cam.x += cs; if (mouse.x > canvasW - 24) cam.x -= cs;
+    if (mouse.y < 24) cam.y += cs; if (mouse.y > canvasH - 24) cam.y -= cs;
+  }
   clampCam();
   render();
   uiTimer += 1;
