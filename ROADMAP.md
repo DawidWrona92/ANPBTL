@@ -52,14 +52,15 @@ Fazy to grube tematy, podpunkty ich szczegóły. Te same numery są w planie pra
 | 4 | Narzędzia balansu (B0, B1) | ✅ |
 | 5 | Grafika w stylu oryginału (G1, G1b, G2) | ✅ |
 | 6 | Fundament: frakcje jako dane, trudność, zapis (C2) | ✅ |
-| 7 | Frakcja Osadnicy (C3) | ✅ (bez ablacji banku, do zrobienia przed fazą 12) |
+| 7 | Frakcja Osadnicy (C3) | ✅ (bez ablacji banku, do zrobienia przed fazą 13) |
 | 8 | Teren i brzegi | 🔶 8.1–8.6 wypchnięte; 8.7 grunt w 2× rozdzielczości (był „niedoczytany”), 8.8 sucha preria i jasny piasek, 8.9 skały i żyły złota kanciaste; czeka na Twoją ocenę w grze |
 | 9 | Interfejs jak w oryginale (nowa): panele drewno/pergamin, ikony, pasek zasobów, minimapa, menu | ⬜ potrzebne zrzuty UI z oryginału |
-| 10 | Mechaniki misyjne i Sioux (C8a, M0) | ⬜ 10.1 pakowanie tepee, 10.2 skradanie i wykrywanie, 10.3 etapy celów, 10.4 wóz kryty, eskorta, rabunek |
-| 11 | Kampanie Sioux i USA, misje 1–2 (M1) | ⬜ 11.1 szkielet misji, 11.2 Sioux, 11.3 USA |
-| 12 | Desperado, AI wszystkich frakcji, misje Desperado (C4, C4b, M2) | ⬜ |
-| 13 | Meksykanie i ich misje (C7, M3) | ⬜ |
-| 14 | Backlog | ⬜ add-on, tutoriale, misje 3+, jednostki rzeczne, mapy 64/128/192 i A*, edytor, **multiplayer (mgliste TODO)** |
+| 10 | Obsługa telefonów i ekranów dotykowych (nowa, po interfejsie): sterowanie dotykiem, układ pod mały ekran | ⬜ 10.1 dotyk zamiast myszy (zaznaczanie, ruch, kamera, rozkazy), 10.2 UI skalowalny na telefon, 10.3 wydajność na telefonie, 10.4 testy na emulacji dotyku |
+| 11 | Mechaniki misyjne i Sioux (C8a, M0) | ⬜ 11.1 pakowanie tepee, 11.2 skradanie i wykrywanie, 11.3 etapy celów, 11.4 wóz kryty, eskorta, rabunek |
+| 12 | Kampanie Sioux i USA, misje 1–2 (M1) | ⬜ 12.1 szkielet misji, 12.2 Sioux, 12.3 USA |
+| 13 | Desperado, AI wszystkich frakcji, misje Desperado (C4, C4b, M2) | ⬜ |
+| 14 | Meksykanie i ich misje (C7, M3) | ⬜ |
+| 15 | Backlog | ⬜ add-on, tutoriale, misje 3+, jednostki rzeczne, mapy 64/128/192 i A*, edytor, **multiplayer (mgliste TODO)** |
 
 Szczegóły zrobionych faz: 1 i 3 w sekcji 2 (dziennik napraw); 4 w sekcji 6; 5 w sekcji 5; 6: tabela `RACES`, 5 poziomów trudności (docs/parametry.md), zapis/odczyt w localStorage (wersjonowany JSON, stany obu RNG, test identycznego przebiegu po wczytaniu), testy z 14.5. Nie zrobione z fazy 6, przeniesione do fazy 11: wybór frakcji wroga, kapitulacja AI, zwiadowca przed falą.
 
