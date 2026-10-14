@@ -72,8 +72,8 @@ const CFG = {
   units: {
     worker:    { hp: 50,  dmg: 4,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 30 }, train: 12, aggro: 0, letter: 'W', color: '#3a7bd5', kind: 'melee', hunter: true, builder: true, farmer: true },
     // frakcja Sioux, statystyki z 19.2 [Ź]: squaw buduje i farmi, nie rąbie; wojownik rąbie, kopie i poluje; łuk kosztuje drewno, nie broń palną
-    squaw:     { hp: 35,  dmg: 2,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 20 }, train: 10, aggro: 0, letter: 'S', color: '#c46a8a', kind: 'melee', builder: true, farmer: true, swim: true },
-    wojownik:  { hp: 55,  dmg: 7,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 25 }, train: 10, aggro: 0, letter: 'I', color: '#a05a30', kind: 'melee', hunter: true, woodcutter: true, swim: true },
+    squaw:     { hp: 35,  dmg: 2,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 20 }, train: 10, aggro: 0, letter: 'S', color: '#c46a8a', kind: 'melee', builder: true, farmer: true, swim: true, fleesOnHit: true },
+    wojownik:  { hp: 55,  dmg: 7,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 25 }, train: 10, aggro: 5, letter: 'I', color: '#a05a30', kind: 'melee', hunter: true, woodcutter: true, swim: true },
     lucznik:   { hp: 45,  dmg: 9,  range: 7, cd: 1.1, speed: 1.0, cost: { food: 30, wood: 5 }, train: 12, aggro: 6, letter: 'Ł', color: '#7a9a4a', kind: 'bow', swim: true },
     medicine:  { hp: 50,  dmg: 3,  range: 6, cd: 1.5, speed: 1.0, cost: { food: 50, gold: 30 }, train: 25, aggro: 0, letter: 'M', color: '#4a8a6a', kind: 'bow', swim: true },
     wodz:      { hp: 100, dmg: 12, range: 1, cd: 1.0, speed: 1.1, cost: { food: 60, gold: 50 }, train: 30, aggro: 5, letter: 'C', color: '#d1a02f', kind: 'melee', limit: 1, swim: true },
@@ -746,11 +746,7 @@ function updateUnit(u, dt) {
       if (u.fleeT <= 0) {
         // nadal złamany: kolejna odsłona ucieczki, aż morale odbuduje się nad próg
         if (u.morale < CFG.morale.fleeAt) { startFlee(u); break; }
-        if (u.orderBuilding && S.buildings.includes(u.orderBuilding)) u.state = 'assault';
-        else if (u.node && inMap(u.node[0], u.node[1]) && S.amt[idx(u.node[0], u.node[1])] > 0) {
-          u.path = uPath(u, u.node[0], u.node[1]); u.pathI = 0;
-          u.state = u.path.length ? 'toNode' : 'gather';
-        } else u.state = 'idle';
+        resumeAfterInterrupt(u);
       }
       break;
     }
@@ -862,10 +858,10 @@ function updateUnit(u, dt) {
     }
     case 'attack': {
       const t = u.attackTarget;
-      if (!t || !S.units.includes(t)) { u.attackTarget = null; u.state = u.orderBuilding ? 'assault' : 'idle'; break; }
+      if (!t || !S.units.includes(t)) { resumeAfterInterrupt(u); break; }
       const d = Math.hypot(t.x - u.x, t.y - u.y);
       // postawa decyduje o pościgu: cel z rozkazu goni zawsze, automatyczny słucha postawy
-      if (stanceDropsTarget(u, def, d, !!u.ordered)) { u.attackTarget = null; u.state = 'idle'; break; }
+      if (stanceDropsTarget(u, def, d, !!u.ordered)) { resumeAfterInterrupt(u); break; }
       if (d > reachOf(def)) {
         u.repathT -= dt;
         if (u.repathT <= 0) { u.path = uPath(u, Math.floor(t.x), Math.floor(t.y)); u.pathI = 0; u.repathT = 0.8; u.state = 'attack'; }
@@ -885,6 +881,7 @@ function updateUnit(u, dt) {
           t.lastThreat = u;
           gainXp(u, CFG.xp.hit);
           if (t.hp <= 0) { gainXp(u, CFG.xp.kill); killUnit(t); }
+          else if (tdef && tdef.fleesOnHit && t.state !== 'flee') startFlee(t); // squaw nie walczy, ucieka
         } else {
           addHitFx(t.x, t.y, { miss: true });
         }
@@ -922,6 +919,25 @@ function updateUnit(u, dt) {
       break;
     }
   }
+}
+// po przerwaniu (walka, panika) jednostka wraca do tego, co robiła: szturm, zbiór, farma, budowa; inaczej stoi bezczynnie
+function resumeAfterInterrupt(u) {
+  u.attackTarget = null;
+  if (u.orderBuilding && S.buildings.includes(u.orderBuilding)) { u.state = 'assault'; return; }
+  if (u.node && inMap(u.node[0], u.node[1]) && S.amt[idx(u.node[0], u.node[1])] > 0) {
+    u.path = uPath(u, u.node[0], u.node[1]); u.pathI = 0;
+    u.state = u.path.length ? 'toNode' : 'gather';
+    return;
+  }
+  const f = u.resumeFarm; u.resumeFarm = null;
+  if (f && S.buildings.includes(f) && f.built && !f.busy) {
+    f.busy = u.id; u.farm = f; u.path = pathToBuildingU(u, f); u.pathI = 0;
+    u.state = u.path.length ? 'toFarm' : 'farming';
+    return;
+  }
+  const bt = u.resumeBuild; u.resumeBuild = null;
+  if (bt && S.buildings.includes(bt) && !bt.built) { assignBuilders(bt, [u]); return; }
+  u.state = 'idle';
 }
 function switchToDeposit(u) {
   const d = nearestDeposit(u);
@@ -1042,7 +1058,7 @@ const STANCE_MENU = [
 // więc naboru nie zwęża się do zasięgu broni, zostaje promień agresji (decyzja własna: zasięg 1 kafla to cios, nie wykrywanie)
 function stanceAcquireR(u, def) {
   const st = u.stance || 'norm';
-  if (st === 'hold') return 0;
+  if (st === 'hold' || def.aggro <= 0) return 0; // bez promienia agresji (robotnik, squaw, medicine man) jednostka sama nie walczy
   if (st === 'aggr' || def.range <= 1) return def.aggro;
   return def.range;
 }
@@ -1051,7 +1067,7 @@ function stanceDropsTarget(u, def, d, ordered) {
   if (ordered) return false;
   const st = u.stance || 'norm';
   if (st === 'aggr') return false;
-  if (st === 'norm') return d > def.aggro;
+  if (st === 'norm') return d > Math.max(def.aggro, reachOf(def)); // cel w zasięgu broni nigdy nie jest zrywany (łucznik: zasięg 7 > agresja 6)
   return d > reachOf(def);
 }
 // cel zaangażowany w walkę (kogoś atakuje albo szturmuje budynek) = oskrzydlenie dla atakującego z innej strony
@@ -1097,6 +1113,8 @@ function startFlee(u) {
   const M = CFG.morale;
   u.fleeArmed = false;
   u.fleeT = u.morale <= 0 ? M.fleeBreak : M.fleeTime;
+  // zapamiętaj budowę i farmę (tylko przy pierwszej panice, kolejne odsłony zastałyby już wyczyszczone pola)
+  if (u.state !== 'flee') { u.resumeFarm = u.farm; u.resumeBuild = u.buildTarget; }
   u.attackTarget = null; u.buildTarget = null; u.captureTarget = null; releaseFarm(u);
   // node i orderBuilding zostają: po panice robotnik wraca do surowca, banda do szturmu
   let path = [];
