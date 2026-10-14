@@ -58,18 +58,18 @@
  "prop_rock0": {
   "file": "assets/props/prop_rock0.png",
   "shadow": "assets/props/prop_rock0_shadow.png",
-  "w": 105,
-  "h": 68,
-  "ax": 62,
-  "ay": 44
+  "w": 84,
+  "h": 54,
+  "ax": 47,
+  "ay": 35
  },
  "prop_rock1": {
   "file": "assets/props/prop_rock1.png",
   "shadow": "assets/props/prop_rock1_shadow.png",
-  "w": 70,
-  "h": 45,
-  "ax": 41,
-  "ay": 29
+  "w": 63,
+  "h": 44,
+  "ax": 33,
+  "ay": 26
  },
  "prop_bush0": {
   "file": "assets/props/prop_bush0.png",
@@ -91,17 +91,17 @@
   "file": "assets/props/prop_tuft0.png",
   "shadow": "assets/props/prop_tuft0_shadow.png",
   "w": 21,
-  "h": 39,
+  "h": 41,
   "ax": 11,
-  "ay": 34
+  "ay": 36
  },
  "prop_tuft1": {
   "file": "assets/props/prop_tuft1.png",
   "shadow": "assets/props/prop_tuft1_shadow.png",
   "w": 20,
-  "h": 31,
+  "h": 33,
   "ax": 10,
-  "ay": 27
+  "ay": 29
  },
  "gold_vein0": {
   "file": "assets/props/gold_vein0.png",
@@ -705,5 +705,69 @@
   "h": 284,
   "ax": 205,
   "ay": 172
+ },
+ "ground_grass": {
+  "file": "assets/terrain/ground_grass.png",
+  "tw": 128,
+  "th": 64,
+  "cols": 6,
+  "rows": 6,
+  "period": 6
+ },
+ "ground_gravel": {
+  "file": "assets/terrain/ground_gravel.png",
+  "tw": 128,
+  "th": 64,
+  "cols": 6,
+  "rows": 6,
+  "period": 6
+ },
+ "ground_water": {
+  "file": "assets/terrain/ground_water.png",
+  "tw": 128,
+  "th": 64,
+  "cols": 6,
+  "rows": 6,
+  "period": 6
+ },
+ "prop_tuft2": {
+  "file": "assets/props/prop_tuft2.png",
+  "shadow": "assets/props/prop_tuft2_shadow.png",
+  "w": 16,
+  "h": 31,
+  "ax": 5,
+  "ay": 25
+ },
+ "prop_rock2": {
+  "file": "assets/props/prop_rock2.png",
+  "shadow": "assets/props/prop_rock2_shadow.png",
+  "w": 94,
+  "h": 73,
+  "ax": 53,
+  "ay": 52
+ },
+ "prop_reed0": {
+  "file": "assets/props/prop_reed0.png",
+  "shadow": "assets/props/prop_reed0_shadow.png",
+  "w": 79,
+  "h": 78,
+  "ax": 57,
+  "ay": 54
+ },
+ "prop_reed1": {
+  "file": "assets/props/prop_reed1.png",
+  "shadow": "assets/props/prop_reed1_shadow.png",
+  "w": 73,
+  "h": 73,
+  "ax": 54,
+  "ay": 52
+ },
+ "prop_reed2": {
+  "file": "assets/props/prop_reed2.png",
+  "shadow": "assets/props/prop_reed2_shadow.png",
+  "w": 87,
+  "h": 96,
+  "ax": 66,
+  "ay": 70
  }
 }

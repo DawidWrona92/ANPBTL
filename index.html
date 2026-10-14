@@ -133,7 +133,7 @@ const CFG = {
 // playable: false = dane są, ale frakcja nie ma jeszcze mechaniki (Desperado: C4, Meksykanie: C7); wróg gry to na razie zawsze Desperado.
 const RACES = {
   settler: {
-    label: 'Osadnicy', nation: 'us', biome: 'ochre', playable: true,
+    label: 'Osadnicy', nation: 'us', biome: 'prairie', playable: true,
     desc: 'Frontiersmani budują i kopią, frontierswomen farmią i rąbią; piechota, jazda, szeryf i armata; bank i ranczo.',
     startUnits: ['frontiersman', 'frontierswoman', 'frontierswoman', 'frontiersman'], startOrders: ['gold', 'forest', 'forest', null],
     build: [
@@ -163,8 +163,8 @@ const RACES = {
       buildings: ['storehouse', 'farm', 'barracks', 'tepee', 'tepee', 'farm'],
       units: { squaw: 4, wojownik: 6, lucznik: 6, medicine: 1, wodz: 1 } },
   },
-  outlaw:  { label: 'Desperado', nation: 'ban', biome: 'ochre', playable: false, desc: 'Brak własnej produkcji: łupy, destylarnia (C4).', build: [], train: {}, noTechs: [] },
-  mexican: { label: 'Meksykanie', nation: 'mx', biome: 'ochre', playable: false, desc: 'Leczenie i konwersja, mobilna armata (C7).', build: [], train: {}, noTechs: [] },
+  outlaw:  { label: 'Desperado', nation: 'ban', biome: 'prairie', playable: false, desc: 'Brak własnej produkcji: łupy, destylarnia (C4).', build: [], train: {}, noTechs: [] },
+  mexican: { label: 'Meksykanie', nation: 'mx', biome: 'prairie', playable: false, desc: 'Leczenie i konwersja, mobilna armata (C7).', build: [], train: {}, noTechs: [] },
 };
 const PLAYABLE_RACES = Object.keys(RACES).filter(k => RACES[k].playable);
 function raceOf(fac) { return RACES[fac === 'enemy' ? S.enemyRace : S.playerRace] || RACES.settler; }
@@ -201,6 +201,7 @@ const idx = (x, y) => y * MAP + x;
 const inMap = (x, y) => x >= 0 && y >= 0 && x < MAP && y < MAP;
 
 function newGame(seed, race) {
+  S.mapSeed = (seed >>> 0) & 0xffff;   // rozmieszczenie plam gruntu i szuwarów: zależne od partii, bez ruszania generatorów rozgrywki
   S.playerRace = RACES[race] && RACES[race].playable ? race : (S.playerRace || 'settler');
   S.enemyRace = 'outlaw';
   S.difficulty = CFG.difficulty[S.difficulty] ? S.difficulty : 'normal';
@@ -2264,7 +2265,7 @@ function serializeGame() {
   const groups = {}; for (const g in S.groups) groups[g] = S.groups[g].filter(u => ents.has(u)).map(u => u.id);
   return {
     version: SAVE_VERSION,
-    playerRace: S.playerRace, enemyRace: S.enemyRace, difficulty: S.difficulty, biome: S.biome, testMode: S.testMode,
+    playerRace: S.playerRace, enemyRace: S.enemyRace, difficulty: S.difficulty, biome: S.biome, mapSeed: S.mapSeed, testMode: S.testMode,
     time: S.time, nextId: S.nextId, res: S.res, resE: S.resE, techs: S.techs, ai: S.ai, rainT: S.rainT, storms: S.storms,
     moraleT: S.moraleT, woodAlertT: S.woodAlertT, groups,
     terrain: b64Of(S.terrain), amt: b64Of(S.amt), explored: b64Of(S.explored),
@@ -2274,7 +2275,7 @@ function serializeGame() {
 }
 function restoreGame(d) {
   if (!d || d.version !== SAVE_VERSION) return false;
-  S.playerRace = d.playerRace; S.enemyRace = d.enemyRace; S.difficulty = d.difficulty; S.biome = d.biome; S.testMode = !!d.testMode;
+  S.playerRace = d.playerRace; S.enemyRace = d.enemyRace; S.difficulty = d.difficulty; S.biome = d.biome; S.mapSeed = d.mapSeed || 0; S.testMode = !!d.testMode;
   S.time = d.time; S.nextId = d.nextId; S.res = d.res; S.resE = d.resE; S.techs = d.techs; S.ai = d.ai; S.rainT = d.rainT || {}; S.storms = d.storms || [];
   S.moraleT = d.moraleT || 0; S.woodAlertT = d.woodAlertT || 0;
   S.terrain = fromB64(d.terrain, Uint8Array); S.amt = fromB64(d.amt, Float32Array); S.explored = fromB64(d.explored, Uint8Array);
@@ -2309,27 +2310,6 @@ function loadGame() {
 }
 
 // ============================== RENDER ==============================
-// kafel wody: romb w tonach błękitno-szarych z deterministycznym szumem (błyski, ciemniejsze smugi, krawędź)
-function makeWaterTile(seed) {
-  const c = document.createElement('canvas'); c.width = CFG.tileW; c.height = CFG.tileH;
-  const g = c.getContext('2d');
-  const w = CFG.tileW / 2, h = CFG.tileH / 2;
-  g.fillStyle = '#3a6272';
-  g.beginPath(); g.moveTo(w, 0); g.lineTo(2 * w, h); g.lineTo(w, 2 * h); g.lineTo(0, h); g.closePath(); g.fill();
-  for (let y = 0; y < 2 * h; y++) {
-    const pw = w * (1 - Math.abs(y + 0.5 - h) / h);
-    for (let x = 0; x < 2 * w; x++) {
-      const dx = Math.abs(x + 0.5 - w);
-      if (dx > pw) continue;
-      const n = sprNoise(x + seed * 13, y + seed * 7, seed + 20);
-      if (n < 0.05) { g.fillStyle = '#5a8a9a'; g.fillRect(x, y, 2, 1); }
-      else if (n > 0.985) { g.fillStyle = '#8ab8c4'; g.fillRect(x, y, 1, 1); }
-      else if (dx > pw - 2 && n > 0.4 && n < 0.5) { g.fillStyle = '#2a4a56'; g.fillRect(x, y, 1, 1); }
-    }
-  }
-  return { c, ax: w, ay: h };
-}
-const WATER_TILES = [makeWaterTile(3), makeWaterTile(4)];
 function blitSpr(s, px, py) { ctx.imageSmoothingEnabled = false; ctx.drawImage(s.c, Math.round(px - s.ax), Math.round(py - s.ay)); }
 // ============================== ZASOBY GRAFICZNE (G2: pre-render 3D + painted, kafel 128 px rysowany w połowie rozmiaru) ==============================
 const AK = 0.5;                       // skala zasobów 128 px -> świat 64 px (ZOOM=2 daje na ekranie 1:1)
@@ -2358,16 +2338,84 @@ function drawGroundTile(ctx2, name, x, y, cx, cy) {
   const i = ((x % P) + P) % P, j = ((((-(y + 1)) % P) + P) % P);
   ctx2.drawImage(e._img, i * e.tw, j * e.th, e.tw, e.th, cx - 33, cy - 17, 66, 34);
 }
+// teren: grunt bazowy + plamy piasku i żwiru (maski z miękkich plam, więc brzegi plam nie trzymają siatki kafli), woda z atlasu i brzeg (mokry piasek, płycizna, nierówna linia)
+const BIOMES = {
+  prairie: { base: 'grass', patches: [{ atlas: 'ochre', n: 16, r: [1.5, 3.5] }, { atlas: 'gravel', n: 12, r: [1, 2.4] }] },
+  olive:   { base: 'olive', patches: [{ atlas: 'ochre', n: 8, r: [1.2, 3] }, { atlas: 'gravel', n: 8, r: [1, 2.5] }] },
+};
+const N4 = [[1, 0], [0, 1], [-1, 0], [0, -1]], N8 = N4.concat([[1, 1], [-1, 1], [-1, -1], [1, -1]]);
+const isWaterAt = (x, y) => inMap(x, y) && S.terrain[idx(x, y)] === T_WATER;
+function groundCenter(x, y) { return [(x - y) * CFG.tileW / 2 + GL_OX, (x + y) * CFG.tileH / 2 + CFG.tileH / 2]; }
+function softBlob(g, cx, cy, rx, ry, stops) {
+  g.save(); g.translate(cx, cy); g.scale(rx, ry);
+  const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1);
+  for (const [o, c] of stops) gr.addColorStop(o, c);
+  g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
+}
+let GL_TMP = null, GL_MASK = null;
 function buildGround() {
-  const c = document.createElement('canvas'); c.width = GL_W; c.height = GL_H;
-  const g = c.getContext('2d'); g.imageSmoothingEnabled = true;
-  g.fillStyle = S.biome === 'olive' ? '#2a4a56' : '#2a4a56';   // tło warstwy = kolor krawędzi wody: pominięte kafle wody nie mają szwów
-  g.fillRect(0, 0, GL_W, GL_H);
+  const mk = () => { const c = document.createElement('canvas'); c.width = GL_W; c.height = GL_H; return c; };
+  const c = mk(), g = c.getContext('2d'); g.imageSmoothingEnabled = true;
+  GL_TMP = GL_TMP || mk(); GL_MASK = GL_MASK || mk();
+  const B = BIOMES[S.biome] || BIOMES.prairie, ms = S.mapSeed || 0;
+  g.fillStyle = '#25444c'; g.fillRect(0, 0, GL_W, GL_H);
+  // indeks brzegu: dla lądu kierunek (N4) do sąsiada-wody, dla wody do sąsiada-lądu; -1 = brak (rysowanie szuwarów)
+  S.shore = new Int8Array(MAP * MAP).fill(-1);
+  const land = [];
   for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
-    if (S.terrain[idx(x, y)] === T_WATER) continue;
-    drawGroundTile(g, S.biome, x, y, (x - y) * CFG.tileW / 2 + GL_OX, (x + y) * CFG.tileH / 2 + CFG.tileH / 2);
+    const w = S.terrain[idx(x, y)] === T_WATER, [cx, cy] = groundCenter(x, y);
+    if (w) drawGroundTile(g, 'water', x, y, cx, cy); else land.push([x, y, cx, cy]);
+    for (let k = 0; k < 4; k++) { const nx = x + N4[k][0], ny = y + N4[k][1]; if (inMap(nx, ny) && isWaterAt(nx, ny) !== w) { S.shore[idx(x, y)] = k; break; } }
+  }
+  for (const [x, y, cx, cy] of land) drawGroundTile(g, B.base, x, y, cx, cy);
+  // plamy: osobna warstwa z teksturą plamy, przycięta maską z miękkich elips (rozmiary w kaflach przeliczone na elipsy izometryczne)
+  const t = GL_TMP.getContext('2d'), m = GL_MASK.getContext('2d');
+  B.patches.forEach((P, pi) => {
+    t.globalCompositeOperation = 'source-over'; t.clearRect(0, 0, GL_W, GL_H);
+    for (const [x, y, cx, cy] of land) drawGroundTile(t, P.atlas, x, y, cx, cy);
+    m.clearRect(0, 0, GL_W, GL_H);
+    for (let i = 0; i < P.n; i++) {
+      const bx = sprNoise(i, 100 + pi, ms) * MAP, by = sprNoise(i, 200 + pi, ms) * MAP, r = P.r[0] + sprNoise(i, 300 + pi, ms) * (P.r[1] - P.r[0]);
+      softBlob(m, (bx - by) * CFG.tileW / 2 + GL_OX, (bx + by) * CFG.tileH / 2 + CFG.tileH / 2, r * CFG.tileW * 0.7, r * CFG.tileH * 0.7, [[0, 'rgba(255,255,255,1)'], [0.5, 'rgba(255,255,255,0.92)'], [1, 'rgba(255,255,255,0)']]);
+    }
+    t.globalCompositeOperation = 'destination-in'; t.drawImage(GL_MASK, 0, 0);
+    g.drawImage(GL_TMP, 0, 0);
+  });
+  // brzeg: płycizna po stronie wody, mokry ciemny piasek na lądzie, nierówna jasna warga piasku na samej linii
+  for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
+    const w = S.terrain[idx(x, y)] === T_WATER, [cx, cy] = groundCenter(x, y);
+    for (let k = 0; k < 8; k++) {
+      const nx = x + N8[k][0], ny = y + N8[k][1];
+      if (!inMap(nx, ny) || isWaterAt(nx, ny) === w) continue;
+      const [ox, oy] = groundCenter(nx, ny), dx = (ox - cx) / 2, dy = (oy - cy) / 2;   // środek wspólnej krawędzi albo wierzchołka
+      const diag = k >= 4;
+      if (w) softBlob(g, cx + dx * 0.85, cy + dy * 0.85, diag ? 18 : 30, diag ? 9 : 15, [[0, 'rgba(150,205,195,0.50)'], [1, 'rgba(150,205,195,0)']]);
+      else {
+        softBlob(g, cx + dx * 0.9, cy + dy * 0.9, diag ? 16 : 28, diag ? 8 : 14, [[0, 'rgba(58,42,22,0.42)'], [1, 'rgba(58,42,22,0)']]);
+        for (let j = 0; j < (diag ? 1 : 3); j++) {
+          const f = diag ? 0 : (j - 1) * 0.55, jx = (sprNoise(x * 8 + k, y, 40 + j) - 0.5) * 7, jy = (sprNoise(x * 8 + k, y, 50 + j) - 0.5) * 4;
+          const tx = diag ? 0 : -dy * 1.4 * f, ty = diag ? 0 : dx * 1.4 * f;   // wzdłuż krawędzi (prostopadle do kierunku na sąsiada)
+          const rr = 6 + sprNoise(x * 8 + k, y, 60 + j) * 5;
+          softBlob(g, cx + dx + tx + jx, cy + dy + ty + jy, rr * 1.6, rr * 0.8, [[0, 'rgba(190,166,110,0.95)'], [0.65, 'rgba(184,160,104,0.8)'], [1, 'rgba(184,160,104,0)']]);
+        }
+      }
+    }
   }
   S.groundLayer = c;
+}
+// szuwary: na lądzie przy wodzie (po stronie wody) i rzadziej w płyciźnie; deterministycznie z kafla
+function drawShoreReeds(x, y, cx, cy) {
+  const k = S.shore ? S.shore[idx(x, y)] : -1; if (k < 0) return false;
+  const water = S.terrain[idx(x, y)] === T_WATER;
+  if (sprNoise(x, y, 17) >= (water ? 0.22 : 0.6)) return false;
+  const n = water ? 1 : 1 + (sprNoise(x, y, 18) < 0.45 ? 1 : 0);
+  // kierunek N4 w świecie -> przesunięcie na ekranie: (dx,dy) tile -> ((dx-dy)*32, (dx+dy)*16)
+  const [dx, dy] = N4[k];
+  for (let i = 0; i < n; i++) {
+    const t = water ? 0.5 : 0.62, ox = (dx - dy) * 32 * t * 0.5 + (sprNoise(x, y, 19 + i) - 0.5) * 22, oy = (dx + dy) * 16 * t * 0.5 + (sprNoise(x, y, 23 + i) - 0.5) * 8;
+    drawStatic('prop_reed' + Math.floor(sprNoise(x, y, 27 + i) * 3), cx + ox, cy + oy);
+  }
+  return true;
 }
 function sprNoise(x, y, seed) {
   let n = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(seed, 1442695041)) | 0;
@@ -2579,7 +2627,7 @@ function render() {
     if (!S.explored[i]) continue;
     const t = S.terrain[i];
     if (t === T_WATER) {
-      blitSpr(WATER_TILES[sprNoise(x, y, 6) < 0.5 ? 0 : 1], sx, sy + CFG.tileH / 2);
+      drawShoreReeds(x, y, sx, sy + CFG.tileH / 2);
     } else if (t === T_GOLD) {
       drawDirt(x, y, sx, sy);
       items.push({ d: x + y, kind: 'gold', sx, sy: sy + CFG.tileH / 2 });
@@ -2787,9 +2835,13 @@ function drawTree(sx, sy, v) {
 }
 // rekwizyt terenowy: pozycja deterministyczna z pozycji kafla, zawsze wewnątrz rombu (max |ox|/32+|oy|/16 = 0.875 < 1)
 function drawProp(x, y, cx, cy) {
-  const r = sprNoise(x, y, 11); if (r >= 0.11) return;
-  const ox = (sprNoise(x, y, 12) - 0.5) * 28, oy = (sprNoise(x, y, 13) - 0.5) * 14, v = sprNoise(x, y, 14) < 0.5 ? 0 : 1;
-  drawStatic((r < 0.03 ? 'prop_rock' : r < 0.06 ? 'prop_bush' : 'prop_tuft') + v, cx + ox, cy + oy);
+  if (drawShoreReeds(x, y, cx, cy)) return;
+  const r = sprNoise(x, y, 11); if (r >= 0.15) return;
+  const ox = (sprNoise(x, y, 12) - 0.5) * 28, oy = (sprNoise(x, y, 13) - 0.5) * 14, v = sprNoise(x, y, 14);
+  if (r < 0.022) drawStatic('prop_rock' + Math.floor(v * 3), cx + ox, cy + oy);
+  else if (r < 0.045) drawStatic('prop_bush' + (v < 0.5 ? 0 : 1), cx + ox, cy + oy);
+  else if (r < 0.135) drawStatic('prop_tuft' + (v < 0.5 ? 0 : 1), cx + ox, cy + oy);   // zielone kępki
+  else drawStatic('prop_tuft2', cx + ox, cy + oy);   // sucha kępa
 }
 // budynek wg nacji (styl, nie kolor właściciela): wróg = Desperado (ban), gracz = Osadnicy (us) albo Sioux (sx); brak wariantu = sprite Osadników
 function drawBld(b, sx, sy) {
@@ -2895,7 +2947,7 @@ function renderMinimap() {
     const i = idx(x, y);
     if (!S.explored[i]) continue;
     const t = S.terrain[i];
-    mctx.fillStyle = t === T_FOREST ? '#2c4a1e' : t === T_GOLD ? '#e8c34a' : t === T_WATER ? '#3a6272' : t === T_MEAT ? '#a05a3a' : t === T_THICK ? '#1c3812' : '#8a7634';
+    mctx.fillStyle = t === T_FOREST ? '#2c4a1e' : t === T_GOLD ? '#e8c34a' : t === T_WATER ? '#3a6272' : t === T_MEAT ? '#a05a3a' : t === T_THICK ? '#1c3812' : '#6f7330';
     mctx.fillRect(x * px, y * px, px, px);
   }
   for (const b of S.buildings) {

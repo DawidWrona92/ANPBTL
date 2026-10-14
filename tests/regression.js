@@ -501,6 +501,24 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     });
     eq(r.start, ['frontiersman', 'frontiersman', 'frontierswoman', 'frontierswoman'], 'start'); eq(r.cap, 200, 'limit');
   });
+  console.log('Faza 8: teren i brzegi');
+  await test('F8: zasoby terenu (atlasy gruntu, wody, szuwary, skały, kępki) istnieją, a brzeg wody jest zaznaczony i rysowany', async () => {
+    const r = await page.evaluate(() => {
+      const man = window.ASSETS, need = ['ground_grass', 'ground_olive', 'ground_ochre', 'ground_gravel', 'ground_water', 'prop_reed0', 'prop_reed1', 'prop_reed2', 'prop_rock0', 'prop_rock1', 'prop_rock2', 'prop_tuft0', 'prop_tuft1', 'prop_tuft2'];
+      const missing = need.filter(k => !man[k]);
+      for (const b in BIOMES) { if (!man['ground_' + BIOMES[b].base]) missing.push(b + ':base'); for (const p of BIOMES[b].patches) if (!man['ground_' + p.atlas]) missing.push(b + ':' + p.atlas); }
+      newGame(3, 'settler'); S.menuOpen = false; S.explored.fill(1); S.visible.fill(1);
+      let water = 0, shoreLand = 0, shoreWater = 0;
+      for (let i = 0; i < MAP * MAP; i++) { const w = S.terrain[i] === T_WATER; if (w) water++; if (S.shore[i] >= 0) w ? shoreWater++ : shoreLand++; }
+      // znaczniki zgodne z sąsiedztwem: kafel lądu z flagą ma wodę w kierunku N4
+      let bad = 0;
+      for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) { const k = S.shore[idx(x, y)]; if (k < 0) continue; const w = S.terrain[idx(x, y)] === T_WATER; if (isWaterAt(x + N4[k][0], y + N4[k][1]) === w) bad++; }
+      let reeds = 0; const orig = drawStatic; window.drawStatic = key => { if (key.startsWith('prop_reed')) reeds++; };
+      try { for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) if (S.shore[idx(x, y)] >= 0) drawShoreReeds(x, y, 100, 100); } finally { window.drawStatic = orig; }
+      return { missing, water, shoreLand, shoreWater, bad, reeds };
+    });
+    eq(r.missing, [], 'brakujące zasoby'); ok(r.water > 20 && r.shoreLand > 5 && r.shoreWater > 5, 'brzeg: ' + JSON.stringify(r)); eq(r.bad, 0, 'złe znaczniki brzegu'); ok(r.reeds > 0, 'szuwary rysowane');
+  });
   console.log('Smoke');
   for (const race of ['settler', 'sioux']) {
     await test('smoke: 10 minut gry (' + race + ') bez wyjątków, NaN i ujemnych zasobów', async () => {

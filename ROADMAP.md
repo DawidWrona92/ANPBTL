@@ -1,7 +1,7 @@
 # Mapa drogowa: America: No Peace Beyond the Line (prototyp)
 
 Gra to `index.html` (canvas 2D, bez zależności); po migracji grafiki dojdzie katalog `assets/`. Źródłem zasad jest [docs/dokumentacja-zasad.md](docs/dokumentacja-zasad.md); oznaczenia `[Ź]` (źródło) i `[P]` (projekt własny) są tam wyjaśnione w sekcji 19.0.
-Testy: `npm install && npx playwright install chromium && npm test` (42 sprawdzenia na prawdziwym `index.html`).
+Testy: `npm install && npx playwright install chromium && npm test` (43 sprawdzenia na prawdziwym `index.html`).
 
 ## 1. Stan na dziś
 
@@ -53,7 +53,7 @@ Fazy to grube tematy, podpunkty ich szczegóły. Te same numery są w planie pra
 | 5 | Grafika w stylu oryginału (G1, G1b, G2) | ✅ |
 | 6 | Fundament: frakcje jako dane, trudność, zapis (C2) | ✅ |
 | 7 | Frakcja Osadnicy (C3) | 🔶 7.1 mechanika ✅, 7.2 grafika ✅, 7.3 bot i balans ✅ (bez ablacji banku), 7.4 dokumenty |
-| 8 | Teren i brzegi (nowe, uwagi z oglądania sprite'ów) | ⬜ 8.1 brzeg wody, 8.2 szuwary i trzciny, 8.3 kolor trawy (mniej pomarańczu), 8.4 zielone kępki i żwir, 8.5 skały (wyglądają jak bułki), 8.6 kontrola |
+| 8 | Teren i brzegi | ✅ 8.1 brzeg wody (płycizna, mokry piasek, nierówna linia, woda z atlasu), 8.2 szuwary i trzciny, 8.3 trawa khaki zamiast pomarańczowej (piasek zostaje ochrowy, w plamach), 8.4 zielone kępki i żwirowiska, 8.5 skały kanciaste zamiast „bułek”, 8.6 test. Wygląd do Twojej oceny w grze; szczegóły graficzne na sam koniec |
 | 9 | Mechaniki misyjne i Sioux (C8a, M0) | ⬜ 9.1 pakowanie tepee, 9.2 skradanie i wykrywanie, 9.3 etapy celów, 9.4 wóz kryty, eskorta, rabunek |
 | 10 | Kampanie Sioux i USA, misje 1–2 (M1) | ⬜ 10.1 szkielet misji, 10.2 Sioux, 10.3 USA |
 | 11 | Desperado, AI wszystkich frakcji, misje Desperado (C4, C4b, M2) | ⬜ |
