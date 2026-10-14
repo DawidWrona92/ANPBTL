@@ -1,7 +1,7 @@
 # Mapa drogowa: America: No Peace Beyond the Line (prototyp)
 
 Gra to `index.html` (canvas 2D, bez zależności); po migracji grafiki dojdzie katalog `assets/`. Źródłem zasad jest [docs/dokumentacja-zasad.md](docs/dokumentacja-zasad.md); oznaczenia `[Ź]` (źródło) i `[P]` (projekt własny) są tam wyjaśnione w sekcji 19.0.
-Testy: `npm install && npx playwright install chromium && npm test` (43 sprawdzenia na prawdziwym `index.html`).
+Testy: `npm install && npx playwright install chromium && npm test` (44 sprawdzenia na prawdziwym `index.html`).
 
 ## 1. Stan na dziś
 
@@ -54,7 +54,7 @@ Fazy to grube tematy, podpunkty ich szczegóły. Te same numery są w planie pra
 | 6 | Fundament: frakcje jako dane, trudność, zapis (C2) | ✅ |
 | 7 | Frakcja Osadnicy (C3) | ✅ (bez ablacji banku, do zrobienia przed fazą 13) |
 | 8 | Teren i brzegi | 🔶 8.1–8.6 wypchnięte; 8.7 grunt w 2× rozdzielczości (był „niedoczytany”), 8.8 sucha preria i jasny piasek, 8.9 skały i żyły złota kanciaste; czeka na Twoją ocenę w grze |
-| 9 | Interfejs jak w oryginale (nowa): panele drewno/pergamin, ikony, pasek zasobów, minimapa, menu | ⬜ potrzebne zrzuty UI z oryginału |
+| 9 | Interfejs jak w oryginale | ✅ 9.1 zrzuty od właściciela (docs/zrodla.md), 9.2 deski i pergamin (`tools/art/build_ui.js`) i pasek zasobów z ikonami, 9.3 panel dolny (info o zaznaczeniu, siatka poleceń na pergaminie, zakładki grup 1–6), 9.4 minimapa w ramie z przyciskami (pomoc, zapis, odczyt), 9.5 menu główne, wybór ludu (cztery koła), ustawienia (dźwięk, przewijanie, szybkość gry, cienie, trudność), okna dialogowe z deskami, 9.6 testy. Do oceny w grze; szczegóły na koniec |
 | 10 | Obsługa telefonów i ekranów dotykowych (nowa, po interfejsie): sterowanie dotykiem, układ pod mały ekran | ⬜ 10.1 dotyk zamiast myszy (zaznaczanie, ruch, kamera, rozkazy), 10.2 UI skalowalny na telefon, 10.3 wydajność na telefonie, 10.4 testy na emulacji dotyku |
 | 11 | Mechaniki misyjne i Sioux (C8a, M0) | ⬜ 11.1 pakowanie tepee, 11.2 skradanie i wykrywanie, 11.3 etapy celów, 11.4 wóz kryty, eskorta, rabunek |
 | 12 | Kampanie Sioux i USA, misje 1–2 (M1) | ⬜ 12.1 szkielet misji, 12.2 Sioux, 12.3 USA |

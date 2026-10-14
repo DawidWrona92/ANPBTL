@@ -123,11 +123,17 @@ const entries = {};
 function ensureDir(d) { fs.mkdirSync(d, { recursive: true }); }
 function writePng(rel, image) { const f = path.join(ASSETS, rel); ensureDir(path.dirname(f)); fs.writeFileSync(f, rt.encodePng(image)); return 'assets/' + rel.replace(/\\/g, '/'); }
 // statyczny sprite (wynik renderSprite): sprite + cień jako osobne PNG, kotwica = rzut (0,0,0) w pikselach zasobu
+// ramka przycinająca do niezerowej alfy (px zasobu): miniatury w interfejsie nie mogą czytać pikseli (canvas z file:// jest "tainted"), więc ramka idzie w manifeście
+function bbox(images) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+  for (const im of images) for (let y = 0; y < im.height; y++) for (let x = 0; x < im.width; x++) if (im.data[(y * im.width + x) * 4 + 3] > 24) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  return x1 < 0 ? [0, 0, 1, 1] : [x0, y0, x1 + 1, y1 + 1];
+}
 function saveStatic(key, res, group) {
   if (res.frameClipped) console.warn('UWAGA: kadr uciął', key);
   if (res.shadow.width !== res.sprite.width || res.shadow.height !== res.sprite.height) console.warn("UWAGA: cień ma inny rozmiar niż sprite", key);
   const w = res.sprite.width, h = res.sprite.height;
-  entries[key] = { file: writePng(group + '/' + key + '.png', res.sprite), shadow: writePng(group + '/' + key + '_shadow.png', res.shadow), w, h, ax: Math.round(res.anchor[0]), ay: Math.round(res.anchor[1]) };
+  entries[key] = { file: writePng(group + '/' + key + '.png', res.sprite), shadow: writePng(group + '/' + key + '_shadow.png', res.shadow), w, h, ax: Math.round(res.anchor[0]), ay: Math.round(res.anchor[1]), bb: bbox([res.sprite]) };
   return entries[key];
 }
 // arkusz klatek (jednostki): kierunki (wiersze) × fazy (kolumny). Kolor drużyny wypieczony w osobnych arkuszach (_p gracz, _e wróg):
@@ -136,7 +142,9 @@ const TEAM_COLORS = { p: [0.12, 0.30, 0.78], e: [0.75, 0.15, 0.12] };
 function saveSheet(key, frames, group, opts) {
   const packer = opts.packer || pt, sheet = packer.packSheet(frames, { columns: opts.columns, padding: 1 });
   const m = sheet.meta, fw = m.frame_size[0], fh = m.frame_size[1];
-  const e = { shadow: writePng(group + '/' + key + '_shadow.png', sheet.shadow), fw, fh, cols: opts.columns, rows: Math.ceil(frames.length / opts.columns), pad: m.padding || 1, ax: Math.round(m.anchor[0]), ay: Math.round(m.anchor[1]), dirs: opts.dirs, phases: opts.phases };
+  // packSheet przycina klatki do wspólnego kadru: ramka z oryginalnych współrzędnych klatki przesuwa się o różnicę kotwic
+  const off = [frames[0].anchor[0] - m.anchor[0], frames[0].anchor[1] - m.anchor[1]], bb0 = bbox(frames.map(f => f.sprite));
+  const e = { bb: [Math.max(0, Math.round(bb0[0] - off[0])), Math.max(0, Math.round(bb0[1] - off[1])), Math.min(fw, Math.round(bb0[2] - off[0])), Math.min(fh, Math.round(bb0[3] - off[1]))], shadow: writePng(group + '/' + key + '_shadow.png', sheet.shadow), fw, fh, cols: opts.columns, rows: Math.ceil(frames.length / opts.columns), pad: m.padding || 1, ax: Math.round(m.anchor[0]), ay: Math.round(m.anchor[1]), dirs: opts.dirs, phases: opts.phases };
   if (opts.team) { for (const t of ['p', 'e']) e['file_' + t] = writePng(group + '/' + key + '_' + t + '.png', packer.swapTeamColor(sheet.rgba, sheet.team, TEAM_COLORS[t])); }
   else e.file = writePng(group + '/' + key + '.png', sheet.rgba);
   entries[key] = e;

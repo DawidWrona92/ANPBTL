@@ -49,7 +49,32 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   console.log('Start');
   await test('gra startuje bez błędów, menu ma przyciski frakcji, trudności i testów', async () => {
     eq(pageErrors, [], 'błędy strony');
-    eq(await page.$$eval('#overlay button', b => b.map(x => x.textContent)), ['Graj: Osadnicy', 'Graj: Sioux', 'Trudność: Normalny', 'Test: Osadnicy', 'Test: Sioux'], 'przyciski menu');
+    eq(await page.$$eval('#overlay button', b => b.map(x => x.textContent)), ['Nowa gra', 'Ustawienia', 'Pomoc i sterowanie'], 'przyciski menu głównego');
+    await page.click('text=Nowa gra');
+    eq(await page.$$eval('#overlay .circ', c => c.map(x => x.className.includes('off') ? 'off' : 'on')), ['on', 'on', 'off', 'off'], 'koła ludów: Osadnicy i Sioux grywalni, reszta wkrótce');
+    eq(await page.$$eval('#overlay button', b => b.map(x => x.textContent)), ['Wstecz', 'Trudność: Normalny', 'Osadnicy', 'Sioux', 'Wczytaj'], 'przyciski ekranu wyboru ludu');
+    await page.click('text=Wstecz');
+  });
+  await test('UI: ustawienia zmieniają i zapamiętują wartości, panel dolny pokazuje polecenia wybranego obiektu', async () => {
+    await page.click('text=Ustawienia');
+    await page.click('text=Normalne'); await page.click('text=Cienie >> xpath=following-sibling::button[1]');
+    const st = await page.evaluate(() => [SETTINGS.scroll, SETTINGS.shadow, JSON.parse(localStorage.getItem(SET_KEY)).scroll]);
+    eq(st, [2, 0, 2], 'ustawienia');
+    await page.evaluate(() => { SETTINGS.scroll = 1; SETTINGS.shadow = 1; saveSettings(); }); await page.click('text=OK');
+    const r = await page.evaluate(() => {
+      T.fresh(); const w = addUnit('frontiersman', 'player', 20.5, 20.5), sh = addUnit('szeryf', 'player', 21.5, 20.5);
+      S.selected.units = [w]; updatePanels();
+      const a = { build: getComputedStyle(buildbar).display !== 'none', stance: getComputedStyle(stancebar).display !== 'none', btns: buildbar.querySelectorAll('.cmd').length };
+      S.selected.units = [sh]; updatePanels();
+      const b = { build: getComputedStyle(buildbar).display !== 'none', stance: getComputedStyle(stancebar).display !== 'none', info: infoblock.textContent.includes('Szeryf') };
+      S.selected.units = [w, sh]; updatePanels();
+      const c = { grid: infoblock.querySelectorAll('.grid canvas').length };
+      const hq = S.buildings.find(x => x.type === 'hq'); S.selected.units = []; S.selected.building = hq; updatePanels();
+      const d = { train: bpanel.querySelectorAll('[data-role^="train_"]').length, top: topbar.querySelectorAll('.res[data-r]').length };
+      return { a, b, c, d };
+    });
+    eq(r.a, { build: true, stance: false, btns: 8 }, 'robotnik: budowa bez postaw'); eq(r.b, { build: false, stance: true, info: true }, 'szeryf: postawy bez budowy, info o jednostce');
+    eq(r.c, { grid: 2 }, 'zaznaczenie wielu jednostek: siatka miniatur'); eq(r.d, { train: 2, top: 6 }, 'obóz: dwie jednostki do produkcji; pasek zasobów ma 6 pól');
   });
   await test('F1: ścieżki jednostek nie zapętlają się', async () => {
     const r = await page.evaluate(() => { T.fresh(); const u = addUnit('worker', 'player', 20.5, 20.5); return [uPath(u, 25, 20).length, pathToBuildingU(u, S.buildings[0]).length >= 0]; });
@@ -286,7 +311,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     const r = await page.evaluate(() => {
       newGame(7, 'sioux'); S.menuOpen = false; document.getElementById('overlay').style.display = 'none'; setupTest('sioux'); S.selected.units = [S.units.find(u => u.type === 'medicine'), S.units.find(u => u.type === 'wodz')]; updatePanels();
       const a = document.getElementById('abilitybar').getBoundingClientRect(), s = document.getElementById('stancebar').getBoundingClientRect();
-      return { placed: a.y > 0 && a.x > 0, noOverlap: a.bottom <= s.top, styled: getComputedStyle(document.querySelector('#abilitybar button')).backgroundColor !== 'rgb(239, 239, 239)' };
+      return { placed: a.y > 0 && a.x > 0, noOverlap: a.bottom <= s.top, styled: getComputedStyle(document.querySelector('#abilitybar button')).backgroundImage.includes('parchment') };
     });
     eq(r, { placed: true, noOverlap: true, styled: true }, 'pasek');
   });
@@ -309,14 +334,14 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await test('R10: pomoc pauzuje grę, po porażce są "Jeszcze raz" i "Menu", wyciszenie przeżywa nową grę', async () => {
     await page.evaluate(() => { S.muted = true; newGame(1, 'settler'); showMenu(); });
     ok(await page.evaluate(() => S.muted), 'wyciszenie zgubione w newGame'); await page.evaluate(() => { S.muted = false; });
-    await page.click('text=Graj: Osadnicy'); await page.waitForTimeout(200);
+    await page.click('text=Nowa gra'); await page.click('.circ >> nth=0'); await page.waitForTimeout(200);
     await page.click('#helpbtn'); await page.waitForTimeout(100);
     const t2 = await page.evaluate(() => S.time); await page.waitForTimeout(400);
     eq(await page.evaluate(() => S.time), t2, 'czas w trakcie pomocy');
     await page.click('text=Do dzieła');
     await page.evaluate(() => endGame('lose', 'test'));
     eq(await page.$$eval('#overlay button', b => b.map(x => x.textContent)), ['Jeszcze raz', 'Menu'], 'przyciski końca gry');
-    await page.click('text=Menu'); await page.click('text=Test: Sioux'); await page.waitForTimeout(300);
+    await page.click('text=Menu'); await page.click('text=Nowa gra'); await page.click('.scr-foot .mid >> text=Sioux'); await page.waitForTimeout(300);
     eq(await page.evaluate(() => [S.gameOver, S.testMode]), [null, true], 'stan po wejściu w test z menu');
   });
 

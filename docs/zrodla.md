@@ -70,3 +70,14 @@ Ukrycie i wykrywanie (Sioux 1), rajd i rabunek jako cel (Sioux 2, Desperado), pa
 - [Wikipedia: America (video game)](https://en.wikipedia.org/wiki/America_(video_game)), [Dakota War of 1862](https://en.wikipedia.org/wiki/Dakota_War_of_1862)
 
 Wyniki mojego własnego wyszukiwania (potwierdzają tytuły rozdziałów, cztery frakcje, bandleadera i po 2 misje add-onu na frakcję): Gamicus, GOG Dreamlist, Cheatbook.
+
+
+## Interfejs oryginału (zrzuty od właściciela, 2026-10-14) `[Ź: zrzuty]`
+- **Pasek zasobów:** wąski ciemny pas na całą szerokość górnej krawędzi, małe ikony z liczbami. Kolejność: żywność (mięso), drewno, złoto (liczba i w nawiasie druga wartość, np. `5000(0)`, znaczenie nieustalone), broń, konie (liczba czerwona przy pełnym limicie, np. `8/8`), populacja `19/44`.
+- **Panel dolny:** deski postarzonego drewna z postrzępioną górną krawędzią. Z lewej blok informacji o zaznaczeniu (nazwa, zdrowie, wartości, doświadczenie, procent), portret w pergaminowej płytce; przy wielu jednostkach siatka miniatur. W środku rząd małych zakładek (6, oznaczone kropkami jak kości do gry, znaczenie nieustalone) i pod nim dwa rzędy pergaminowych płytek poleceń ze szkicowanymi ikonami; w prawym dolnym rogu płytka z nagrobkiem (rozwiązanie/usunięcie jednostki).
+- **Minimapa:** w drewnianej ramie, po lewej trzy pionowe przyciski, nad ramą widać mapę (panel nie zajmuje środka dołu ekranu).
+- **Komunikaty:** czerwony napis na środku nad panelem (np. „Our people are under attack”), bez ramki.
+- **Menu główne:** ciemna scena zachodu słońca z postacią wodza po lewej, tytuł u góry, polecenia (Start single-player campaign, Open multi-player game, Join multi player game, Settings, Credits, Exit game) jako czerwono-pomarańczowy tekst po prawej.
+- **Wybór ludu:** deski, nagłówek AMERICA, wąska tabliczka „Select people”, cztery postacie w ciemnych kołach (trzy w rzędzie i jedna niżej), na dole przyciski „Back” i „Load game”.
+- **Ustawienia:** deski, ciemne tabliczki z nazwami (Sound, Music, Resolution, Scroll speed, Game speed, Mouse speed, Shadow) i złote wartości po prawej (np. 1024×768, Normal, Fast, Transparent), przycisk OK na dole.
+- **W prototypie `[P]`:** zakładki grup 1–6 zamiast kostek (funkcja zakładek w oryginale nieznana), przyciski pomoc/zapis/odczyt zamiast trzech przycisków minimapy (ich funkcje nieznane), nagrobek (rozwiązanie jednostki) i ustawienia rozdzielczości, muzyki i szybkości myszy pominięte (brak odpowiedników), postacie wodza i kobiet z menu zastąpione portretami jednostek z gry.

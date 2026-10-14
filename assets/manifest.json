@@ -29,7 +29,13 @@
   "w": 259,
   "h": 233,
   "ax": 184,
-  "ay": 166
+  "ay": 166,
+  "bb": [
+   109,
+   3,
+   255,
+   170
+  ]
  },
  "tree_oak1": {
   "file": "assets/trees/tree_oak1.png",
@@ -37,7 +43,13 @@
   "w": 271,
   "h": 232,
   "ax": 186,
-  "ay": 166
+  "ay": 166,
+  "bb": [
+   108,
+   3,
+   265,
+   170
+  ]
  },
  "tree_pine": {
   "file": "assets/trees/tree_pine.png",
@@ -45,7 +57,13 @@
   "w": 264,
   "h": 239,
   "ax": 184,
-  "ay": 185
+  "ay": 185,
+  "bb": [
+   120,
+   3,
+   245,
+   197
+  ]
  },
  "tree_dead": {
   "file": "assets/trees/tree_dead.png",
@@ -53,7 +71,13 @@
   "w": 150,
   "h": 172,
   "ax": 131,
-  "ay": 135
+  "ay": 135,
+  "bb": [
+   116,
+   2,
+   148,
+   138
+  ]
  },
  "prop_rock0": {
   "file": "assets/props/prop_rock0.png",
@@ -61,7 +85,13 @@
   "w": 97,
   "h": 62,
   "ax": 58,
-  "ay": 41
+  "ay": 41,
+  "bb": [
+   28,
+   3,
+   94,
+   53
+  ]
  },
  "prop_rock1": {
   "file": "assets/props/prop_rock1.png",
@@ -69,7 +99,13 @@
   "w": 67,
   "h": 44,
   "ax": 35,
-  "ay": 27
+  "ay": 27,
+  "bb": [
+   7,
+   3,
+   63,
+   39
+  ]
  },
  "prop_bush0": {
   "file": "assets/props/prop_bush0.png",
@@ -77,7 +113,13 @@
   "w": 135,
   "h": 87,
   "ax": 79,
-  "ay": 55
+  "ay": 55,
+  "bb": [
+   24,
+   2,
+   133,
+   74
+  ]
  },
  "prop_bush1": {
   "file": "assets/props/prop_bush1.png",
@@ -85,7 +127,13 @@
   "w": 97,
   "h": 65,
   "ax": 58,
-  "ay": 38
+  "ay": 38,
+  "bb": [
+   18,
+   2,
+   95,
+   55
+  ]
  },
  "prop_tuft0": {
   "file": "assets/props/prop_tuft0.png",
@@ -93,7 +141,13 @@
   "w": 21,
   "h": 41,
   "ax": 11,
-  "ay": 36
+  "ay": 36,
+  "bb": [
+   2,
+   2,
+   19,
+   39
+  ]
  },
  "prop_tuft1": {
   "file": "assets/props/prop_tuft1.png",
@@ -101,7 +155,13 @@
   "w": 20,
   "h": 33,
   "ax": 10,
-  "ay": 29
+  "ay": 29,
+  "bb": [
+   2,
+   2,
+   18,
+   31
+  ]
  },
  "gold_vein0": {
   "file": "assets/props/gold_vein0.png",
@@ -109,7 +169,13 @@
   "w": 117,
   "h": 89,
   "ax": 64,
-  "ay": 59
+  "ay": 59,
+  "bb": [
+   36,
+   3,
+   112,
+   72
+  ]
  },
  "gold_vein1": {
   "file": "assets/props/gold_vein1.png",
@@ -117,7 +183,13 @@
   "w": 122,
   "h": 81,
   "ax": 76,
-  "ay": 49
+  "ay": 49,
+  "bb": [
+   32,
+   3,
+   114,
+   71
+  ]
  },
  "carcass": {
   "file": "assets/props/carcass.png",
@@ -125,7 +197,13 @@
   "w": 99,
   "h": 70,
   "ax": 55,
-  "ay": 44
+  "ay": 44,
+  "bb": [
+   15,
+   3,
+   92,
+   52
+  ]
  },
  "bld_house_us": {
   "file": "assets/buildings/bld_house_us.png",
@@ -133,7 +211,13 @@
   "w": 314,
   "h": 237,
   "ax": 171,
-  "ay": 159
+  "ay": 159,
+  "bb": [
+   65,
+   3,
+   299,
+   229
+  ]
  },
  "bld_hq_us": {
   "file": "assets/buildings/bld_hq_us.png",
@@ -141,7 +225,13 @@
   "w": 472,
   "h": 388,
   "ax": 275,
-  "ay": 278
+  "ay": 278,
+  "bb": [
+   119,
+   3,
+   462,
+   380
+  ]
  },
  "bld_barracks_us": {
   "file": "assets/buildings/bld_barracks_us.png",
@@ -149,7 +239,13 @@
   "w": 324,
   "h": 232,
   "ax": 174,
-  "ay": 152
+  "ay": 152,
+  "bb": [
+   59,
+   3,
+   309,
+   224
+  ]
  },
  "bld_factory_us": {
   "file": "assets/buildings/bld_factory_us.png",
@@ -157,7 +253,13 @@
   "w": 300,
   "h": 222,
   "ax": 164,
-  "ay": 146
+  "ay": 146,
+  "bb": [
+   60,
+   3,
+   288,
+   214
+  ]
  },
  "bld_storehouse_us": {
   "file": "assets/buildings/bld_storehouse_us.png",
@@ -165,7 +267,13 @@
   "w": 305,
   "h": 188,
   "ax": 177,
-  "ay": 110
+  "ay": 110,
+  "bb": [
+   72,
+   3,
+   294,
+   183
+  ]
  },
  "bld_zagroda_us": {
   "file": "assets/buildings/bld_zagroda_us.png",
@@ -173,7 +281,13 @@
   "w": 291,
   "h": 173,
   "ax": 160,
-  "ay": 101
+  "ay": 101,
+  "bb": [
+   40,
+   3,
+   280,
+   161
+  ]
  },
  "bld_farm_us": {
   "file": "assets/buildings/bld_farm_us.png",
@@ -181,7 +295,13 @@
   "w": 276,
   "h": 159,
   "ax": 149,
-  "ay": 88
+  "ay": 88,
+  "bb": [
+   26,
+   3,
+   272,
+   150
+  ]
  },
  "bld_house_ban": {
   "file": "assets/buildings/bld_house_ban.png",
@@ -189,7 +309,13 @@
   "w": 335,
   "h": 238,
   "ax": 193,
-  "ay": 161
+  "ay": 161,
+  "bb": [
+   95,
+   3,
+   320,
+   230
+  ]
  },
  "bld_hq_ban": {
   "file": "assets/buildings/bld_hq_ban.png",
@@ -197,7 +323,13 @@
   "w": 488,
   "h": 325,
   "ax": 279,
-  "ay": 213
+  "ay": 213,
+  "bb": [
+   119,
+   3,
+   467,
+   316
+  ]
  },
  "bld_barracks_ban": {
   "file": "assets/buildings/bld_barracks_ban.png",
@@ -205,7 +337,13 @@
   "w": 331,
   "h": 217,
   "ax": 184,
-  "ay": 137
+  "ay": 137,
+  "bb": [
+   69,
+   3,
+   318,
+   209
+  ]
  },
  "bld_factory_ban": {
   "file": "assets/buildings/bld_factory_ban.png",
@@ -213,7 +351,13 @@
   "w": 307,
   "h": 221,
   "ax": 174,
-  "ay": 146
+  "ay": 146,
+  "bb": [
+   70,
+   3,
+   296,
+   214
+  ]
  },
  "bld_storehouse_ban": {
   "file": "assets/buildings/bld_storehouse_ban.png",
@@ -221,7 +365,13 @@
   "w": 305,
   "h": 188,
   "ax": 177,
-  "ay": 110
+  "ay": 110,
+  "bb": [
+   72,
+   3,
+   294,
+   183
+  ]
  },
  "bld_zagroda_ban": {
   "file": "assets/buildings/bld_zagroda_ban.png",
@@ -229,7 +379,13 @@
   "w": 291,
   "h": 173,
   "ax": 160,
-  "ay": 101
+  "ay": 101,
+  "bb": [
+   40,
+   3,
+   280,
+   161
+  ]
  },
  "bld_farm_ban": {
   "file": "assets/buildings/bld_farm_ban.png",
@@ -237,7 +393,13 @@
   "w": 276,
   "h": 159,
   "ax": 149,
-  "ay": 88
+  "ay": 88,
+  "bb": [
+   26,
+   3,
+   272,
+   150
+  ]
  },
  "bld_tepee_sx": {
   "file": "assets/buildings/bld_tepee_sx.png",
@@ -245,7 +407,13 @@
   "w": 311,
   "h": 286,
   "ax": 233,
-  "ay": 215
+  "ay": 215,
+  "bb": [
+   157,
+   3,
+   308,
+   253
+  ]
  },
  "bld_hq_sx": {
   "file": "assets/buildings/bld_hq_sx.png",
@@ -253,7 +421,13 @@
   "w": 462,
   "h": 409,
   "ax": 334,
-  "ay": 308
+  "ay": 308,
+  "bb": [
+   226,
+   3,
+   457,
+   367
+  ]
  },
  "bld_barracks_sx": {
   "file": "assets/buildings/bld_barracks_sx.png",
@@ -261,7 +435,13 @@
   "w": 390,
   "h": 341,
   "ax": 278,
-  "ay": 256
+  "ay": 256,
+  "bb": [
+   188,
+   3,
+   386,
+   307
+  ]
  },
  "bld_storehouse_sx": {
   "file": "assets/buildings/bld_storehouse_sx.png",
@@ -269,7 +449,13 @@
   "w": 223,
   "h": 158,
   "ax": 132,
-  "ay": 101
+  "ay": 101,
+  "bb": [
+   67,
+   3,
+   215,
+   149
+  ]
  },
  "bld_farm_sx": {
   "file": "assets/buildings/bld_farm_sx.png",
@@ -277,9 +463,21 @@
   "w": 276,
   "h": 159,
   "ax": 149,
-  "ay": 88
+  "ay": 88,
+  "bb": [
+   26,
+   3,
+   272,
+   150
+  ]
  },
  "worker": {
+  "bb": [
+   39,
+   2,
+   89,
+   68
+  ],
   "shadow": "assets/units/worker_shadow.png",
   "fw": 91,
   "fh": 82,
@@ -303,6 +501,12 @@
   "file_e": "assets/units/worker_e.png"
  },
  "piechota": {
+  "bb": [
+   28,
+   2,
+   98,
+   72
+  ],
   "shadow": "assets/units/piechota_shadow.png",
   "fw": 100,
   "fh": 88,
@@ -326,6 +530,12 @@
   "file_e": "assets/units/piechota_e.png"
  },
  "desperado": {
+  "bb": [
+   29,
+   2,
+   99,
+   72
+  ],
   "shadow": "assets/units/desperado_shadow.png",
   "fw": 101,
   "fh": 88,
@@ -349,6 +559,12 @@
   "file_e": "assets/units/desperado_e.png"
  },
  "bandleader": {
+  "bb": [
+   31,
+   2,
+   107,
+   78
+  ],
   "shadow": "assets/units/bandleader_shadow.png",
   "fw": 109,
   "fh": 95,
@@ -372,6 +588,12 @@
   "file_e": "assets/units/bandleader_e.png"
  },
  "squaw": {
+  "bb": [
+   31,
+   2,
+   77,
+   59
+  ],
   "shadow": "assets/units/squaw_shadow.png",
   "fw": 79,
   "fh": 70,
@@ -395,6 +617,12 @@
   "file_e": "assets/units/squaw_e.png"
  },
  "wojownik": {
+  "bb": [
+   34,
+   2,
+   84,
+   65
+  ],
   "shadow": "assets/units/wojownik_shadow.png",
   "fw": 86,
   "fh": 77,
@@ -418,6 +646,12 @@
   "file_e": "assets/units/wojownik_e.png"
  },
  "lucznik": {
+  "bb": [
+   38,
+   2,
+   88,
+   70
+  ],
   "shadow": "assets/units/lucznik_shadow.png",
   "fw": 90,
   "fh": 86,
@@ -441,6 +675,12 @@
   "file_e": "assets/units/lucznik_e.png"
  },
  "medicine": {
+  "bb": [
+   34,
+   2,
+   84,
+   65
+  ],
   "shadow": "assets/units/medicine_shadow.png",
   "fw": 86,
   "fh": 77,
@@ -464,6 +704,12 @@
   "file_e": "assets/units/medicine_e.png"
  },
  "wodz": {
+  "bb": [
+   37,
+   2,
+   91,
+   71
+  ],
   "shadow": "assets/units/wodz_shadow.png",
   "fw": 93,
   "fh": 83,
@@ -487,6 +733,12 @@
   "file_e": "assets/units/wodz_e.png"
  },
  "jezdiec": {
+  "bb": [
+   66,
+   2,
+   166,
+   108
+  ],
   "shadow": "assets/units/jezdiec_shadow.png",
   "fw": 168,
   "fh": 137,
@@ -510,6 +762,12 @@
   "file_e": "assets/units/jezdiec_e.png"
  },
  "konnobanda": {
+  "bb": [
+   66,
+   2,
+   166,
+   111
+  ],
   "shadow": "assets/units/konnobanda_shadow.png",
   "fw": 168,
   "fh": 140,
@@ -533,6 +791,12 @@
   "file_e": "assets/units/konnobanda_e.png"
  },
  "horse": {
+  "bb": [
+   66,
+   2,
+   166,
+   107
+  ],
   "shadow": "assets/units/horse_shadow.png",
   "fw": 168,
   "fh": 136,
@@ -555,6 +819,12 @@
   "file": "assets/units/horse.png"
  },
  "bizon": {
+  "bb": [
+   35,
+   2,
+   154,
+   83
+  ],
   "shadow": "assets/units/bizon_shadow.png",
   "fw": 162,
   "fh": 111,
@@ -577,6 +847,12 @@
   "file": "assets/units/bizon.png"
  },
  "bydlo": {
+  "bb": [
+   36,
+   2,
+   137,
+   76
+  ],
   "shadow": "assets/units/bydlo_shadow.png",
   "fw": 139,
   "fh": 100,
@@ -599,6 +875,12 @@
   "file": "assets/units/bydlo.png"
  },
  "frontiersman": {
+  "bb": [
+   39,
+   2,
+   89,
+   68
+  ],
   "shadow": "assets/units/frontiersman_shadow.png",
   "fw": 91,
   "fh": 82,
@@ -622,6 +904,12 @@
   "file_e": "assets/units/frontiersman_e.png"
  },
  "frontierswoman": {
+  "bb": [
+   32,
+   2,
+   78,
+   59
+  ],
   "shadow": "assets/units/frontierswoman_shadow.png",
   "fw": 80,
   "fh": 70,
@@ -645,6 +933,12 @@
   "file_e": "assets/units/frontierswoman_e.png"
  },
  "szeryf": {
+  "bb": [
+   31,
+   2,
+   107,
+   78
+  ],
   "shadow": "assets/units/szeryf_shadow.png",
   "fw": 109,
   "fh": 95,
@@ -668,6 +962,12 @@
   "file_e": "assets/units/szeryf_e.png"
  },
  "armata": {
+  "bb": [
+   43,
+   2,
+   159,
+   99
+  ],
   "shadow": "assets/units/armata_shadow.png",
   "fw": 166,
   "fh": 115,
@@ -696,7 +996,13 @@
   "w": 365,
   "h": 251,
   "ax": 210,
-  "ay": 167
+  "ay": 167,
+  "bb": [
+   106,
+   3,
+   352,
+   240
+  ]
  },
  "bld_ranch_us": {
   "file": "assets/buildings/bld_ranch_us.png",
@@ -704,7 +1010,13 @@
   "w": 363,
   "h": 284,
   "ax": 205,
-  "ay": 172
+  "ay": 172,
+  "bb": [
+   82,
+   3,
+   347,
+   273
+  ]
  },
  "ground_grass": {
   "file": "assets/terrain/ground_grass.png",
@@ -736,7 +1048,13 @@
   "w": 16,
   "h": 31,
   "ax": 5,
-  "ay": 25
+  "ay": 25,
+  "bb": [
+   2,
+   2,
+   14,
+   29
+  ]
  },
  "prop_rock2": {
   "file": "assets/props/prop_rock2.png",
@@ -744,7 +1062,13 @@
   "w": 101,
   "h": 80,
   "ax": 60,
-  "ay": 59
+  "ay": 59,
+  "bb": [
+   24,
+   3,
+   96,
+   71
+  ]
  },
  "prop_reed0": {
   "file": "assets/props/prop_reed0.png",
@@ -752,7 +1076,13 @@
   "w": 79,
   "h": 78,
   "ax": 57,
-  "ay": 54
+  "ay": 54,
+  "bb": [
+   42,
+   3,
+   76,
+   62
+  ]
  },
  "prop_reed1": {
   "file": "assets/props/prop_reed1.png",
@@ -760,7 +1090,13 @@
   "w": 73,
   "h": 73,
   "ax": 54,
-  "ay": 52
+  "ay": 52,
+  "bb": [
+   44,
+   3,
+   70,
+   59
+  ]
  },
  "prop_reed2": {
   "file": "assets/props/prop_reed2.png",
@@ -768,7 +1104,13 @@
   "w": 87,
   "h": 96,
   "ax": 66,
-  "ay": 70
+  "ay": 70,
+  "bb": [
+   56,
+   3,
+   84,
+   77
+  ]
  },
  "ground_sand": {
   "file": "assets/terrain/ground_sand.png",

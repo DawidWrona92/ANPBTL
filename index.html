@@ -6,53 +6,129 @@
 <title>America: prototyp</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --u: 1; --ink: #3a2b1c; --cream: #f1e3c0; --gold: #ffd97a; --wood: url(assets/ui/wood_dark.png); --font-ui: Verdana, Tahoma, 'DejaVu Sans', sans-serif; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1410; font-family: Georgia, 'Times New Roman', serif; user-select: none; }
   #game { position: absolute; inset: 0; touch-action: none; cursor: default; }
-  .panel { position: absolute; background: rgba(43, 31, 20, 0.92); border: 2px solid #8a6b45; border-radius: 6px; color: #e8d9b0; }
-  #topbar { top: 8px; left: 50%; transform: translateX(-50%); padding: 6px 16px; display: flex; gap: 18px; align-items: center; font-size: 15px; white-space: nowrap; }
-  #topbar b { color: #ffd97a; }
-  #buildbar { bottom: 8px; left: 8px; padding: 8px; display: flex; gap: 6px; flex-wrap: wrap; max-width: 460px; }
-  #buildbar button, #bpanel button, #stancebar button, #abilitybar button { background: #5a4128; color: #f0e2bd; border: 1px solid #8a6b45; padding: 7px 10px; font-family: inherit; font-size: 13px; border-radius: 4px; cursor: pointer; }
-  #buildbar button:hover:not(:disabled), #bpanel button:hover:not(:disabled), #stancebar button:hover:not(:disabled), #abilitybar button:hover:not(:disabled) { background: #7a5836; }
-  #buildbar button:disabled { opacity: 0.45; cursor: not-allowed; }
-  #stancebar { bottom: 8px; left: 480px; padding: 8px; display: none; gap: 6px; flex-wrap: wrap; max-width: 340px; }
-  #stancebar button.active, #abilitybar button.active { background: #a5822f; border-color: #ffd97a; color: #fff6dd; }
-  #abilitybar button:disabled { opacity: 0.45; cursor: not-allowed; }
-  /* nad paskiem postaw: zaznaczenie z medicine manem i wodzem pokazuje oba paski naraz */
-  #abilitybar { bottom: 106px; left: 480px; padding: 8px; display: none; gap: 6px; flex-wrap: wrap; max-width: 340px; }
-  #bpanel { bottom: 8px; left: 480px; padding: 8px; display: none; min-width: 220px; }
-  #bpanel .name { color: #ffd97a; font-size: 14px; margin-bottom: 6px; }
-  #bpanel .row { display: flex; gap: 6px; flex-wrap: wrap; }
-  #minimapWrap { position: absolute; bottom: 8px; right: 8px; border: 2px solid #8a6b45; border-radius: 4px; overflow: hidden; background: #000; }
-  #minimap { display: block; }
-  #alerts { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; align-items: center; pointer-events: none; }
-  .alert { background: rgba(43, 31, 20, 0.95); border: 1px solid #b06a3a; color: #ffd97a; padding: 4px 14px; border-radius: 4px; font-size: 14px; animation: fadeout 6s forwards; }
+  /* pasek zasobów: wąski ciemny pas na całą szerokość, małe ikony i liczby jak w oryginale */
+  #topbar { position: absolute; top: 0; left: 0; right: 0; height: calc(var(--u) * 24px); display: flex; align-items: center; gap: calc(var(--u) * 26px); padding: 0 calc(var(--u) * 12px); background: linear-gradient(rgba(18, 12, 8, 0.86), rgba(18, 12, 8, 0.72)); border-bottom: 1px solid rgba(138, 107, 69, 0.55); color: #efe4c8; font: calc(var(--u) * 13px) var(--font-ui); white-space: nowrap; z-index: 5; }
+  #topbar .res { display: flex; align-items: center; gap: calc(var(--u) * 5px); }
+  #topbar .res.full b { color: #ff6a5a; }
+  #topbar b { font-weight: normal; color: #f4ead0; font-variant-numeric: tabular-nums; }
+  #topbar .sp { flex: 1; }
+  #topbar .dim { color: #bfae8a; }
+  .mi { width: calc(var(--u) * 17px); height: calc(var(--u) * 17px); display: block; }
+  .mi.s { width: calc(var(--u) * 12px); height: calc(var(--u) * 12px); display: inline-block; vertical-align: -2px; }
+  /* panel dolny: postarzone deski z postrzępioną górną krawędzią (clip-path ustawia JS), pergaminowe płytki poleceń */
+  #hud { position: absolute; left: 0; bottom: 0; width: min(62vw, calc(var(--u) * 700px)); height: calc(var(--u) * 224px); background: var(--wood) 0 0 / calc(var(--u) * 256px) repeat; display: flex; z-index: 4; box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.65); font-family: var(--font-ui); }
+  #infoblock { width: calc(var(--u) * 224px); flex: none; padding: calc(var(--u) * 14px) calc(var(--u) * 10px) calc(var(--u) * 8px) calc(var(--u) * 12px); color: #f1e6c8; font-size: calc(var(--u) * 12px); position: relative; background: linear-gradient(90deg, rgba(0, 0, 0, 0.18), transparent); }
+  #infoblock .nm { font-size: calc(var(--u) * 14px); color: #ffe9b0; margin-bottom: calc(var(--u) * 5px); letter-spacing: 0.02em; }
+  #infoblock .st { display: flex; align-items: center; gap: calc(var(--u) * 6px); margin: calc(var(--u) * 3px) 0; }
+  #infoblock .st b { font-weight: normal; font-variant-numeric: tabular-nums; }
+  #infoblock .port { position: absolute; top: calc(var(--u) * 26px); right: calc(var(--u) * 8px); }
+  #infoblock .bar { height: calc(var(--u) * 6px); background: #1b120b; border: 1px solid #000; margin-top: calc(var(--u) * 4px); width: calc(var(--u) * 120px); }
+  #infoblock .bar i { display: block; height: 100%; background: linear-gradient(#7bd25a, #3f8a2e); }
+  #infoblock .grid { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 3px); margin-top: calc(var(--u) * 4px); max-height: calc(var(--u) * 150px); overflow: hidden; }
+  #infoblock .grid canvas { cursor: pointer; background: rgba(241, 227, 192, 0.16); border: 1px solid rgba(0, 0, 0, 0.5); }
+  #cmdarea { flex: 1; min-width: 0; padding: calc(var(--u) * 14px) calc(var(--u) * 10px) calc(var(--u) * 6px) calc(var(--u) * 6px); display: flex; flex-direction: column; gap: calc(var(--u) * 6px); }
+  #grouprow { display: flex; gap: calc(var(--u) * 6px); }
+  .tab { width: calc(var(--u) * 28px); height: calc(var(--u) * 24px); background: url(assets/ui/parchment.png) 0 0 / 100% 100% no-repeat; border: 0; color: var(--ink); font: bold calc(var(--u) * 11px) var(--font-ui); cursor: pointer; filter: sepia(0.3); opacity: 0.55; }
+  .tab.on { opacity: 1; }
+  .tab:hover { filter: sepia(0.1) brightness(1.08); }
+  #buildbar, #stancebar, #abilitybar, #bpanel .row { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 6px); }
+  #bpanel { display: none; flex-direction: column; gap: calc(var(--u) * 6px); }
+  .cmd { position: relative; width: calc(var(--u) * 64px); height: calc(var(--u) * 62px); background: url(assets/ui/parchment.png) 0 0 / 100% 100% no-repeat; border: 0; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: calc(var(--u) * 4px); font: calc(var(--u) * 10px) var(--font-ui); }
+  .cmd .hk { position: absolute; top: calc(var(--u) * 4px); left: calc(var(--u) * 7px); font-size: calc(var(--u) * 9px); font-weight: bold; opacity: 0.75; }
+  .cmd .ico { height: calc(var(--u) * 42px); display: flex; align-items: flex-end; justify-content: center; }
+  .cmd .ico svg { width: calc(var(--u) * 34px); height: calc(var(--u) * 34px); }
+  .cmd .ico canvas { filter: grayscale(0.45) sepia(0.45) contrast(1.08); }
+  .cmd .lbl { position: absolute; left: 0; right: 0; bottom: calc(var(--u) * 2px); text-align: center; line-height: 1.1; white-space: nowrap; font-weight: bold; }
+  .cmd .lbl .mi { margin: 0 1px 0 3px; }
+  .cmd:hover:not(:disabled) { filter: brightness(1.1) saturate(1.1); }
+  .cmd:disabled { opacity: 0.45; filter: grayscale(0.6); cursor: not-allowed; }
+  .cmd.active { filter: drop-shadow(0 0 3px #ffcf4a) drop-shadow(0 0 1px #fff3b0); }
+  .cmd.slot { width: calc(var(--u) * 44px); height: calc(var(--u) * 42px); }
+  .cmd.slot .ico { height: calc(var(--u) * 26px); } .cmd.slot .ico canvas { width: calc(var(--u) * 30px); height: auto; }
+  .cmd.slot .ico svg { width: calc(var(--u) * 24px); height: calc(var(--u) * 24px); }
+  .cmd.slot .lbl { font-size: calc(var(--u) * 9px); }
+  #bpanel .hint { color: #e8d9b0; font-size: calc(var(--u) * 11px); margin: 0 0 0 2px; }
+  /* minimapa w ramie z deskami i trzema przyciskami z lewej, jak w oryginale */
+  #miniframe { position: absolute; right: 0; bottom: 0; width: calc(var(--u) * 320px); height: calc(var(--u) * 224px); background: var(--wood) 0 0 / calc(var(--u) * 256px) repeat; box-shadow: inset 0 0 36px rgba(0, 0, 0, 0.7); display: flex; align-items: flex-end; gap: calc(var(--u) * 8px); padding: 0 calc(var(--u) * 12px) calc(var(--u) * 10px) calc(var(--u) * 10px); z-index: 4; }
+  #sidebtns { display: flex; flex-direction: column; gap: calc(var(--u) * 10px); padding-bottom: calc(var(--u) * 4px); }
+  .sbtn { width: calc(var(--u) * 44px); height: calc(var(--u) * 42px); background: url(assets/ui/parchment.png) 0 0 / 100% 100% no-repeat; border: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink); font: bold calc(var(--u) * 16px) var(--font-ui); position: static; padding: 0; }
+  .sbtn svg { width: calc(var(--u) * 26px); height: calc(var(--u) * 26px); }
+  .sbtn:hover { filter: brightness(1.1); }
+  #minimapWrap { position: relative; border: calc(var(--u) * 3px) solid #2a1b10; outline: 1px solid #6b4e2e; background: #06101c; overflow: hidden; width: calc(var(--u) * 176px); height: calc(var(--u) * 176px); flex: none; }
+  #minimap { display: block; width: 100%; height: 100%; }
+  /* komunikaty: czerwony napis nad panelem, bez ramki */
+  #alerts { position: absolute; bottom: calc(var(--u) * 236px); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 2px; align-items: center; pointer-events: none; z-index: 6; }
+  .alert { color: #ff3b2b; font: bold calc(var(--u) * 16px) var(--font-ui); text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000; animation: fadeout 6s forwards; }
   @keyframes fadeout { 0% {opacity: 1;} 80% {opacity: 1;} 100% {opacity: 0;} }
-  #overlay { position: absolute; inset: 0; background: rgba(20, 12, 6, 0.88); display: flex; align-items: center; justify-content: center; z-index: 10; }
-  #overlay .box { max-width: 560px; background: #2b1f14; border: 3px solid #8a6b45; border-radius: 8px; padding: 28px 34px; color: #e8d9b0; }
-  #overlay h1 { color: #ffd97a; font-size: 26px; margin-bottom: 10px; }
-  #overlay h2 { color: #ffd97a; font-size: 20px; margin-bottom: 10px; }
+  /* ekrany: wspólne tło, a niżej główne menu (zachód słońca i góry), ekran wyboru ludu (deski i cztery koła), ustawienia i okna dialogowe w stylu desek */
+  :root { --wood-menu: url(assets/ui/wood_menu.png); }
+  #overlay { position: absolute; inset: 0; background: rgba(12, 7, 4, 0.82); display: flex; align-items: center; justify-content: center; z-index: 10; font-family: Georgia, 'Times New Roman', serif; color: #f3e2bd; }
+  #overlay .box { max-width: min(92vw, calc(var(--u) * 620px)); max-height: 92vh; overflow: auto; background: linear-gradient(rgba(10, 5, 2, 0.58), rgba(10, 5, 2, 0.68)), var(--wood-menu) 0 0 / 256px; border: 4px solid #1b0e07; box-shadow: 0 0 0 2px #8a5a2e, 0 14px 50px #000; border-radius: 3px; padding: 26px 34px; color: #f6e8c6; }
+  #overlay h1 { color: #ffd97a; font-size: 26px; margin-bottom: 10px; letter-spacing: 0.04em; text-shadow: 0 2px 0 #1b0e07; }
+  #overlay h2 { color: #ffd97a; font-size: 20px; margin-bottom: 10px; text-shadow: 0 2px 0 #1b0e07; }
   #overlay p { margin: 8px 0; font-size: 15px; line-height: 1.5; }
   #overlay ul { margin: 10px 0 10px 22px; font-size: 15px; line-height: 1.6; }
-  #overlay button { margin-top: 14px; background: #7a5836; color: #fff; border: 1px solid #a8845c; padding: 10px 22px; font-size: 16px; border-radius: 5px; cursor: pointer; font-family: inherit; }
-  #overlay button:hover { background: #96703f; }
-  .topbtn { position: absolute; top: 8px; padding: 6px 10px; background: #5a4128; color: #f0e2bd; border: 1px solid #8a6b45; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 14px; }
-  #savebtn { right: 52px; } #loadbtn { right: 120px; }
-  #helpbtn { position: absolute; top: 8px; right: 8px; padding: 6px 12px; background: #5a4128; color: #f0e2bd; border: 1px solid #8a6b45; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 14px; }
+  #overlay button, .pill { background: linear-gradient(#2a160b, #150a05); color: #f2c35c; border: 2px solid #5a3a1c; box-shadow: inset 0 0 0 1px #000, 0 2px 4px rgba(0, 0, 0, 0.5); border-radius: 20px; padding: 8px 26px; font: bold 16px Georgia, serif; letter-spacing: 0.03em; cursor: pointer; }
+  #overlay .box button { margin: 14px 8px 0 0; }
+  #overlay button:hover:not(:disabled) { background: linear-gradient(#3a2010, #1e0e07); color: #ffe39a; border-color: #8a5a2e; }
+  #overlay button:disabled { opacity: 0.45; cursor: default; }
+  #overlay.scr-main { background: radial-gradient(ellipse 60% 45% at 72% 30%, #d4651f 0%, #8a3414 22%, #3a160a 48%, #120806 75%, #030201 100%); display: block; }
+  #overlay.scr-main::before { content: ''; position: absolute; left: 0; right: 0; top: 18%; height: 34%; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 200' preserveAspectRatio='none'><path d='M0 200V120l70-40 60 30 90-70 80 60 70-30 120 80 90-50 100 40 80-60 110 70 130-40V200z' fill='%23120704' fill-opacity='0.92'/><path d='M0 200V150l120-40 90 30 110-60 100 70 130-30 150 50 120-40 180 30V200z' fill='%23050201'/></svg>") center bottom / 100% 100% no-repeat; }
+  .mm-title { position: absolute; left: 50%; top: calc(var(--u) * 26px); transform: translateX(-50%); font: 900 calc(var(--u) * 84px) Georgia, serif; letter-spacing: 0.14em; background: linear-gradient(#ffd27a, #e0742a 55%, #8a3414); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 4px 0 #1b0905); white-space: nowrap; }
+  .mm-sub { position: absolute; left: 50%; top: calc(var(--u) * 132px); transform: translateX(-50%); font: italic calc(var(--u) * 24px) Georgia, serif; color: #f0b25a; text-shadow: 0 2px 4px #000; white-space: nowrap; }
+  .mm-menu { position: absolute; right: 12%; top: 40%; display: flex; flex-direction: column; gap: calc(var(--u) * 24px); align-items: flex-start; }
+  #overlay .mm-menu button { background: none; border: 0; box-shadow: none; padding: 0; margin: 0; color: #e8602a; font: calc(var(--u) * 20px) Georgia, serif; letter-spacing: 0.02em; text-shadow: 0 2px 3px #000; }
+  #overlay .mm-menu button:hover { background: none; color: #ffd97a; }
+  .mm-foot { position: absolute; left: 12px; bottom: 10px; font: 12px Georgia, serif; color: #8a6a4a; }
+  #overlay.scr-wood { background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.6) 100%), var(--wood-menu) 0 0 / 256px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding-top: calc(var(--u) * 16px); }
+  .scr-title { font: 900 calc(var(--u) * 30px) Georgia, serif; letter-spacing: 0.3em; color: #f3dfb6; text-shadow: 0 3px 0 #1b0e07, 0 0 10px #000; margin-bottom: calc(var(--u) * 4px); }
+  .scr-sub { font: calc(var(--u) * 14px) Georgia, serif; color: #f3dfb6; text-shadow: 0 1px 2px #000; margin-bottom: calc(var(--u) * 8px); }
+  .scr-pill { display: inline-block; min-width: calc(var(--u) * 240px); text-align: center; background: linear-gradient(#2a160b, #150a05); color: #f2c35c; border: 2px solid #5a3a1c; border-radius: 20px; padding: calc(var(--u) * 6px) calc(var(--u) * 24px); font: bold calc(var(--u) * 15px) Georgia, serif; box-shadow: inset 0 0 0 1px #000; }
+  .circles { position: relative; width: calc(var(--u) * 760px); max-width: 100vw; height: calc(var(--u) * 470px); margin-top: calc(var(--u) * 8px); }
+  .circ { position: absolute; width: calc(var(--u) * 190px); height: calc(var(--u) * 190px); border-radius: 50%; border: 3px solid #1b0e07; box-shadow: inset 0 0 36px rgba(0, 0, 0, 0.75), 0 0 0 2px #7a4a22, 0 6px 16px rgba(0, 0, 0, 0.6); background: radial-gradient(circle at 50% 40%, #6a3a1c, #2a140a 75%); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.12s; }
+  .circ:hover:not(.off) { transform: scale(1.04); box-shadow: inset 0 0 36px rgba(0, 0, 0, 0.6), 0 0 0 3px #ffcf4a, 0 6px 18px rgba(0, 0, 0, 0.6); }
+  .circ.off { cursor: default; filter: grayscale(0.7) brightness(0.7); }
+  .circ canvas { margin-top: calc(var(--u) * -6px); }
+  .circ .cap { position: absolute; bottom: calc(var(--u) * -30px); left: 50%; transform: translateX(-50%); white-space: nowrap; font: bold calc(var(--u) * 15px) Georgia, serif; color: #f6e8c6; text-shadow: 0 2px 3px #000; text-align: center; }
+  .circ .cap small { display: block; font-weight: normal; font-size: calc(var(--u) * 11px); color: #d8c08a; }
+  .scr-foot { position: absolute; bottom: calc(var(--u) * 14px); left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 calc(var(--u) * 40px); }
+  .scr-foot .mid { display: flex; gap: calc(var(--u) * 14px); align-items: center; font: calc(var(--u) * 12px) Georgia, serif; color: #f3dfb6; }
+  .scr-foot .mid button { margin: 0 !important; padding: 4px 14px !important; font-size: calc(var(--u) * 12px) !important; }
+  .set-rows { display: grid; grid-template-columns: calc(var(--u) * 300px) calc(var(--u) * 220px); gap: calc(var(--u) * 14px) calc(var(--u) * 22px); margin-top: calc(var(--u) * 34px); align-items: center; }
+  .set-rows .scr-pill { text-align: left; }
+  #overlay .set-rows button { margin: 0; background: linear-gradient(#2a160b, #150a05); color: #ffd97a; }
 </style>
 </head>
 <body>
+<svg id="sprite" width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="i-food" viewBox="0 0 24 24"><ellipse cx="13" cy="11" rx="7" ry="5.5" fill="#c8553b" stroke="#4a1f14"/><rect x="3" y="16" width="9" height="3" rx="1.5" transform="rotate(-35 7 17)" fill="#efe3c8" stroke="#4a1f14"/></symbol>
+<symbol id="i-wood" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="3" fill="#8a5a2e" stroke="#2f1d0e"/><ellipse cx="19" cy="12" rx="2.5" ry="5" fill="#d9b27a" stroke="#2f1d0e"/></symbol>
+<symbol id="i-gold" viewBox="0 0 24 24"><path d="M4 18l3-9 5-4 6 4 2 9z" fill="#e8c34a" stroke="#6b4e10"/><path d="M9 11l3 3 3-4" stroke="#a88418" fill="none"/></symbol>
+<symbol id="i-guns" viewBox="0 0 24 24"><path d="M3 8h14v3h-5l-1 5H6l1-5H3z" fill="#8a8f98" stroke="#22262c"/></symbol>
+<symbol id="i-horses" viewBox="0 0 24 24"><path d="M6 20V10a6 6 0 0 1 12 0v10h-3V10a3 3 0 0 0-6 0v10z" fill="#c0c5cd" stroke="#2c3038"/></symbol>
+<symbol id="i-pop" viewBox="0 0 24 24"><circle cx="12" cy="9" r="5" fill="#e0b27c" stroke="#4a2f16"/><path d="M4 22c1-6 4-7 8-7s7 1 8 7z" fill="#6a8fc0" stroke="#233650"/></symbol>
+<symbol id="i-hp" viewBox="0 0 24 24"><path d="M12 20S4 14 4 9a4 4 0 0 1 8-1 4 4 0 0 1 8 1c0 5-8 11-8 11z" fill="#c43c32" stroke="#4a1410"/></symbol>
+<symbol id="i-atk" viewBox="0 0 24 24"><path d="M5 19L17 5l3 2L8 21z" fill="#d7d9dd" stroke="#2c3038"/><path d="M3 17l4 4" stroke="#6b4e2e" stroke-width="2.4"/></symbol>
+<symbol id="i-xp" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" fill="#e8c34a" stroke="#6b4e10"/></symbol>
+<symbol id="i-morale" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#e8c34a" stroke="#6b4e10"/><circle cx="9" cy="10" r="1" fill="#3a2b1c"/><circle cx="15" cy="10" r="1" fill="#3a2b1c"/><path d="M8 14c2 3 6 3 8 0" fill="none" stroke="#3a2b1c" stroke-width="1.5"/></symbol>
+<symbol id="i-skull" viewBox="0 0 24 24"><path d="M12 3a7 7 0 0 0-4 12v4h8v-4a7 7 0 0 0-4-12z" fill="#d9d2c0" stroke="#3a3328"/><circle cx="9.5" cy="11" r="1.6" fill="#2a2418"/><circle cx="14.5" cy="11" r="1.6" fill="#2a2418"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#e8dcc0" stroke="#3a3328"/><path d="M12 7v5l3 2" fill="none" stroke="#3a3328" stroke-width="1.6"/></symbol>
+</svg>
 <canvas id="game"></canvas>
-<div id="topbar" class="panel"></div>
-<button id="helpbtn">?</button>
-<button id="savebtn" class="topbtn" title="Zapisz grę">Zapisz</button>
-<button id="loadbtn" class="topbtn" title="Wczytaj zapis">Wczytaj</button>
+<div id="topbar"></div>
 <div id="alerts"></div>
-<div id="buildbar" class="panel"></div>
-<div id="bpanel" class="panel"></div>
-<div id="stancebar" class="panel"></div>
-<div id="abilitybar" class="panel"></div>
-<div id="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
+<div id="hud"><div id="infoblock"></div><div id="cmdarea"><div id="grouprow"></div><div id="abilitybar"></div><div id="stancebar"></div><div id="buildbar"></div><div id="bpanel"></div></div></div>
+<div id="miniframe">
+  <div id="sidebtns">
+    <button id="helpbtn" class="sbtn" title="Pomoc i sterowanie">?</button>
+    <button id="savebtn" class="sbtn" title="Zapisz grę"><svg viewBox="0 0 24 24" fill="none" stroke="#3a2b1c" stroke-width="1.8" stroke-linejoin="round"><path d="M4 4h13l3 3v13H4z"/><path d="M8 4v6h8V4M8 20v-6h8v6"/></svg></button>
+    <button id="loadbtn" class="sbtn" title="Wczytaj zapis"><svg viewBox="0 0 24 24" fill="none" stroke="#3a2b1c" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7h7l2 2h9v11H3z"/><path d="M3 11h18"/></svg></button>
+  </div>
+  <div id="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
+</div>
 <div id="overlay"></div>
 <script src="assets/manifest.js"></script>
 <script>
@@ -1838,6 +1914,21 @@ mini.addEventListener('pointerdown', e => {
   const mx = (e.clientX - r.left) / r.width * MAP, my = (e.clientY - r.top) / r.height * MAP;
   centerCameraOn(mx, my);
 });
+// wybór grupy 1-9: podwójne wywołanie w ciągu 350 ms centruje kamerę na grupie (klawisz cyfry i zakładki nad poleceniami)
+function recallGroup(n) {
+  if (!(S.groups[n] && S.groups[n].length)) return;
+  const g = S.groups[n].filter(u => S.units.includes(u));
+  S.groups[n] = g;
+  if (g.length) {
+    if (S.lastGroup === n && Date.now() - S.lastGroupT < 350) {
+      // środek grupy w kaflach; kamera trzyma px świata, więc przez centerCameraOn
+      centerCameraOn(g.reduce((a, u) => a + u.x, 0) / g.length, g.reduce((a, u) => a + u.y, 0) / g.length);
+      clampCam();
+    }
+    S.selected.units = g; S.selected.building = null; updatePanels(); sfx('sel');
+  }
+  S.lastGroup = n; S.lastGroupT = Date.now();
+}
 // klawisze znakowe małą literą: Shift i CapsLock zmieniają e.key, więc wielka litera zostawiała kamerę "wciśniętą" albo ją wyłączała
 const keyName = e => e.key.length === 1 ? e.key.toLowerCase() : e.key;
 document.addEventListener('keydown', e => {
@@ -1880,19 +1971,7 @@ document.addEventListener('keydown', e => {
     if (e.ctrlKey) {
       const alive = S.selected.units.filter(u => S.units.includes(u) && u.fac === 'player');
       if (alive.length) { S.groups[n] = alive; uiAlert('Grupa ' + n + ': ' + alive.length + ' jedn.'); e.preventDefault(); }
-    } else if (S.groups[n] && S.groups[n].length) {
-      const g = S.groups[n].filter(u => S.units.includes(u));
-      S.groups[n] = g;
-      if (g.length) {
-        if (S.lastGroup === n && Date.now() - S.lastGroupT < 350) {
-          // środek grupy w kaflach; kamera trzyma px świata, więc przez centerCameraOn
-          centerCameraOn(g.reduce((a, u) => a + u.x, 0) / g.length, g.reduce((a, u) => a + u.y, 0) / g.length);
-          clampCam();
-        }
-        S.selected.units = g; S.selected.building = null; updatePanels(); sfx('sel');
-      }
-      S.lastGroup = n; S.lastGroupT = Date.now();
-    }
+    } else recallGroup(n);
   }
 });
 document.addEventListener('keyup', e => { keys[keyName(e)] = false; });
@@ -1905,8 +1984,40 @@ const buildbar = document.getElementById('buildbar');
 const bpanel = document.getElementById('bpanel');
 const stancebar = document.getElementById('stancebar');
 const abilitybar = document.getElementById('abilitybar');
+const infoblock = document.getElementById('infoblock');
+const grouprow = document.getElementById('grouprow');
+const hudEl = document.getElementById('hud'), miniframe = document.getElementById('miniframe');
 const alertsEl = document.getElementById('alerts');
 const overlay = document.getElementById('overlay');
+
+// skala interfejsu: 1.0 przy 1280x800; wszystkie rozmiary UI w CSS mnożone przez --u
+function applyUiScale() {
+  const u = Math.max(0.7, Math.min(1.3, Math.min(window.innerWidth / 1280, window.innerHeight / 800)));
+  document.documentElement.style.setProperty('--u', u.toFixed(3));
+  raggedEdges();
+}
+// postrzępione krawędzie paneli drewnianych (deterministyczne): górna krawędź i boczna od strony mapy
+function raggedEdges() {
+  const poly = (el, edgeSide) => {
+    const w = el.offsetWidth, h = el.offsetHeight; if (!w || !h) return;
+    const pts = [], j = (i, s) => Math.round(sprNoise(i, s, 77) * 7);
+    if (edgeSide === 'right') {
+      for (let x = 0, i = 0; x < w; x += 26, i++) pts.push(x + 'px ' + j(i, 1) + 'px');
+      pts.push(w + 'px ' + j(99, 1) + 'px');
+      for (let y = 0, i = 0; y < h; y += 30, i++) pts.push((w - j(i, 2)) + 'px ' + y + 'px');
+      pts.push((w - j(98, 2)) + 'px ' + h + 'px', '0 ' + h + 'px');
+    } else {
+      pts.push('0 ' + h + 'px');
+      for (let y = h, i = 0; y > 0; y -= 30, i++) pts.push(j(i, 3) + 'px ' + y + 'px');
+      pts.push(j(97, 3) + 'px 0');
+      for (let x = 0, i = 0; x < w; x += 26, i++) pts.push(x + 'px ' + j(i, 4) + 'px');
+      pts.push(w + 'px ' + j(96, 4) + 'px', w + 'px ' + h + 'px');
+    }
+    el.style.clipPath = 'polygon(' + pts.join(',') + ')';
+  };
+  poly(hudEl, 'right'); poly(miniframe, 'left');
+}
+window.addEventListener('resize', applyUiScale);
 
 function uiAlert(msg, pos) {
   if (pos) S.lastAlert = { x: pos[0], y: pos[1] }; // spacja przenosi kamerę na miejsce ostatniego alertu
@@ -1928,10 +2039,54 @@ function notifyAttack(vx, vy, ax, ay) {
   S.alertCooldown.attack = S.time;
   uiAlert('Atak z ' + compassFrom(ax, ay, vx, vy) + '!', [vx, vy]);
 }
-function costText(cost) {
-  const names = { wood: '🪵', food: '🌾', gold: '⛏', guns: '🔫', horses: '🐎' };
-  return Object.entries(cost).map(([k, v]) => v + names[k]).join(' ');
+const RES_NAMES = { wood: 'drewno', food: 'żywność', gold: 'złoto', guns: 'broń', horses: 'konie' };
+function costText(cost) { return Object.entries(cost).map(([k, v]) => v + ' ' + RES_NAMES[k]).join(', '); }
+const mi = n => '<svg class="mi s"><use href="#i-' + n + '"/></svg>';
+function costHtml(cost) { return Object.entries(cost).map(([k, v]) => v + mi(k)).join(' '); }
+
+// ---- ikony poleceń: proste szkice atramentem na pergaminie (viewBox 48)
+const CMD_ICONS = {
+  aggr: '<path d="M10 38L32 12M38 38L16 12M28 14l6-6M20 14l-6-6M8 40l4-4M40 40l-4-4"/>',
+  norm: '<path d="M24 6v28M17 30h14M24 34v8"/>',
+  def: '<path d="M24 6l14 5v12c0 9-6 15-14 19C16 38 10 32 10 23V11z"/>',
+  hold: '<rect x="10" y="10" width="28" height="28" rx="3"/><path d="M19 18v12M29 18v12"/>',
+  stop: '<path d="M17 7h14l10 10v14L31 41H17L7 31V17z"/><path d="M16 24h16"/>',
+  amove: '<path d="M8 24h26M26 14l10 10-10 10M10 12l8 8M18 12l-8 8"/>',
+  rally: '<path d="M14 42V8M14 10h22l-6 7 6 7H14"/>',
+  toggle: '<path d="M24 8v14M14 14a14 14 0 1 0 20 0"/>',
+  rain: '<path d="M14 28a8 8 0 0 1 2-15 10 10 0 0 1 19 4 6 6 0 0 1-1 11zM16 34l-2 6M24 34l-2 6M32 34l-2 6"/>',
+  storm: '<path d="M14 26a8 8 0 0 1 2-14 10 10 0 0 1 19 4 6 6 0 0 1-1 10zM26 26l-6 8h6l-4 9"/>',
+  resume: '<path d="M10 38L28 20M24 10l14 14-6 4-12-12z"/>',
+  tech: '<path d="M12 10h24v26a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4zM18 18h12M18 24h12M18 30h8"/>',
+  farm: '<path d="M6 36h36M10 36c0-10 4-16 14-22 10 6 14 12 14 22M24 14v22"/>',
+};
+const cmdSvg = n => '<svg viewBox="0 0 48 48" fill="none" stroke="#3a2b1c" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">' + (CMD_ICONS[n] || '') + '</svg>';
+// miniatura jednostki albo budynku z arkusza (ta sama grafika co w grze), do ikon poleceń, portretów i listy zaznaczenia
+function thumb(kind, key, size, fac) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = true;
+  const e = window.ASSETS && window.ASSETS[key]; if (!e) return c;
+  const bb = e.bb || [0, 0, e.w || e.fw, e.h || e.fh], sw = bb[2] - bb[0], sh = bb[3] - bb[1], s = Math.min(size / sw, size / sh) * 0.94, dw = sw * s, dh = sh * s;
+  if (kind === 'unit') {
+    const img = e.file_p ? (fac === 'enemy' ? e._imge : e._imgp) : e._img, row = e.dirs ? Math.max(0, e.dirs.indexOf(315)) : 0;
+    g.drawImage(img, bb[0], row * (e.fh + (e.pad || 0)) + bb[1], sw, sh, (size - dw) / 2, size - dh - size * 0.03, dw, dh);
+  } else g.drawImage(e._img, bb[0], bb[1], sw, sh, (size - dw) / 2, (size - dh) / 2, dw, dh);
+  return c;
 }
+const nationKey = () => raceOf('player').nation;
+const bldThumb = (type, size) => thumb('building', 'bld_' + type + '_' + (window.ASSETS['bld_' + type + '_' + nationKey()] ? nationKey() : 'us'), size);
+function cmdBtn(o) {
+  const b = document.createElement('button'); b.className = 'cmd' + (o.cls ? ' ' + o.cls : '');
+  b.innerHTML = '<span class="ico"></span><span class="lbl"></span>';
+  const ico = b.firstChild; if (typeof o.icon === 'string') ico.innerHTML = o.icon; else if (o.icon) ico.appendChild(o.icon);
+  if (o.hk) { const h = document.createElement('span'); h.className = 'hk'; h.textContent = o.hk; b.appendChild(h); }
+  if (o.label != null) setLbl(b, o.label);
+  if (o.title) b.title = o.title; if (o.role) b.dataset.role = o.role; if (o.onclick) b.onclick = o.onclick;
+  return b;
+}
+function setLbl(b, html) { const l = b.querySelector('.lbl'); if (l && l.innerHTML !== html) l.innerHTML = html; }
+
+const UNIT_NAMES = { worker: 'Robotnik', frontiersman: 'Frontiersman', frontierswoman: 'Frontierswoman', szeryf: 'Szeryf', armata: 'Armata', piechota: 'Piechota', jezdiec: 'Jeździec', squaw: 'Squaw', wojownik: 'Wojownik', wodz: 'Wódz', lucznik: 'Łucznik', medicine: 'Medicine man', desperado: 'Desperado', bandleader: 'Bandleader', konnobanda: 'Konna banda', horse: 'Dziki koń', bizon: 'Bizon', bydlo: 'Bydło' };
 const buildBtns = [];
 let buildBarRace = null;
 let bpanelBuilding = null, bpanelBuilt = null, bpanelSlotSig = null;
@@ -1949,23 +2104,64 @@ function setStance(id) {
   if (n) sfx('order');
   updatePanels();
 }
+// grupy 1-6 jako zakładki nad poleceniami (te same grupy co Ctrl+cyfra); aktywna zakładka = grupa ma żywe jednostki
+const groupTabs = [];
+function initGroupRow() {
+  for (let n = 1; n <= 6; n++) {
+    const b = document.createElement('button'); b.className = 'tab'; b.textContent = n; b.title = 'Grupa ' + n + ': kliknij, aby wybrać (Ctrl+' + n + ' przypisuje zaznaczenie, podwójne kliknięcie centruje kamerę)';
+    b.onclick = () => recallGroup(n);
+    grouprow.appendChild(b); groupTabs.push(b);
+  }
+}
+function updateGroupRow() { groupTabs.forEach((b, i) => b.classList.toggle('on', !!(S.groups[i + 1] && S.groups[i + 1].some(u => S.units.includes(u))))); }
+// blok informacji po lewej: jedna jednostka = statystyki i portret, wiele = siatka miniatur (klik wybiera jednostkę), budynek = stan i postęp
+let infoSig = null;
+function updateInfo() {
+  const us = S.selected.units.filter(u => S.units.includes(u)), b = S.selected.building;
+  let sig, html = '', gridUnits = null;
+  const row = (ic, txt) => '<div class="st"><svg class="mi"><use href="#i-' + ic + '"/></svg><b>' + txt + '</b></div>';
+  if (us.length === 1) {
+    const u = us[0], d = CFG.units[u.type];
+    html = '<div class="nm">' + (UNIT_NAMES[u.type] || u.type) + '</div>' + row('hp', Math.ceil(u.hp) + '/' + Math.round(u.maxHp)) + row('atk', d.dmg + (d.range > 1 ? ' (zasięg ' + d.range + ')' : '')) + row('xp', 'poziom ' + u.lvl + ' (' + Math.floor(u.xp) + ' xp)') + row('morale', Math.round(u.morale) + '%') + '<div class="port"></div>';
+    sig = 'u' + u.id + '|' + html;
+  } else if (us.length > 1) {
+    sig = 'm' + us.map(u => u.id).join(',');
+    html = '<div class="nm">Zaznaczono: ' + us.length + '</div><div class="grid"></div>'; gridUnits = us;
+  } else if (b) {
+    const def = CFG.buildings[b.type];
+    html = '<div class="nm">' + def.label + '</div>' + row('hp', Math.ceil(b.hp) + '/' + b.maxHp) + (b.built ? '' : row('atk', 'budowa ' + Math.floor(b.progress * 100) + '%')) + (b.queue.length ? row('pop', 'w kolejce: ' + b.queue.length) : '') + '<div class="port"></div>';
+    sig = 'b' + b.id + '|' + html;
+  } else { sig = 'none'; }
+  if (sig === infoSig) return;
+  infoSig = sig; infoblock.innerHTML = html;
+  const port = infoblock.querySelector('.port');
+  if (port && us.length === 1) { const c = thumb('unit', us[0].type, 60, us[0].fac); c.style.cssText = 'background:url(assets/ui/parchment.png) 0 0/100% 100%;filter:sepia(.25)'; port.appendChild(c); }
+  else if (port && b) { const c = bldThumb(b.type, 60); port.appendChild(c); }
+  if (gridUnits) {
+    const grid = infoblock.querySelector('.grid');
+    for (const u of gridUnits.slice(0, 40)) {
+      const c = thumb('unit', u.type, 34, u.fac); c.title = UNIT_NAMES[u.type] || u.type;
+      c.onclick = () => { S.selected.units = [u]; S.selected.building = null; updatePanels(); };
+      grid.appendChild(c);
+    }
+  }
+}
 function updatePanels() {
-  // pasek budowy: przyciski tworzone raz na frakcję, po zmianie rasy przebudowa (przebudowa DOM w trakcie gry zjadała kliknięcia)
+  updateGroupRow(); updateInfo();
+  // pasek budowy: przyciski tworzone raz na frakcję; widoczny, gdy zaznaczony jest ktoś, kto buduje (przebudowa DOM w trakcie gry zjadała kliknięcia)
   if (!buildBtns.length || buildBarRace !== S.playerRace) {
     buildBarRace = S.playerRace;
     buildBtns.length = 0;
     while (buildbar.firstChild) buildbar.removeChild(buildbar.firstChild);
     for (const m of buildMenuFor(S.playerRace)) {
-      const btn = document.createElement('button');
       const def = CFG.buildings[m.type];
-      btn.textContent = m.name + ' [' + m.key + '] ' + costText(def.cost);
-      btn.title = 'HP ' + def.hp + ', budowa ' + def.build + 's';
-      btn.onclick = () => { S.placing = m.type; };
+      const btn = cmdBtn({ icon: bldThumb(m.type, 44), hk: m.key, label: costHtml(def.cost), title: m.name + ' [' + m.key + ']: ' + costText(def.cost) + '. HP ' + def.hp + ', budowa ' + def.build + ' s', onclick: () => { S.placing = m.type; } });
       buildbar.appendChild(btn);
       buildBtns.push({ btn, type: m.type });
     }
   }
   const hasWorker = S.selected.units.some(u => unitRole(u, 'builder'));
+  buildbar.style.display = hasWorker ? 'flex' : 'none';
   for (const bb of buildBtns) bb.btn.disabled = !hasWorker || !canAfford(CFG.buildings[bb.type].cost);
   // pasek postaw: tylko uzbrojone jednostki gracza (robotnik ma aggro 0, postawa nic by nie robiła)
   const armed = S.selected.units.filter(u => u.fac === 'player' && CFG.units[u.type] && CFG.units[u.type].aggro > 0);
@@ -1973,22 +2169,21 @@ function updatePanels() {
   if (armed.length) {
     if (!stanceBtns.length) {
       for (const st of STANCE_MENU) {
-        const btn = document.createElement('button');
-        btn.textContent = st.name + ' [' + st.key + ']';
-        btn.title = st.id === 'aggr' ? 'Sama nabiera cele w promieniu agresji i goni bez ograniczeń'
+        const btn = cmdBtn({ icon: cmdSvg(st.id), label: st.key, cls: 'slot',
+          title: st.name + ' [' + st.key + ']. ' + (
+          st.id === 'aggr' ? 'Sama nabiera cele w promieniu agresji i goni bez ograniczeń'
           : st.id === 'norm' ? 'Nabiera cele w zasięgu broni, goni do promienia agresji'
           : st.id === 'def' ? 'Nie rusza się z miejsca, atakuje tylko to, co w zasięgu broni'
-          : 'Nie nabiera celów sama, walczy tylko z rozkazanymi celami';
-        btn.onclick = () => setStance(st.id);
+          : 'Nie nabiera celów sama, walczy tylko z rozkazanymi celami'), onclick: () => setStance(st.id) });
         stancebar.appendChild(btn);
         stanceBtns.push({ btn, id: st.id });
       }
-      for (const [label, title, fn] of [['Stop [X]', 'Porzuca bieżące zadanie', () => queueCmd({ action: 'stop', units: [...S.selected.units] })], ['Atak-ruch [Q]', 'Marsz z walką po drodze: kliknij cel', () => { S.attackMove = true; S.rallyMode = false; S.placing = null; }]]) {
-        const btn = document.createElement('button'); btn.textContent = label; btn.title = title; btn.onclick = fn; stancebar.appendChild(btn);
+      for (const [ic, label, title, fn] of [['stop', 'Stop [X]', 'Porzuca bieżące zadanie', () => queueCmd({ action: 'stop', units: [...S.selected.units] })], ['amove', 'Atak [Q]', 'Marsz z walką po drodze: kliknij cel', () => { S.attackMove = true; S.rallyMode = false; S.placing = null; }]]) {
+        stancebar.appendChild(cmdBtn({ icon: cmdSvg(ic), label: label.slice(-2, -1), cls: 'slot', title: label + '. ' + title, onclick: fn }));
       }
     }
     const cur = armed[0].stance || 'norm';
-    for (const sb of stanceBtns) sb.btn.className = sb.id === cur ? 'active' : '';
+    for (const sb of stanceBtns) sb.btn.classList.toggle('active', sb.id === cur);
   }
   // pasek zdolności: medicine man gracza (deszcz R, burza B), cooldown na przycisku, odświeżany z updatePanels
   const medics = S.selected.units.filter(u => u.fac === 'player' && u.type === 'medicine');
@@ -1996,9 +2191,7 @@ function updatePanels() {
   if (medics.length) {
     if (!abilityBtns.length) {
       for (const ab of ABILITY_MENU) {
-        const btn = document.createElement('button');
-        btn.title = ab.desc;
-        btn.onclick = () => { const m = S.selected.units.find(u => u.fac === 'player' && u.type === 'medicine'); if (m) ab.id === 'rain' ? castRain(m) : castStorm(m); };
+        const btn = cmdBtn({ icon: cmdSvg(ab.id), cls: 'slot', title: ab.name + ' [' + ab.key + ']. ' + ab.desc, onclick: () => { const m = S.selected.units.find(u => u.fac === 'player' && u.type === 'medicine'); if (m) ab.id === 'rain' ? castRain(m) : castStorm(m); } });
         abilitybar.appendChild(btn);
         abilityBtns.push({ btn, id: ab.id });
       }
@@ -2006,76 +2199,42 @@ function updatePanels() {
     const m = medics[0];
     for (const ab of abilityBtns) {
       const cd = ab.id === 'rain' ? (m.rainCd || 0) : (m.stormCd || 0);
-      ab.btn.textContent = (ab.id === 'rain' ? 'Deszcz [R]' : 'Burza [B]') + (cd > 0 ? ' (' + Math.ceil(cd) + 's)' : '');
+      setLbl(ab.btn, cd > 0 ? Math.ceil(cd) + 's' : (ab.id === 'rain' ? 'R' : 'B'));
       ab.btn.disabled = cd > 0;
-      ab.btn.className = cd > 0 ? '' : 'active';
+      ab.btn.classList.toggle('active', cd <= 0);
     }
   }
   // panel budynku: przebudowa tylko przy zmianie obiektu albo stanu budowy
   const b = S.selected.building;
   if (!(b && b.fac === 'player')) { bpanel.style.display = 'none'; bpanelBuilding = null; bpanelBuilt = null; bpanelSlotSig = null; return; }
-  bpanel.style.display = 'block';
+  bpanel.style.display = 'flex';
   if (bpanelBuilding !== b || bpanelBuilt !== b.built) {
     bpanelBuilding = b; bpanelBuilt = b.built;
     bpanel.innerHTML = '';
-    const name = document.createElement('div');
-    name.className = 'name';
-    bpanel.appendChild(name);
     const row = document.createElement('div');
     row.className = 'row';
     bpanel.appendChild(row);
-    if (!b.built) {
-      const btn = document.createElement('button');
-      btn.dataset.role = 'resume';
-      btn.textContent = 'Kontynuuj budowlę';
-      btn.onclick = () => queueCmd({ action: 'resume', building: b });
-      row.appendChild(btn);
+    if (!b.built) row.appendChild(cmdBtn({ icon: cmdSvg('resume'), label: 'Dokończ', role: 'resume', title: 'Kontynuuj budowlę', onclick: () => queueCmd({ action: 'resume', building: b }) }));
+    if (b.built && trainMenuFor(b, S.playerRace).length) {
+      for (const ut of trainMenuFor(b, S.playerRace)) row.appendChild(cmdBtn({ icon: thumb('unit', ut, 44, 'player'), role: 'train_' + ut, onclick: () => queueCmd({ action: 'train', building: b, unitType: ut }) }));
+      row.appendChild(cmdBtn({ icon: cmdSvg('rally'), role: 'rally', title: 'Nowe jednostki idą w to miejsce (albo PPM na mapie przy zaznaczonym budynku)', onclick: () => { S.rallyMode = true; S.attackMove = false; S.placing = null; } }));
     }
-    if (b.built && (b.type === 'hq' || b.type === 'barracks')) {
-      for (const ut of trainMenuFor(b, S.playerRace)) {
-        const btn = document.createElement('button');
-        btn.dataset.role = 'train_' + ut;
-        btn.onclick = () => queueCmd({ action: 'train', building: b, unitType: ut });
-        row.appendChild(btn);
-      }
-      const rb = document.createElement('button');
-      rb.dataset.role = 'rally'; rb.title = 'Nowe jednostki idą w to miejsce (albo PPM na mapie przy zaznaczonym budynku)';
-      rb.onclick = () => { S.rallyMode = true; S.attackMove = false; S.placing = null; };
-      row.appendChild(rb);
-    }
-    if (b.built && (b.type === 'factory' || b.type === 'zagroda')) {
-      const btn = document.createElement('button');
-      btn.dataset.role = 'toggle';
-      btn.onclick = () => queueCmd({ action: 'toggle', building: b });
-      row.appendChild(btn);
-    }
-    if (b.type === 'farm') {
-      const st = document.createElement('button');
-      st.dataset.role = 'farm';
-      st.disabled = true;
-      row.appendChild(st);
-    }
+    if (b.built && (b.type === 'factory' || b.type === 'zagroda')) row.appendChild(cmdBtn({ icon: cmdSvg('toggle'), role: 'toggle', onclick: () => queueCmd({ action: 'toggle', building: b }) }));
+    if (b.type === 'farm') { const st = cmdBtn({ icon: cmdSvg('farm'), role: 'farm' }); st.disabled = true; row.appendChild(st); }
     if (b.built && b.fac === 'player') {
       for (const tid in CFG.techs) {
         const td = CFG.techs[tid];
         if (td.bld !== b.type) continue;
         if (raceOf('player').noTechs.includes(tid)) continue;
-        const btn = document.createElement('button');
-        btn.dataset.role = 'tech_' + tid;
-        btn.title = td.desc;
-        btn.onclick = () => queueCmd({ action: 'research', building: b, techId: tid });
-        row.appendChild(btn);
+        row.appendChild(cmdBtn({ icon: cmdSvg('tech'), role: 'tech_' + tid, title: td.desc, onclick: () => queueCmd({ action: 'research', building: b, techId: tid }) }));
       }
     }
     const slots = document.createElement('div');
-    slots.className = 'row slots'; slots.style.marginTop = '6px';
+    slots.className = 'row slots';
     bpanel.appendChild(slots);
     bpanelSlotSig = null;
   }
   // odświeżanie treści bez ruszania DOM
-  const nameEl = bpanel.querySelector('.name');
-  nameEl.textContent = CFG.buildings[b.type].label + (b.built ? '' : ' (budowa ' + Math.floor(b.progress * 100) + '%)');
-  const UNIT_NAMES = { worker: 'Robotnik', frontiersman: 'Frontiersman', frontierswoman: 'Frontierswoman', szeryf: 'Szeryf', armata: 'Armata', piechota: 'Piechota', jezdiec: 'Jeździec', squaw: 'Squaw', wojownik: 'Wojownik', wodz: 'Wódz', lucznik: 'Łucznik', medicine: 'Medicine man' };
   // sloty kolejki: kliknięcie anuluje slot i zwraca zapłacony koszt; przyciski odbudowywane tylko przy zmianie składu kolejki
   const slotsEl = bpanel.querySelector('.slots');
   if (slotsEl) {
@@ -2083,41 +2242,49 @@ function updatePanels() {
     if (sig !== bpanelSlotSig) {
       bpanelSlotSig = sig; slotsEl.innerHTML = '';
       b.queue.forEach((q, i) => {
-        const sb = document.createElement('button'); sb.dataset.slot = i;
-        sb.onclick = () => queueCmd({ action: 'cancel', building: b, index: i });
+        const sb = cmdBtn({ icon: thumb('unit', q.type, 34, 'player'), cls: 'slot', onclick: () => queueCmd({ action: 'cancel', building: b, index: i }) }); sb.dataset.slot = i;
         slotsEl.appendChild(sb);
       });
     }
     b.queue.forEach((q, i) => {
       const sb = slotsEl.children[i]; if (!sb) return;
-      sb.textContent = (UNIT_NAMES[q.type] || q.type) + (i === 0 ? (q.paid ? ' ' + Math.ceil(q.remaining) + 's' : ' ⏸') : '');
-      sb.title = 'Kliknij, aby anulować' + (q.paid ? ' (zwrot kosztu)' : ' (nic jeszcze nie zapłacono)') + (i === 0 && !q.paid ? '; czeka na surowce lub miejsce' : '');
+      setLbl(sb, i === 0 ? (q.paid ? Math.ceil(q.remaining) + ' s' : '⏸') : '');
+      sb.title = (UNIT_NAMES[q.type] || q.type) + '. Kliknij, aby anulować' + (q.paid ? ' (zwrot kosztu)' : ' (nic jeszcze nie zapłacono)') + (i === 0 && !q.paid ? '; czeka na surowce lub miejsce' : '');
     });
   }
   const rbtn = bpanel.querySelector('[data-role="rally"]');
-  if (rbtn) rbtn.textContent = 'Punkt zbiórki [P]' + (b.rally ? ' ✓' : '');
+  if (rbtn) { setLbl(rbtn, 'Zbiórka [P]' + (b.rally ? ' ✓' : '')); rbtn.classList.toggle('active', !!b.rally); }
   for (const ut of trainMenuFor(b, S.playerRace)) {
     const btn = bpanel.querySelector('[data-role="train_' + ut + '"]');
     if (!btn) continue;
     const ud = CFG.units[ut];
     const limHit = ud.limit && S.units.filter(u => u.fac === 'player' && u.type === ut).length + b.queue.filter(q => q.type === ut).length >= ud.limit;
-    btn.textContent = UNIT_NAMES[ut] + (limHit ? ' (limit ' + ud.limit + ')' : ' (' + costText(ud.cost) + ')');
+    setLbl(btn, limHit ? 'limit ' + ud.limit : costHtml(ud.cost));
+    btn.title = (UNIT_NAMES[ut] || ut) + ': ' + costText(ud.cost) + '. Czas ' + ud.train + ' s, HP ' + ud.hp + ', obrażenia ' + ud.dmg;
     btn.disabled = !canAfford(ud.cost) || !!limHit;
   }
   const btnT = bpanel.querySelector('[data-role="toggle"]');
-  if (btnT) btnT.textContent = b.on ? 'Produkcja: WŁ' : 'Produkcja: WYŁ';
+  if (btnT) { setLbl(btnT, b.on ? 'Praca: WŁ' : 'Praca: WYŁ'); btnT.classList.toggle('active', !!b.on); btnT.title = 'Włącza i wyłącza produkcję budynku'; }
   const btnF = bpanel.querySelector('[data-role="farm"]');
-  if (btnF) btnF.textContent = b.busy ? 'Rolnik: w pracy' : 'Pusta (wyślij robotnika PPM)';
+  if (btnF) { setLbl(btnF, b.busy ? 'W pracy' : 'Pusta'); btnF.title = b.busy ? 'Farmer pracuje' : 'Pusta (wyślij farmera PPM)'; }
   for (const tid in CFG.techs) {
     const btn = bpanel.querySelector('[data-role="tech_' + tid + '"]');
     if (!btn) continue;
     const td = CFG.techs[tid];
-    if (hasTech('player', tid)) { btn.textContent = td.name + ' ✓'; btn.disabled = true; }
-    else if (b.research && b.research.id === tid) { btn.textContent = td.name + ' (' + Math.ceil(b.research.remaining) + 's)'; btn.disabled = true; }
-    else { btn.textContent = td.name + ' (' + costText(td.cost) + ')'; btn.disabled = !canAfford(td.cost) || !!(b.research); }
+    btn.title = td.name + ': ' + td.desc;
+    if (hasTech('player', tid)) { setLbl(btn, td.name + ' ✓'); btn.disabled = true; }
+    else if (b.research && b.research.id === tid) { setLbl(btn, Math.ceil(b.research.remaining) + ' s'); btn.disabled = true; }
+    else { setLbl(btn, costHtml(td.cost)); btn.disabled = !canAfford(td.cost) || !!(b.research); }
   }
 }
+// pasek zasobów: kolejność i ikony jak w oryginale (żywność, drewno, złoto, broń, konie, populacja); wartości odświeżane bez przebudowy DOM
+const TOP_RES = [['food', 'żywność'], ['wood', 'drewno'], ['gold', 'złoto'], ['guns', 'broń palna'], ['horses', 'konie'], ['pop', 'populacja']];
+function initTopbar() {
+  topbar.innerHTML = TOP_RES.map(([k, t]) => '<span class="res" data-r="' + k + '" title="' + t + '"><svg class="mi"><use href="#i-' + k + '"/></svg><b></b></span>').join('') +
+    '<span class="sp"></span><span class="res dim" id="seen" title="Bandyci widziani przez Twoich ludzi"><svg class="mi"><use href="#i-skull"/></svg><b></b></span><span class="res dim" title="Czas gry"><svg class="mi"><use href="#i-clock"/></svg><b id="clock"></b></span>';
+}
 function updateTopbar() {
+  if (!topbar.firstChild) initTopbar();
   const mm = Math.floor(S.time / 60), ss = Math.floor(S.time % 60);
   // bandyci widziani przez gracza (zwiad w czasie rzeczywistym, nie wskaźnik AI)
   let seen = 0;
@@ -2125,14 +2292,19 @@ function updateTopbar() {
     if (u.fac !== 'enemy' || u.type === 'worker') continue;
     if (S.visible[idx(Math.min(MAP - 1, Math.floor(u.x)), Math.min(MAP - 1, Math.floor(u.y)))]) seen++;
   }
-  topbar.innerHTML = '🪵 <b>' + Math.floor(S.res.wood) + '</b> 🌾 <b>' + Math.floor(S.res.food) +
-    '</b> ⛏ <b>' + Math.floor(S.res.gold) + '</b> 🔫 <b>' + Math.floor(S.res.guns) +
-    '</b> 🐎 <b>' + Math.floor(S.res.horses) + '</b> 👥 <b>' + popUsed() + '/' + popCap() + '</b> ⏱ <b>' + mm + ':' + String(ss).padStart(2, '0') +
-    '</b> ☠ widziani bandyci: <b>' + seen + '</b>';
+  const val = { food: Math.floor(S.res.food), wood: Math.floor(S.res.wood), gold: Math.floor(S.res.gold), guns: Math.floor(S.res.guns), horses: Math.floor(S.res.horses), pop: popUsed() + '/' + popCap() };
+  const full = { food: S.res.food >= resCapOf('food') - 1, wood: S.res.wood >= resCapOf('wood') - 1, gold: S.res.gold >= resCapOf('gold') - 1, guns: S.res.guns >= resCapOf('guns') - 1, horses: S.res.horses >= resCapOf('horses') - 1, pop: popUsed() >= popCap() };
+  for (const el of topbar.querySelectorAll('.res[data-r]')) {
+    const k = el.dataset.r, b = el.lastChild, v = String(val[k]);
+    if (b.textContent !== v) b.textContent = v;
+    el.classList.toggle('full', full[k]);
+  }
+  const sb = document.querySelector('#seen b'); if (sb.textContent !== String(seen)) sb.textContent = seen;
+  const cl = document.getElementById('clock'), t = mm + ':' + String(ss).padStart(2, '0'); if (cl.textContent !== t) cl.textContent = t;
 }
 function showOverlay(o) {
   overlay.style.display = 'flex';
-  overlay.innerHTML = '';
+  overlay.innerHTML = ''; overlay.className = '';
   const box = document.createElement('div');
   box.className = 'box';
   const h = document.createElement('h1'); h.textContent = o.title;
@@ -2165,7 +2337,7 @@ function showHelp() {
     list: [
       'LPM: zaznacz jednostkę lub przeciągnij ramkę. PPM: rozkaz (ruch, zbieranie, atak).',
       'PPM na lesie lub złocie z robotnikiem: zbieraj. PPM na farmie: farmerka przechodzi do pracy.',
-      'Zaznacz robotnika i wybierz budynek z dolnego paska: Dom (populacja), Farma, Magazyn, Koszary, Fabryka broni, Zagroda koni.',
+      'Zaznacz robotnika (frontiersmana lub squawę) i wybierz budynek z panelu poleceń na dole: Dom (populacja), Farma, Magazyn, Koszary, Fabryka broni, Zagroda koni.',
       'Przerwana budowa: PPM własnej nieukończonej budowli z robotnikami wznawia prace, albo kliknij budowę i użyj przycisku Kontynuuj.',
       'Fabryka produkuje broń za drewno i złoto. Piechota wymaga żywności, złota i broni.',
       'Klawisze budowy: H Dom, F Farma, M Magazyn, K Koszary, B Fabryka, Z Zagroda. Strzałki/WSAD: kamera. C: dźwięk wł/wył. Minimapa: skok kamery.',
@@ -2194,15 +2366,74 @@ function cycleDifficulty() {
   const ks = Object.keys(CFG.difficulty);
   S.difficulty = ks[(ks.indexOf(S.difficulty) + 1) % ks.length];
 }
+// ustawienia gracza zapisywane w przeglądarce (indeksy poziomów); dźwięk to S.muted
+const SET_KEY = 'anpbtl_settings_v1';
+const SET_LEVELS = { scroll: [['Wolne', 0.6], ['Normalne', 1], ['Szybkie', 1.6]], speed: [['Wolna', 0.75], ['Normalna', 1], ['Szybka', 1.5]], shadow: [['Wyłączone', 0], ['Przezroczyste', 1]] };
+const SETTINGS = { scroll: 1, speed: 1, shadow: 1 };
+try { Object.assign(SETTINGS, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); } catch (e) { /* brak zapisu */ }
+const settingVal = k => (SET_LEVELS[k][SETTINGS[k]] || SET_LEVELS[k][1])[1];
+function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(SETTINGS)); } catch (e) { /* bez zapisu też działa */ } }
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+function screen(cls) { overlay.style.display = 'flex'; overlay.innerHTML = ''; overlay.className = cls || ''; return overlay; }
+function leaveScreens() { overlay.className = ''; overlay.style.display = 'none'; }
+// główne menu: zachód słońca nad górami, lista poleceń po prawej jak w oryginale
 function showMenu() {
   S.menuOpen = true;
-  const btns = PLAYABLE_RACES.map(k => ({ label: 'Graj: ' + RACES[k].label, cb: () => startRace(k) }));
-  btns.push({ label: 'Trudność: ' + diffOf().label, cb: () => { cycleDifficulty(); showMenu(); } });
-  if (hasSave()) btns.push({ label: 'Wczytaj zapis', cb: () => { if (!loadGame()) showMenu(); } });
-  for (const k of PLAYABLE_RACES) btns.push({ label: 'Test: ' + RACES[k].label, cb: () => setupTest(k) });
-  showOverlay({ title: 'America: No Peace Beyond the Line (prototyp)',
-    body: PLAYABLE_RACES.map(k => RACES[k].label + ': ' + RACES[k].desc).join(' ') + ' Przeciwnik: Desperado (AI). Trudność zmienia liczbę robotników i wypraw wroga. Test: rozbudowane bazy i pełne wojsko od razu; przeciwnik milczy.',
-    buttons: btns });
+  const o = screen('scr-main');
+  o.append(el('div', 'mm-title', 'AMERICA'), el('div', 'mm-sub', 'Nie ma pokoju za linią!'));
+  const menu = el('div', 'mm-menu');
+  const item = (label, fn) => { const b = el('button', '', label); b.onclick = fn; menu.appendChild(b); };
+  item('Nowa gra', showFactionScreen);
+  if (hasSave()) item('Wczytaj zapis', () => { leaveScreens(); if (!loadGame()) showMenu(); });
+  item('Ustawienia', () => showSettings(showMenu));
+  item('Pomoc i sterowanie', showHelp);
+  o.append(menu, el('div', 'mm-foot', 'Prototyp fanowskiej rekonstrukcji gry z 2001 roku'));
+}
+// wybór ludu: deski i cztery koła z postaciami (grywalne klikamy, reszta czeka na swoje fazy)
+function showFactionScreen() {
+  S.menuOpen = true;
+  const o = screen('scr-wood');
+  o.append(el('div', 'scr-title', 'AMERICA'), el('div', 'scr-sub', 'Gra jednoosobowa'), el('div', 'scr-pill', 'Wybierz lud'));
+  const circles = el('div', 'circles'), pos = { settler: [40, 120], sioux: [285, 0], mexican: [530, 120], outlaw: [285, 250] };
+  const face = { settler: ['unit', 'szeryf'], sioux: ['unit', 'wodz'], outlaw: ['unit', 'bandleader'], mexican: null };
+  for (const k of ['settler', 'sioux', 'outlaw', 'mexican']) {
+    const R = RACES[k], c = el('div', 'circ' + (R.playable ? '' : ' off')), [x, y] = pos[k];
+    c.style.left = 'calc(var(--u) * ' + x + 'px)'; c.style.top = 'calc(var(--u) * ' + y + 'px)'; c.title = R.desc;
+    if (face[k]) { const th = thumb('unit', face[k][1], Math.round(168 * (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--u')) || 1)), k === 'outlaw' ? 'enemy' : 'player'); c.appendChild(th); }
+    else c.appendChild(el('div', '', '?')).style.cssText = 'font:bold 64px Georgia;color:#5a3a1c';
+    const cap = el('div', 'cap', R.label); cap.appendChild(el('small', '', R.playable ? 'Graj' : 'wkrótce')); c.appendChild(cap);
+    if (R.playable) c.onclick = () => { leaveScreens(); startRace(k); };
+    circles.appendChild(c);
+  }
+  const foot = el('div', 'scr-foot'), back = el('button', '', 'Wstecz'), load = el('button', '', 'Wczytaj'), mid = el('div', 'mid');
+  back.onclick = showMenu; load.disabled = !hasSave(); load.onclick = () => { leaveScreens(); if (!loadGame()) showMenu(); };
+  const diff = el('button', '', 'Trudność: ' + diffOf().label); diff.onclick = () => { cycleDifficulty(); diff.textContent = 'Trudność: ' + diffOf().label; };
+  mid.append(diff, el('span', '', 'Tryb testowy:'));
+  for (const k of PLAYABLE_RACES) { const t = el('button', '', RACES[k].label); t.title = 'Rozbudowane bazy i pełne wojsko od razu; przeciwnik milczy'; t.onclick = () => { leaveScreens(); setupTest(k); }; mid.appendChild(t); }
+  foot.append(back, mid, load);
+  o.append(circles, foot);
+}
+// ustawienia: ciemne tabliczki z nazwami i złote wartości, klik przełącza wartość
+function showSettings(back) {
+  S.menuOpen = true;
+  const o = screen('scr-wood');
+  o.append(el('div', 'scr-title', 'AMERICA'), el('div', 'scr-sub', 'Ustawienia'));
+  const rows = el('div', 'set-rows');
+  const defs = [
+    ['Dźwięk', () => S.muted ? 'Wyłączony' : 'Włączony', () => { S.muted = !S.muted; if (!S.muted) ensureAudio(); }],
+    ['Szybkość przewijania', () => SET_LEVELS.scroll[SETTINGS.scroll][0], () => { SETTINGS.scroll = (SETTINGS.scroll + 1) % SET_LEVELS.scroll.length; }],
+    ['Szybkość gry', () => SET_LEVELS.speed[SETTINGS.speed][0], () => { SETTINGS.speed = (SETTINGS.speed + 1) % SET_LEVELS.speed.length; }],
+    ['Cienie', () => SET_LEVELS.shadow[SETTINGS.shadow][0], () => { SETTINGS.shadow = (SETTINGS.shadow + 1) % SET_LEVELS.shadow.length; }],
+    ['Trudność wroga', () => diffOf().label, cycleDifficulty],
+  ];
+  for (const [label, get, step] of defs) {
+    const b = el('button', '', get()); b.onclick = () => { step(); b.textContent = get(); saveSettings(); };
+    rows.append(el('div', 'scr-pill', label), b);
+  }
+  const foot = el('div', 'scr-foot'), ok = el('button', '', 'OK'); ok.style.margin = '0 auto';
+  ok.onclick = () => { saveSettings(); if (back) back(); else leaveScreens(); };
+  foot.appendChild(ok);
+  o.append(rows, foot);
 }
 // tryb testowy: deterministyczne rozmieszczenie budowli spiralą wokół obozu
 function testPlace(fac, type, cx, cy) {
@@ -2329,7 +2560,7 @@ function drawStatic(key, px, py) {
   const e = window.ASSETS && window.ASSETS[key]; if (!e) return;
   const x = Math.round(px - e.ax * AK), y = Math.round(py - e.ay * AK);
   ctx.imageSmoothingEnabled = true;
-  if (e._sh) ctx.drawImage(e._sh, x, y, e.w * AK, e.h * AK);
+  if (e._sh && SETTINGS.shadow) ctx.drawImage(e._sh, x, y, e.w * AK, e.h * AK);
   ctx.drawImage(e._img, x, y, e.w * AK, e.h * AK);
 }
 // kafel gruntu z atlasu okresowego 6x6: (x mod 6, -(y+1) mod 6) daje ciągłą powierzchnię; romb powiększony o 1 px, żeby sąsiednie kafle się nakładały
@@ -2905,7 +3136,7 @@ function drawUnitPre(u, sx, sy) {
   const img = e.file_p ? (u.fac === 'enemy' ? e._imge : e._imgp) : e._img;
   const fx = col * (e.fw + e.pad), fy = row * (e.fh + e.pad), dx = Math.round(sx + kx - e.ax * AK), dy = Math.round(sy + 2 + by - e.ay * AK);
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(e._sh, fx, fy, e.fw, e.fh, dx, dy, e.fw * AK, e.fh * AK);
+  if (SETTINGS.shadow) ctx.drawImage(e._sh, fx, fy, e.fw, e.fh, dx, dy, e.fw * AK, e.fh * AK);
   ctx.drawImage(img, fx, fy, e.fw, e.fh, dx, dy, e.fw * AK, e.fh * AK);
   return sy + 2 + by - e.ay * AK;   // górna krawędź sprite'a (do pasków nad jednostką)
 }
@@ -2979,12 +3210,12 @@ const STEP_MS = 1000 / 60;
 const MAX_FRAME_MS = 250;
 let prevTime = 0, acc = 0, uiTimer = 0;
 function frame(now) {
-  acc += Math.min(now - prevTime, MAX_FRAME_MS);
+  acc += Math.min(now - prevTime, MAX_FRAME_MS) * settingVal('speed');
   prevTime = now;
   let stepped = false;
   while (acc >= STEP_MS) { update(STEP_MS / 1000); acc -= STEP_MS; stepped = true; }
   // kamera (cs w px świata: przy zoomie 2x ta sama prędkość na ekranie wymaga 2x większego kroku)
-  const cs = 12 * ZOOM;
+  const cs = 12 * ZOOM * settingVal('scroll');
   if (keys.ArrowLeft || keys.a) cam.x += cs;
   if (keys.ArrowRight || keys.d) cam.x -= cs;
   if (keys.ArrowUp || keys.w) cam.y += cs;
@@ -3001,7 +3232,7 @@ function frame(now) {
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) prevTime = performance.now(); });
 
-resize();
+applyUiScale(); initGroupRow(); resize();
 overlay.style.display = 'flex'; overlay.innerHTML = '<div class="box"><h2>Ładowanie…</h2></div>';
 loadAssets().then(ok => {
   if (!ok) { overlay.innerHTML = '<div class="box"><h2>Brak zasobów graficznych</h2><p>Nie załadowano katalogu <code>assets/</code> (obok index.html). Uruchom grę z całego repozytorium.</p></div>'; return; }
