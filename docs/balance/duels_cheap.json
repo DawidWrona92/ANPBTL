@@ -1,0 +1,79 @@
+{
+ "matrix": {},
+ "battles": {
+  "Sioux łucznicy+wojownicy  vs  Sioux sami łucznicy": {
+   "N": 20,
+   "winFirst": 0,
+   "winSecond": 20,
+   "draw": 0,
+   "sizes": [
+    20,
+    17
+   ],
+   "budget": 600
+  },
+  "Sioux łucznicy+wojownicy  vs  Osadnicy piechota": {
+   "N": 20,
+   "winFirst": 0,
+   "winSecond": 20,
+   "draw": 0,
+   "sizes": [
+    20,
+    15
+   ],
+   "budget": 600
+  },
+  "Sioux łucznicy+wojownicy  vs  Osadnicy piechota+jeźdźcy": {
+   "N": 20,
+   "winFirst": 0,
+   "winSecond": 20,
+   "draw": 0,
+   "sizes": [
+    20,
+    15
+   ],
+   "budget": 600
+  },
+  "Sioux sami łucznicy  vs  Osadnicy piechota": {
+   "N": 20,
+   "winFirst": 20,
+   "winSecond": 0,
+   "draw": 0,
+   "sizes": [
+    17,
+    15
+   ],
+   "budget": 600
+  },
+  "Sioux sami łucznicy  vs  Osadnicy piechota+jeźdźcy": {
+   "N": 20,
+   "winFirst": 20,
+   "winSecond": 0,
+   "draw": 0,
+   "sizes": [
+    17,
+    15
+   ],
+   "budget": 600
+  },
+  "Osadnicy piechota  vs  Osadnicy piechota+jeźdźcy": {
+   "N": 20,
+   "winFirst": 19,
+   "winSecond": 1,
+   "draw": 0,
+   "sizes": [
+    15,
+    15
+   ],
+   "budget": 600
+  }
+ },
+ "compositions": {
+  "Sioux łucznicy+wojownicy": "20 jedn.",
+  "Sioux sami łucznicy": "17 jedn.",
+  "Osadnicy piechota": "15 jedn.",
+  "Osadnicy piechota+jeźdźcy": "15 jedn."
+ },
+ "errors": [],
+ "note": "Wyniki modelu (prototyp), nie oryginału. N pojedynków na parę, strony naprzemiennie."
+}

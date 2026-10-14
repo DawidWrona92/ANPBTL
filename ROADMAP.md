@@ -49,7 +49,7 @@ Rozmiary: S = kilka godzin, M = dzień, L = kilka dni. Definicja ukończenia chu
 | A | **G1 Spike grafiki** | S–M | cztery próbki (dom, drzewo, humanoid, koń) w stylu AoE2; decyzja właściciela: hybryda `rts-prerender-3d` (budynki, drzewa, teren) + `painted-rts-sprites` (jednostki, zwierzęta) / tylko painted / tylko prerender. Sprite'y w 128 px, `CFG` zostaje 64×32 i `ZOOM=2` |
 | A | **C1 Komendy i UX** — **zrobione** | M | punkt zbiórki (`P`, przycisk albo PPM przy zaznaczonym budynku), Shift+PPM = trasa, `X` stop, `Q` atak-ruch, podwójny klik zaznacza typ na ekranie, sloty kolejki anulowane kliknięciem ze zwrotem, kolejka czeka przy braku surowców, alert „Atak z …” i spacja na jego miejsce. Odstępstwo od 19.7 `[P]`: skróty `X/Q/P` zamiast `S/A/H`, bo `S` i `A` to kamera (WASD), a `H` to Dom; `H` (trzymaj pozycję) jest już pod `T`. **Zmiana ekonomii:** koszt jednostki pobierany przy starcie slotu, nie przy zamówieniu; wpływa na baseline B1 |
 | A | **R0 Badania źródłowe** | S | w tle; wyniki w `docs/zrodla.md`, dalsze po odblokowaniu domen (manual PDF, filmy) |
-| B | **B1 Balans: bot + baseline** (+ B0 rejestr parametrów) | M | bot z build orderem, `npm run balance`, ≥20 seedów, horyzonty 5/10/20 min; baseline z dok. 20.1; wyniki jako „wyniki modelu" |
+| B | **B1 Balans: bot + baseline** (+ B0 rejestr parametrów) — **narzędzia i pierwsze wyniki gotowe** | M | bot z build orderem, `npm run balance`, `npm run balance:duels`, ≥20 seedów; wyniki w sekcji 6. Zostaje: lepszy bot (złoto), bot Sioux, N ≥ 100 dla porównań wyników partii |
 | B | **G2 Migracja grafiki** | L | atomowo za flagą `CFG.art`: teren, drzewa, budynki ×3 nacje, jednostki, Sioux, zwierzyna; maska drużyny; koniec placeholderów |
 | C | **C2 Fundament** | M | reguły frakcji jako dane, wybór frakcji obu stron i trudności, zapis/odczyt, tabele danych, testy z 14.5 |
 | D | **C3 Osadnicy** | M | bank (limit sprawdzany przy starcie budowy), szeryf, armata, ranczo, frontiersman/woman, wóz kryty, cap 200 |
@@ -70,7 +70,27 @@ Kierunek: styl AoE2 (pre-render 3D). `rts-prerender-3d` jest dobry do budynków,
 
 ## 6. Balans
 
-Protokół: rejestr parametrów z proweniencją, bot gracza, ≥20 seedów, jedna zmienna na eksperyment, mediana/p90, przyczyny końca partii. Pytania: zgodność ekonomii z dok. 20.1 po naprawach, czy bot przeżywa pierwszą wyprawę AI (480 s), macierz TTK (efekt zasięgu wręcz 1.5), parytet Sioux i Osadników, rozkład zakończeń. Po każdym chunku przebieg kontrolny 5 seedów.
+Narzędzia: `npm run balance` (bot gracza, wiele seedów) i `npm run balance:duels` (macierz pojedynków i bitwy armii). Surowe wyniki w `docs/balance/`, rejestr parametrów i rozbieżności z dokumentacją w [docs/parametry.md](docs/parametry.md). **Wszystkie liczby poniżej opisują model prototypu, nie oryginał.**
+
+### Pierwsze wyniki (2026-10-14, B1)
+**Ekonomia (bot Osadników, 20 seedów × 20 min, obecna wersja vs wersja tylko z poprawioną rekurencją):**
+- Pierwsza piechota: mediana 313,6 s (18 z 20 partii ją zbudowało) vs 316,6 s (14 z 20). Dokumentacja 20.1 podaje ok. 306 s; bot jest inny, więc zgodność jest orientacyjna. Naprawy F3/F7/R3 nie zmieniły wczesnej ekonomii.
+- Złoto jest wąskim gardłem: mediana 0–10 po 5 i 10 minutach, broni ok. 10 po 10 min. To zgodne z opisem w 20.1, ale bot jest też po prostu słaby (część partii nie zbudowała w ogóle piechoty).
+- Zakończenia po 20 min: obecna wersja wygrana 6 / porażka 1 / bez rozstrzygnięcia 13; kontrola 4 / 4 / 12. **Różnica nie jest rozróżnialna od szumu** (przy N=20 wykrywalna różnica to ok. 30 punktów procentowych). Nie wolno z tego wnioskować, że naprawy osłabiły lub wzmocniły AI.
+- Ograniczenie: 12–13 z 20 partii nie kończy się w 20 minut, bo bot rzadko atakuje. Pytanie „czy kompetentny gracz przeżywa pierwszą wyprawę AI (480 s)" wymaga lepszego bota i N ≥ 100.
+
+**Pojedynki 1:1 (N=20 na parę, strony naprzemiennie; szum ok. ±4 wygrane):**
+- Wódz wygrywa ze wszystkimi poza bandleaderem (z nim 8:12); bandleader wygrywa z resztą (z wodzem 12:8). Obaj są silni względem kosztu; to dane `[P]` z 19.2.
+- Piechota wygrywa z desperado (18:2), z konnobandą (13:7) i z jeźdźcem (13:7), a jeździec przegrywa z piechotą (7:13). Zgodne z 20.5 („jeździec to rajdy, nie starcie czołowe").
+- Łucznik wygrywa z wojownikiem (19:1), ale przegrywa z piechotą (2:18) i z wodzem (0:20).
+- Pary tych samych jednostek wychodzą od 5:15 do 15:5, więc to pokazuje poziom szumu przy N=20.
+
+**Armie przy równym koszcie (N=20, bez mikro, marsz do środka areny):**
+- Koszt liczony w całości (broń = 15, koń = 30): 17 łuczników i 20 mieszanych Sioux pokonują 9 piechurów (20:0); piechota pokonuje mieszany oddział piechota+jeźdźcy (20:0).
+- Koszt liczony tylko w żywności i drewnie (bez złota, broni, koni): 17 samych łuczników pokonuje 15 piechurów (20:0), ale 15 piechurów pokonuje mieszaną armię Sioux z wojownikami (20:0). Wynik zależy więc od wag i od składu: łucznik jest mocny w obu wycenach, wojownicy rozcieńczają armię.
+- Wniosek ostrożny: przewaga masowego łucznika jest zgodna z opisem w dokumentacji („tani, śmiertelny masowo", `[Ź]` co do roli), ale skala (20:0) to artefakt liczb `[P]` i braku mikro. Do ustalenia po uzyskaniu liczb z manuala; nie stroimy tego teraz.
+
+**Czego nie zmierzono:** farmy zatrzymane przez upkeep, wpływ ucieczki squaw na żywność Sioux, bot Sioux, parytet frakcji przy realnej ekonomii, wrażliwość na każdy parametr osobno (ablacje).
 
 ## 7. Pytania otwarte
 

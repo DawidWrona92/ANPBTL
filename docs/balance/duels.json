@@ -1,0 +1,332 @@
+{
+ "matrix": {
+  "piechota vs piechota": {
+   "N": 20,
+   "winA": 13,
+   "winB": 7,
+   "draw": 0,
+   "medianTime": 4.5
+  },
+  "piechota vs wojownik": {
+   "N": 20,
+   "winA": 20,
+   "winB": 0,
+   "draw": 0,
+   "medianTime": 5.5
+  },
+  "piechota vs wodz": {
+   "N": 20,
+   "winA": 2,
+   "winB": 18,
+   "draw": 0,
+   "medianTime": 6.7
+  },
+  "jezdiec vs piechota": {
+   "N": 20,
+   "winA": 7,
+   "winB": 13,
+   "draw": 0,
+   "medianTime": 5.7
+  },
+  "jezdiec vs jezdiec": {
+   "N": 20,
+   "winA": 6,
+   "winB": 14,
+   "draw": 0,
+   "medianTime": 6.6
+  },
+  "jezdiec vs konnobanda": {
+   "N": 20,
+   "winA": 6,
+   "winB": 14,
+   "draw": 0,
+   "medianTime": 5.4
+  },
+  "jezdiec vs wojownik": {
+   "N": 20,
+   "winA": 17,
+   "winB": 3,
+   "draw": 0,
+   "medianTime": 6.7
+  },
+  "jezdiec vs lucznik": {
+   "N": 20,
+   "winA": 20,
+   "winB": 0,
+   "draw": 0,
+   "medianTime": 4.7
+  },
+  "jezdiec vs wodz": {
+   "N": 20,
+   "winA": 0,
+   "winB": 20,
+   "draw": 0,
+   "medianTime": 6
+  },
+  "desperado vs piechota": {
+   "N": 20,
+   "winA": 2,
+   "winB": 18,
+   "draw": 0,
+   "medianTime": 5.5
+  },
+  "desperado vs jezdiec": {
+   "N": 20,
+   "winA": 2,
+   "winB": 18,
+   "draw": 0,
+   "medianTime": 5.5
+  },
+  "desperado vs desperado": {
+   "N": 20,
+   "winA": 7,
+   "winB": 13,
+   "draw": 0,
+   "medianTime": 5.7
+  },
+  "desperado vs konnobanda": {
+   "N": 20,
+   "winA": 0,
+   "winB": 20,
+   "draw": 0,
+   "medianTime": 4.9
+  },
+  "desperado vs wojownik": {
+   "N": 20,
+   "winA": 11,
+   "winB": 9,
+   "draw": 0,
+   "medianTime": 7.5
+  },
+  "desperado vs lucznik": {
+   "N": 20,
+   "winA": 6,
+   "winB": 14,
+   "draw": 0,
+   "medianTime": 6.6
+  },
+  "desperado vs wodz": {
+   "N": 20,
+   "winA": 0,
+   "winB": 20,
+   "draw": 0,
+   "medianTime": 5.2
+  },
+  "bandleader vs piechota": {
+   "N": 20,
+   "winA": 19,
+   "winB": 1,
+   "draw": 0,
+   "medianTime": 5.5
+  },
+  "bandleader vs jezdiec": {
+   "N": 20,
+   "winA": 20,
+   "winB": 0,
+   "draw": 0,
+   "medianTime": 5.4
+  },
+  "bandleader vs desperado": {
+   "N": 20,
+   "winA": 20,
+   "winB": 0,
+   "draw": 0,
+   "medianTime": 4.5
+  },
+  "bandleader vs bandleader": {
+   "N": 20,
+   "winA": 15,
+   "winB": 5,
+   "draw": 0,
+   "medianTime": 6.5
+  },
+  "bandleader vs konnobanda": {
+   "N": 20,
+   "winA": 19,
+   "winB": 1,
+   "draw": 0,
+   "medianTime": 5.4
+  },
+  "bandleader vs wojownik": {
+   "N": 20,
+   "winA": 20,
+   "winB": 0,
+   "draw": 0,
+   "medianTime": 3.5
+  },
+  "bandleader vs lucznik": {
+   "N": 20,
+   "winA": 20,
+   "winB": 0,
+   "draw": 0,
+   "medianTime": 3.9
+  },
+  "bandleader vs wodz": {
+   "N": 20,
+   "winA": 12,
+   "winB": 8,
+   "draw": 0,
+   "medianTime": 7.7
+  },
+  "konnobanda vs piechota": {
+   "N": 20,
+   "winA": 7,
+   "winB": 13,
+   "draw": 0,
+   "medianTime": 5.2
+  },
+  "konnobanda vs konnobanda": {
+   "N": 20,
+   "winA": 7,
+   "winB": 13,
+   "draw": 0,
+   "medianTime": 5
+  },
+  "konnobanda vs wojownik": {
+   "N": 20,
+   "winA": 20,
+   "winB": 0,
+   "draw": 0,
+   "medianTime": 5.3
+  },
+  "konnobanda vs lucznik": {
+   "N": 20,
+   "winA": 20,
+   "winB": 0,
+   "draw": 0,
+   "medianTime": 4.5
+  },
+  "konnobanda vs wodz": {
+   "N": 20,
+   "winA": 0,
+   "winB": 20,
+   "draw": 0,
+   "medianTime": 6.6
+  },
+  "wojownik vs wojownik": {
+   "N": 20,
+   "winA": 15,
+   "winB": 5,
+   "draw": 0,
+   "medianTime": 9.3
+  },
+  "lucznik vs piechota": {
+   "N": 20,
+   "winA": 2,
+   "winB": 18,
+   "draw": 0,
+   "medianTime": 4
+  },
+  "lucznik vs wojownik": {
+   "N": 20,
+   "winA": 19,
+   "winB": 1,
+   "draw": 0,
+   "medianTime": 7.7
+  },
+  "lucznik vs lucznik": {
+   "N": 20,
+   "winA": 7,
+   "winB": 13,
+   "draw": 0,
+   "medianTime": 4.4
+  },
+  "lucznik vs wodz": {
+   "N": 20,
+   "winA": 0,
+   "winB": 20,
+   "draw": 0,
+   "medianTime": 6.1
+  },
+  "wodz vs wojownik": {
+   "N": 20,
+   "winA": 20,
+   "winB": 0,
+   "draw": 0,
+   "medianTime": 7.2
+  },
+  "wodz vs wodz": {
+   "N": 20,
+   "winA": 6,
+   "winB": 14,
+   "draw": 0,
+   "medianTime": 10.1
+  }
+ },
+ "battles": {
+  "Sioux łucznicy+wojownicy  vs  Sioux sami łucznicy": {
+   "N": 20,
+   "winFirst": 0,
+   "winSecond": 20,
+   "draw": 0,
+   "sizes": [
+    20,
+    17
+   ],
+   "budget": 600
+  },
+  "Sioux łucznicy+wojownicy  vs  Osadnicy piechota": {
+   "N": 20,
+   "winFirst": 20,
+   "winSecond": 0,
+   "draw": 0,
+   "sizes": [
+    20,
+    9
+   ],
+   "budget": 600
+  },
+  "Sioux łucznicy+wojownicy  vs  Osadnicy piechota+jeźdźcy": {
+   "N": 20,
+   "winFirst": 20,
+   "winSecond": 0,
+   "draw": 0,
+   "sizes": [
+    20,
+    7
+   ],
+   "budget": 600
+  },
+  "Sioux sami łucznicy  vs  Osadnicy piechota": {
+   "N": 20,
+   "winFirst": 20,
+   "winSecond": 0,
+   "draw": 0,
+   "sizes": [
+    17,
+    9
+   ],
+   "budget": 600
+  },
+  "Sioux sami łucznicy  vs  Osadnicy piechota+jeźdźcy": {
+   "N": 20,
+   "winFirst": 20,
+   "winSecond": 0,
+   "draw": 0,
+   "sizes": [
+    17,
+    7
+   ],
+   "budget": 600
+  },
+  "Osadnicy piechota  vs  Osadnicy piechota+jeźdźcy": {
+   "N": 20,
+   "winFirst": 20,
+   "winSecond": 0,
+   "draw": 0,
+   "sizes": [
+    9,
+    7
+   ],
+   "budget": 600
+  }
+ },
+ "compositions": {
+  "Sioux łucznicy+wojownicy": "20 jedn.",
+  "Sioux sami łucznicy": "17 jedn.",
+  "Osadnicy piechota": "9 jedn.",
+  "Osadnicy piechota+jeźdźcy": "7 jedn."
+ },
+ "errors": [],
+ "note": "Wyniki modelu (prototyp), nie oryginału. N pojedynków na parę, strony naprzemiennie."
+}

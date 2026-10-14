@@ -3,7 +3,7 @@
 //   node tests/balance/duels.js --n 20 --out docs/balance/duels.json
 const fs = require('fs'), path = require('path'), { execSync } = require('child_process');
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, arr) => x.startsWith('--') ? a.concat([[x.slice(2), arr[i + 1]]]) : a, []));
-const N = +(args.n || 20), FILE = path.resolve(args.file || path.join(__dirname, '..', '..', 'index.html'));
+const VAL = args.val || 'all', SKIP = !!args.skipmatrix, N = +(args.n || 20), FILE = path.resolve(args.file || path.join(__dirname, '..', '..', 'index.html'));
 function loadPlaywright() { try { return require('playwright'); } catch (e) { return require(path.join(execSync('npm root -g').toString().trim(), 'playwright')); } }
 (async () => {
   const pw = loadPlaywright();
@@ -11,7 +11,7 @@ function loadPlaywright() { try { return require('playwright'); } catch (e) { re
   const browser = await pw.chromium.launch(exe ? { executablePath: exe } : {});
   const page = await browser.newPage(); const errors = []; page.on('pageerror', e => errors.push(String(e).slice(0, 200)));
   await page.goto('file://' + FILE); await page.waitForTimeout(300);
-  const res = await page.evaluate(({ N }) => {
+  const res = await page.evaluate(({ N, VAL, SKIP }) => {
     const UNITS = ['piechota', 'jezdiec', 'desperado', 'bandleader', 'konnobanda', 'wojownik', 'lucznik', 'wodz'];
     function arena(seed) {
       newGame(seed, 'settler'); S.testMode = true; S.menuOpen = false; S.units = []; S.buildings = S.buildings.filter(b => b.fac === 'player');
@@ -33,14 +33,15 @@ function loadPlaywright() { try { return require('playwright'); } catch (e) { re
     }
     const matrix = {};
     for (const a of UNITS) for (const b of UNITS) {
-      if (a >= b && a !== b) continue;
+      if (SKIP || (a >= b && a !== b)) continue;
       let wa = 0, wb = 0, dr = 0; const ts = [];
       for (let i = 0; i < N; i++) { const r = duel(a, b, 100 + i, i % 2 === 1); ts.push(r.t); if (r.winL === true) wa++; else if (r.winL === false) wb++; else dr++; }
       ts.sort((x, y) => x - y);
       matrix[a + ' vs ' + b] = { N, winA: wa, winB: wb, draw: dr, medianTime: +ts[Math.floor(N / 2)].toFixed(1) };
     }
     // bitwa armii: Sioux (łucznicy + wojownicy) kontra Osadnicy (piechota) przy równej wartości zasobów
-    const val = c => (c.food || 0) + (c.wood || 0) + (c.gold || 0) + (c.guns || 0) * 15 + (c.horses || 0) * 30;
+    // wartość: 'all' = wszystkie zasoby (broń 15 = koszt produkcji, koń 30), 'cheap' = tylko żywność i drewno (bez złota, broni i koni)
+    const val = c => VAL === 'cheap' ? (c.food || 0) + (c.wood || 0) : (c.food || 0) + (c.wood || 0) + (c.gold || 0) + (c.guns || 0) * 15 + (c.horses || 0) * 30;
     const budget = 600, armies = {};
     function make(types) { const per = types.map(t => val(CFG.units[t].cost)); const out = []; let spent = 0, i = 0; while (spent + per[i % types.length] <= budget) { out.push(types[i % types.length]); spent += per[i % types.length]; i++; } return out; }
     const compositions = { 'Sioux łucznicy+wojownicy': make(['lucznik', 'wojownik']), 'Sioux sami łucznicy': make(['lucznik']), 'Osadnicy piechota': make(['piechota']), 'Osadnicy piechota+jeźdźcy': make(['piechota', 'jezdiec']) };
@@ -63,7 +64,7 @@ function loadPlaywright() { try { return require('playwright'); } catch (e) { re
       battles[key] = { N, winFirst: wa, winSecond: wb, draw: dr, sizes: [compositions[names[i]].length, compositions[names[j]].length], budget };
     }
     return { matrix, battles, compositions: Object.fromEntries(Object.entries(compositions).map(([k, v]) => [k, v.length + ' jedn.'])) };
-  }, { N });
+  }, { N, VAL, SKIP });
   res.errors = errors; res.note = 'Wyniki modelu (prototyp), nie oryginału. N pojedynków na parę, strony naprzemiennie.';
   if (args.out) { fs.mkdirSync(path.dirname(path.resolve(args.out)), { recursive: true }); fs.writeFileSync(args.out, JSON.stringify(res, null, 1)); }
   console.log('Pojedynki 1:1 (wygrane pierwszego / drugiego / remis, mediana czasu):');

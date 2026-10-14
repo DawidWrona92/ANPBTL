@@ -1,0 +1,794 @@
+{
+ "note": "Wyniki modelu (prototyp), nie oryginału. Bot z tests/balance/bot.js; parametry w polu bot.",
+ "file": "../../../tmp/claude-0/-home-user-ANPBTL/2d7100b3-ef68-5bc0-88cc-4df9b17b1efa/scratchpad/work/control_b7de6b6.html",
+ "seeds": 20,
+ "minutes": 20,
+ "errors": [],
+ "outcomes": {
+  "timeout": 12,
+  "win": 4,
+  "lose": 4
+ },
+ "endTime": {
+  "n": 20,
+  "min": 693.8,
+  "median": 1200,
+  "p90": 1200,
+  "max": 1200
+ },
+ "tFirstInfantry": {
+  "n": 14,
+  "min": 298.3,
+  "median": 316.6,
+  "p90": 377.6,
+  "max": 379.6
+ },
+ "tThirdInfantry": {
+  "n": 6,
+  "min": 406.1,
+  "median": 442.7,
+  "p90": 662.3,
+  "max": 662.3
+ },
+ "infantryBuilt": {
+  "n": 20,
+  "min": 0,
+  "median": 2,
+  "p90": 12,
+  "max": 12
+ },
+ "aiAttacks": {
+  "n": 20,
+  "min": 1,
+  "median": 5,
+  "p90": 5,
+  "max": 5
+ },
+ "at300s": {
+  "n": 20,
+  "wood": {
+   "n": 20,
+   "min": 379,
+   "median": 430,
+   "p90": 499,
+   "max": 499
+  },
+  "food": {
+   "n": 20,
+   "min": 0,
+   "median": 138,
+   "p90": 160,
+   "max": 181
+  },
+  "gold": {
+   "n": 20,
+   "min": 0,
+   "median": 0,
+   "p90": 10,
+   "max": 70
+  },
+  "guns": {
+   "n": 20,
+   "min": 0,
+   "median": 0,
+   "p90": 1,
+   "max": 1
+  },
+  "army": {
+   "n": 20,
+   "min": 0,
+   "median": 0,
+   "p90": 1,
+   "max": 1
+  },
+  "workers": {
+   "n": 20,
+   "min": 8,
+   "median": 8,
+   "p90": 8,
+   "max": 8
+  },
+  "enemyArmy": {
+   "n": 20,
+   "min": 4,
+   "median": 4,
+   "p90": 4,
+   "max": 4
+  }
+ },
+ "at600s": {
+  "n": 20,
+  "wood": {
+   "n": 20,
+   "min": 376,
+   "median": 499,
+   "p90": 499,
+   "max": 499
+  },
+  "food": {
+   "n": 20,
+   "min": 7,
+   "median": 143,
+   "p90": 464,
+   "max": 500
+  },
+  "gold": {
+   "n": 20,
+   "min": 0,
+   "median": 0,
+   "p90": 0,
+   "max": 50
+  },
+  "guns": {
+   "n": 20,
+   "min": 4,
+   "median": 9,
+   "p90": 15,
+   "max": 19
+  },
+  "army": {
+   "n": 20,
+   "min": 0,
+   "median": 0,
+   "p90": 5,
+   "max": 8
+  },
+  "workers": {
+   "n": 20,
+   "min": 3,
+   "median": 8,
+   "p90": 8,
+   "max": 8
+  },
+  "enemyArmy": {
+   "n": 20,
+   "min": 4,
+   "median": 7,
+   "p90": 8,
+   "max": 9
+  }
+ },
+ "at1200s": null,
+ "runs": [
+  {
+   "seed": 1,
+   "outcome": "timeout",
+   "endTime": 1200,
+   "tFirstInf": null,
+   "tThirdInf": null,
+   "infantryBuilt": 0,
+   "res": {
+    "300": {
+     "wood": 391,
+     "food": 160,
+     "gold": 0,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 499,
+     "food": 500,
+     "gold": 0,
+     "guns": 5,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 8,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 1,
+   "attacks": 5
+  },
+  {
+   "seed": 2,
+   "outcome": "win",
+   "endTime": 776.2,
+   "tFirstInf": 377.6,
+   "tThirdInf": 442.7,
+   "infantryBuilt": 12,
+   "res": {
+    "300": {
+     "wood": 409,
+     "food": 81,
+     "gold": 0,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 426,
+     "food": 20,
+     "gold": 0,
+     "guns": 4,
+     "army": 8,
+     "workers": 8,
+     "enemyArmy": 5,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 19,
+   "attacks": 2
+  },
+  {
+   "seed": 3,
+   "outcome": "lose",
+   "endTime": 693.8,
+   "tFirstInf": 367.4,
+   "tThirdInf": null,
+   "infantryBuilt": 1,
+   "res": {
+    "300": {
+     "wood": 399,
+     "food": 62,
+     "gold": 0,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 499,
+     "food": 29,
+     "gold": 0,
+     "guns": 8,
+     "army": 0,
+     "workers": 7,
+     "enemyArmy": 7,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 0,
+   "attacks": 2
+  },
+  {
+   "seed": 4,
+   "outcome": "timeout",
+   "endTime": 1200,
+   "tFirstInf": 298.3,
+   "tThirdInf": 418.3,
+   "infantryBuilt": 5,
+   "res": {
+    "300": {
+     "wood": 445,
+     "food": 35,
+     "gold": 10,
+     "guns": 1,
+     "army": 1,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 499,
+     "food": 91,
+     "gold": 0,
+     "guns": 15,
+     "army": 5,
+     "workers": 8,
+     "enemyArmy": 5,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 12,
+   "attacks": 2
+  },
+  {
+   "seed": 5,
+   "outcome": "win",
+   "endTime": 938.4,
+   "tFirstInf": 305.4,
+   "tThirdInf": 406.1,
+   "infantryBuilt": 12,
+   "res": {
+    "300": {
+     "wood": 430,
+     "food": 7,
+     "gold": 0,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 499,
+     "food": 143,
+     "gold": 0,
+     "guns": 16,
+     "army": 4,
+     "workers": 8,
+     "enemyArmy": 5,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 16,
+   "attacks": 3
+  },
+  {
+   "seed": 6,
+   "outcome": "win",
+   "endTime": 865.4,
+   "tFirstInf": 377.6,
+   "tThirdInf": 662.3,
+   "infantryBuilt": 12,
+   "res": {
+    "300": {
+     "wood": 420,
+     "food": 70,
+     "gold": 0,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 434,
+     "food": 118,
+     "gold": 0,
+     "guns": 9,
+     "army": 2,
+     "workers": 8,
+     "enemyArmy": 5,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 20,
+   "attacks": 2
+  },
+  {
+   "seed": 7,
+   "outcome": "timeout",
+   "endTime": 1200,
+   "tFirstInf": null,
+   "tThirdInf": null,
+   "infantryBuilt": 0,
+   "res": {
+    "300": {
+     "wood": 499,
+     "food": 158,
+     "gold": 70,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 499,
+     "food": 464,
+     "gold": 0,
+     "guns": 5,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 8,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 1,
+   "attacks": 5
+  },
+  {
+   "seed": 8,
+   "outcome": "lose",
+   "endTime": 803.5,
+   "tFirstInf": 368.5,
+   "tThirdInf": null,
+   "infantryBuilt": 2,
+   "res": {
+    "300": {
+     "wood": 399,
+     "food": 74,
+     "gold": 0,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 499,
+     "food": 7,
+     "gold": 0,
+     "guns": 7,
+     "army": 0,
+     "workers": 3,
+     "enemyArmy": 7,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 0,
+   "attacks": 3
+  },
+  {
+   "seed": 9,
+   "outcome": "timeout",
+   "endTime": 1200,
+   "tFirstInf": 314.6,
+   "tThirdInf": null,
+   "infantryBuilt": 2,
+   "res": {
+    "300": {
+     "wood": 454,
+     "food": 155,
+     "gold": 10,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 499,
+     "food": 319,
+     "gold": 0,
+     "guns": 9,
+     "army": 0,
+     "workers": 7,
+     "enemyArmy": 4,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 1,
+   "attacks": 1
+  },
+  {
+   "seed": 10,
+   "outcome": "timeout",
+   "endTime": 1200,
+   "tFirstInf": null,
+   "tThirdInf": null,
+   "infantryBuilt": 0,
+   "res": {
+    "300": {
+     "wood": 499,
+     "food": 181,
+     "gold": 70,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 497,
+     "food": 160,
+     "gold": 0,
+     "guns": 7,
+     "army": 0,
+     "workers": 3,
+     "enemyArmy": 9,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 3,
+   "attacks": 5
+  },
+  {
+   "seed": 11,
+   "outcome": "lose",
+   "endTime": 1172,
+   "tFirstInf": 316.6,
+   "tThirdInf": null,
+   "infantryBuilt": 2,
+   "res": {
+    "300": {
+     "wood": 434,
+     "food": 154,
+     "gold": 10,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 499,
+     "food": 472,
+     "gold": 0,
+     "guns": 12,
+     "army": 1,
+     "workers": 8,
+     "enemyArmy": 5,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 0,
+   "attacks": 5
+  },
+  {
+   "seed": 12,
+   "outcome": "timeout",
+   "endTime": 1200,
+   "tFirstInf": null,
+   "tThirdInf": null,
+   "infantryBuilt": 0,
+   "res": {
+    "300": {
+     "wood": 389,
+     "food": 156,
+     "gold": 0,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 452,
+     "food": 105,
+     "gold": 0,
+     "guns": 7,
+     "army": 0,
+     "workers": 4,
+     "enemyArmy": 8,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 4,
+   "attacks": 5
+  },
+  {
+   "seed": 13,
+   "outcome": "timeout",
+   "endTime": 1200,
+   "tFirstInf": 371.5,
+   "tThirdInf": null,
+   "infantryBuilt": 2,
+   "res": {
+    "300": {
+     "wood": 390,
+     "food": 63,
+     "gold": 0,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 494,
+     "food": 139,
+     "gold": 0,
+     "guns": 9,
+     "army": 1,
+     "workers": 8,
+     "enemyArmy": 5,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 3,
+   "attacks": 5
+  },
+  {
+   "seed": 14,
+   "outcome": "timeout",
+   "endTime": 1200,
+   "tFirstInf": 299.3,
+   "tThirdInf": null,
+   "infantryBuilt": 1,
+   "res": {
+    "300": {
+     "wood": 499,
+     "food": 143,
+     "gold": 0,
+     "guns": 1,
+     "army": 1,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 418,
+     "food": 153,
+     "gold": 0,
+     "guns": 11,
+     "army": 0,
+     "workers": 3,
+     "enemyArmy": 4,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 3,
+   "attacks": 1
+  },
+  {
+   "seed": 15,
+   "outcome": "timeout",
+   "endTime": 1200,
+   "tFirstInf": 299.3,
+   "tThirdInf": 573.8,
+   "infantryBuilt": 4,
+   "res": {
+    "300": {
+     "wood": 485,
+     "food": 38,
+     "gold": 10,
+     "guns": 1,
+     "army": 1,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 499,
+     "food": 28,
+     "gold": 50,
+     "guns": 19,
+     "army": 2,
+     "workers": 8,
+     "enemyArmy": 5,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 1,
+   "attacks": 5
+  },
+  {
+   "seed": 16,
+   "outcome": "timeout",
+   "endTime": 1200,
+   "tFirstInf": null,
+   "tThirdInf": null,
+   "infantryBuilt": 0,
+   "res": {
+    "300": {
+     "wood": 409,
+     "food": 151,
+     "gold": 0,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 458,
+     "food": 99,
+     "gold": 0,
+     "guns": 8,
+     "army": 0,
+     "workers": 4,
+     "enemyArmy": 8,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 3,
+   "attacks": 5
+  },
+  {
+   "seed": 17,
+   "outcome": "win",
+   "endTime": 798.1,
+   "tFirstInf": 304.4,
+   "tThirdInf": 417.3,
+   "infantryBuilt": 12,
+   "res": {
+    "300": {
+     "wood": 470,
+     "food": 0,
+     "gold": 0,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 499,
+     "food": 93,
+     "gold": 0,
+     "guns": 15,
+     "army": 5,
+     "workers": 8,
+     "enemyArmy": 5,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 20,
+   "attacks": 2
+  },
+  {
+   "seed": 18,
+   "outcome": "timeout",
+   "endTime": 1200,
+   "tFirstInf": 379.6,
+   "tThirdInf": null,
+   "infantryBuilt": 1,
+   "res": {
+    "300": {
+     "wood": 419,
+     "food": 138,
+     "gold": 0,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 499,
+     "food": 234,
+     "gold": 0,
+     "guns": 7,
+     "army": 0,
+     "workers": 6,
+     "enemyArmy": 7,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 3,
+   "attacks": 5
+  },
+  {
+   "seed": 19,
+   "outcome": "lose",
+   "endTime": 1111.2,
+   "tFirstInf": 304.4,
+   "tThirdInf": null,
+   "infantryBuilt": 1,
+   "res": {
+    "300": {
+     "wood": 494,
+     "food": 130,
+     "gold": 0,
+     "guns": 1,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 499,
+     "food": 419,
+     "gold": 0,
+     "guns": 10,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 7,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 1,
+   "attacks": 5
+  },
+  {
+   "seed": 20,
+   "outcome": "timeout",
+   "endTime": 1200,
+   "tFirstInf": null,
+   "tThirdInf": null,
+   "infantryBuilt": 0,
+   "res": {
+    "300": {
+     "wood": 379,
+     "food": 161,
+     "gold": 0,
+     "guns": 0,
+     "army": 0,
+     "workers": 8,
+     "enemyArmy": 4,
+     "attacks": 0
+    },
+    "600": {
+     "wood": 376,
+     "food": 232,
+     "gold": 0,
+     "guns": 5,
+     "army": 0,
+     "workers": 3,
+     "enemyArmy": 9,
+     "attacks": 1
+    }
+   },
+   "playerUnits": 3,
+   "attacks": 5
+  }
+ ]
+}
