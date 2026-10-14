@@ -3,7 +3,8 @@
   "private": true,
   "description": "Prototyp gry America: No Peace Beyond the Line (jeden plik index.html)",
   "scripts": {
-    "test": "node tests/regression.js"
+    "test": "node tests/regression.js",
+    "balance": "node tests/balance/run.js"
   },
   "devDependencies": {
     "playwright": "^1.49.0"
