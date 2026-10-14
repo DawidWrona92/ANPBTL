@@ -452,7 +452,10 @@ function releaseFarm(u) {
 function orderGather(u, nx, ny) {
   u.node = [nx, ny];
   const gt = S.terrain[idx(nx, ny)];
-  u.carryType = gt === T_FOREST ? 'wood' : gt === T_MEAT ? 'food' : 'gold';
+  const ct = gt === T_FOREST ? 'wood' : gt === T_MEAT ? 'food' : 'gold';
+  // zmiana surowca porzuca niesiony ładunek: inaczej drewno zamieniłoby się w złoto przy wpłacie
+  if (u.carry > 0 && u.carryType !== ct) u.carry = 0;
+  u.carryType = ct;
   releaseFarm(u); u.buildTarget = null; u.attackTarget = null; u.orderBuilding = null;
   u.path = uPath(u, nx, ny); u.pathI = 0;
   u.state = u.path.length ? 'toNode' : 'gather';
@@ -1619,8 +1622,8 @@ document.addEventListener('keydown', e => {
       S.groups[n] = g;
       if (g.length) {
         if (S.lastGroup === n && Date.now() - S.lastGroupT < 350) {
-          cam.x = g.reduce((a, u) => a + u.x, 0) / g.length;
-          cam.y = g.reduce((a, u) => a + u.y, 0) / g.length;
+          // środek grupy w kaflach; kamera trzyma px świata, więc przez centerCameraOn
+          centerCameraOn(g.reduce((a, u) => a + u.x, 0) / g.length, g.reduce((a, u) => a + u.y, 0) / g.length);
           clampCam();
         }
         S.selected.units = g; S.selected.building = null; updatePanels(); sfx('sel');
