@@ -30,14 +30,24 @@ function texOlive(size, seed) {   // oliwkowo-żółta trawa
     const f = 1 + 0.10 * blade[i]; return [c[0] * f, c[1] * f, c[2] * f];
   });
 }
-function texGrass(size, seed) {   // stonowana trawa preryjna: khaki z oliwkową zielenią, mniej pomarańczu niż ochra
-  const big = rt.fbm(size, seed, [5, 16]), mid = rt.fbm(size, seed + 1, [1.2, 3]), blade = rt.fbm(size, seed + 2, [0.5, 1.4], [0.4, 1.6]);
-  const dark = [0.27, 0.31, 0.12], base = [0.43, 0.46, 0.21], light = [0.58, 0.58, 0.30], dry = [0.62, 0.54, 0.30];
+function texGrass(size, seed) {   // sucha preria: słomkowo-khaki, zieleń tylko jako rzadkie, ciemniejsze plamy; drobny szum źdźbeł daje ostrość przy powiększeniu
+  const big = rt.fbm(size, seed, [5, 16]), mid = rt.fbm(size, seed + 1, [1.2, 3]), blade = rt.fbm(size, seed + 2, [0.5, 1.4], [0.4, 1.6]), fine = rt.fbm(size, seed + 3, [0.18, 0.5]), grn = rt.fbm(size, seed + 4, [6, 14]);
+  const dark = [0.33, 0.29, 0.13], base = [0.56, 0.50, 0.26], light = [0.72, 0.65, 0.38], dry = [0.68, 0.53, 0.28], green = [0.40, 0.45, 0.19];
   return paint(size, i => {
     const t = clamp(0.5 + 0.25 * big[i] + 0.15 * mid[i]);
     let c = t < 0.5 ? mix(dark, base, t * 2) : mix(base, light, (t - 0.5) * 2);
-    if (big[i] > 1.3) c = mix(c, dry, clamp((big[i] - 1.3) * 0.7));
-    const f = 1 + 0.10 * blade[i]; return [c[0] * f, c[1] * f, c[2] * f];
+    if (big[i] > 1.2) c = mix(c, dry, clamp((big[i] - 1.2) * 0.8));
+    if (grn[i] > 1.05) c = mix(c, green, clamp((grn[i] - 1.05) * 0.9));
+    const f = 1 + 0.12 * blade[i] + 0.16 * fine[i]; return [c[0] * f, c[1] * f, c[2] * f];
+  });
+}
+function texSand(size, seed) {   // piasek: jasny, zszarzały beż z drobnym ziarnem i słabymi zmarszczkami, bez pomarańczu ochry
+  const big = rt.fbm(size, seed, [4, 12]), mid = rt.fbm(size, seed + 1, [1.5, 4]), fine = rt.fbm(size, seed + 2, [0.2, 0.55]), rip = rt.fbm(size, seed + 3, [1.5, 4], [0.5, 3]);
+  const dark = [0.52, 0.42, 0.26], base = [0.72, 0.62, 0.42], light = [0.84, 0.76, 0.56];
+  return paint(size, i => {
+    const t = clamp(0.5 + 0.25 * big[i] + 0.12 * mid[i] + 0.06 * Math.abs(rip[i]));
+    const c = t < 0.5 ? mix(dark, base, t * 2) : mix(base, light, (t - 0.5) * 2), f = 1 + 0.12 * fine[i];
+    return [c[0] * f, c[1] * f, c[2] * f];
   });
 }
 function texGravel(size, seed) {   // żwirowisko: szarobeżowe kamyki w drobnej plamistej fakturze
@@ -79,7 +89,7 @@ function texWhite(size, seed) { const n = rt.fbm(size, seed, [2, 6]), f = rt.fbm
 function texGold(size, seed) { const n = rt.fbm(size, seed, [1.5, 4]); return paint(size, i => { const k = 1 + 0.18 * n[i]; return [0.92 * k, 0.70 * k, 0.12 * k]; }); }
 const T = rt.standardTextures();
 const TX = {
-  grass: texGrass(1024, 31), gravel: texGravel(1024, 51), water: texWater(1024, 61), ochre: texOchre(1024, 11), dirt: texOchre(1024, 41, 0.72), olive: texOlive(1024, 21),
+  grass: texGrass(1024, 31), sand: texSand(1024, 71), gravel: texGravel(1024, 51), water: texWater(1024, 61), ochre: texOchre(1024, 11), dirt: texOchre(1024, 41, 0.72), olive: texOlive(1024, 21),
   leaf: texAutumnLeaf(256, 5), needle: texRustNeedle(256, 8), hide: texHide(256, 3), pattern: texPattern(256, 4), gold: texGold(128, 2),
   grayPlanks: rt.adjustTexture(T.planks, { saturation: 0.28, brightness: 1.95 }), grayTimber: rt.adjustTexture(T.timber, { saturation: 0.35, brightness: 1.5 }), grayRoof: rt.adjustTexture(T.planks, { saturation: 0.22, brightness: 1.6 }),
   freshPlanks: rt.adjustTexture(T.planks, { saturation: 1.0, brightness: 1.35, contrast: 0.9 }), freshTimber: rt.adjustTexture(T.timber, { saturation: 0.95, brightness: 1.15 }), freshRoof: rt.adjustTexture(T.planks, { saturation: 0.8, brightness: 0.95 }),

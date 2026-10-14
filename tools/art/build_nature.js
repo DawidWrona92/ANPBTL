@@ -8,7 +8,7 @@ const TS = 0.7;      // drzewa mniejsze niż model: oryginał ma korony ok. 1,5 
 const PERIOD = 6;   // okres tekstury gruntu w kaflach: 6x6 różnych kafli daje ciągłą powierzchnię bez szwów
 
 function terrain(lap) {
-  for (const [name, tex] of [['ochre', L.TX.ochre], ['olive', L.TX.olive], ['dirt', L.TX.dirt], ['grass', L.TX.grass], ['gravel', L.TX.gravel], ['water', L.TX.water]]) {
+  for (const [name, tex] of [['ochre', L.TX.ochre], ['olive', L.TX.olive], ['dirt', L.TX.dirt], ['grass', L.TX.grass], ['sand', L.TX.sand], ['gravel', L.TX.gravel], ['water', L.TX.water]]) {
     const gain = rt.groundGain(new rt.Camera({ tilePx: TILE, halfExtent: 3.6 }), { groundTexture: tex });
     const atlas = rt.makeImage(PERIOD * TILE, PERIOD * TILE / 2, 4), W = atlas.width;
     for (let j = 0; j < PERIOD; j++) for (let i = 0; i < PERIOD; i++) {
@@ -39,19 +39,26 @@ function props(lap) {
   rocks(); reeds();
   lap('rekwizyty');
 }
-// skały: kanciaste, łamane bryły (mało podziałów siatki = wyraźne ściany), szarobrązowy piaskowiec z ciemną szczeliną u dołu; zamiast gładkich "bułek"
-function rocks() {
-  const spec = [
-    ['prop_rock0', [[0, 0, 0.20, 0.34, 0.28, 0.22, 'a', 1], [0.26, 0.1, 0.12, 0.2, 0.17, 0.13, 'b', 2], [-0.22, -0.12, 0.1, 0.16, 0.14, 0.1, 'a', 3]]],
-    ['prop_rock1', [[0, 0, 0.14, 0.22, 0.18, 0.14, 'a', 4], [0.18, -0.08, 0.08, 0.12, 0.1, 0.08, 'b', 5]]],
-    ['prop_rock2', [[0, 0, 0.30, 0.3, 0.26, 0.3, 'a', 6], [-0.05, 0.05, 0.52, 0.2, 0.18, 0.18, 'b', 7], [0.3, 0.12, 0.1, 0.18, 0.15, 0.1, 'b', 8]]],
-  ];
-  for (const [key, parts] of spec) {
-    const m = model(null); m.material('rockA', { color: [0.55, 0.50, 0.43] }); m.material('rockB', { color: [0.42, 0.37, 0.31] }); m.material('crack', { color: [0.22, 0.19, 0.15] });
-    m.blob('crack', [0, 0, 0.05], [0.4, 0.34, 0.06], { seed: 9, roughness: 0.3, subdivisions: 1 });
-    for (const [x, y, z, rx, ry, rz, mt, sd] of parts) m.blob(mt === 'a' ? 'rockA' : 'rockB', [x, y, z], [rx, ry, rz], { seed: sd, roughness: 0.62, subdivisions: 1 });
-    saveStatic(key, rt.renderSprite(m, cam(1.2, [0, 0, 0.25], 0.8), { groundTexture: TX.ochre }), 'props');
+// skały: pęki obróconych płyt i brył (wyraźne płaskie ściany i ostre krawędzie), ciepły piaskowiec z ciemniejszymi blokami i szczeliną u dołu; gładkie elipsoidy wyglądały jak bułki
+const mul = (A, B) => A.map((r, i) => [0, 1, 2].map(j => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j]));
+function rockModel(spec, seed) {
+  const m = model(null); m.material('rockA', { color: [0.58, 0.41, 0.23] }); m.material('rockB', { color: [0.40, 0.28, 0.15] }); m.material('rockC', { color: [0.68, 0.52, 0.31] }); m.material('crack', { color: [0.24, 0.18, 0.12] });
+  m.box('crack', [0, 0, 0.03], [0.62, 0.5, 0.06], { rotation: rt.rotZ(0.4) });
+  const r = rt.makeRng(seed);
+  for (const [x, y, z, sx, sy, sz, mt] of spec) {
+    const rot = mul(rt.rotZ(r.uniform(0, 3.14)), mul(rt.rotY(r.uniform(-0.35, 0.35)), rt.rotX(r.uniform(-0.35, 0.35))));
+    m.box(mt === 'a' ? 'rockA' : mt === 'b' ? 'rockB' : 'rockC', [x, y, z], [sx, sy, sz], { rotation: rot });
   }
+  return m;
+}
+function rocks() {
+  const spec = {
+    prop_rock0: [[0, 0, 0.2, 0.46, 0.38, 0.4, 'a'], [0.3, 0.12, 0.12, 0.28, 0.24, 0.24, 'b'], [-0.2, -0.16, 0.34, 0.26, 0.22, 0.26, 'c']],
+    prop_rock1: [[0, 0, 0.13, 0.3, 0.26, 0.26, 'a'], [0.2, -0.1, 0.08, 0.16, 0.14, 0.14, 'b']],
+    prop_rock2: [[0, 0, 0.26, 0.5, 0.42, 0.5, 'b'], [-0.08, 0.06, 0.58, 0.32, 0.28, 0.3, 'a'], [0.34, 0.14, 0.1, 0.24, 0.2, 0.2, 'c'], [-0.3, -0.2, 0.12, 0.2, 0.2, 0.2, 'a']],
+  };
+  let n = 1;
+  for (const key in spec) saveStatic(key, rt.renderSprite(rockModel(spec[key], n++), cam(1.2, [0, 0, 0.25], 0.8), { groundTexture: TX.ochre }), 'props');
 }
 // trzciny i pałki wodne: pęk cienkich łodyg z lekkim odchyleniem, brunatne kolby na części łodyg
 function reeds() {
@@ -68,10 +75,13 @@ function reeds() {
 }
 function resources(lap) {
   for (const [key, seed] of [['gold_vein0', 3], ['gold_vein1', 11]]) {
-    const m = model(); m.material('rock', { color: [0.34, 0.28, 0.22] });
+    const m = model(); m.material('rock', { color: [0.50, 0.36, 0.20] }); m.material('rockD', { color: [0.33, 0.23, 0.13] });
     const rng = rt.makeRng(seed);
-    for (let i = 0; i < 4; i++) m.blob('rock', [rng.uniform(-0.3, 0.3), rng.uniform(-0.25, 0.25), 0.18], [rng.uniform(0.28, 0.4), rng.uniform(0.25, 0.35), rng.uniform(0.2, 0.32)], { seed: seed + i, roughness: 0.3, subdivisions: 2 });
-    for (let i = 0; i < 7; i++) m.blob('gold', [rng.uniform(-0.38, 0.38), rng.uniform(-0.32, 0.32), rng.uniform(0.12, 0.42)], [0.09, 0.08, 0.08], { seed: seed + 20 + i, roughness: 0.25, subdivisions: 1 });
+    for (let i = 0; i < 6; i++) {
+      const rot = mul(rt.rotZ(rng.uniform(0, 3.14)), mul(rt.rotY(rng.uniform(-0.35, 0.35)), rt.rotX(rng.uniform(-0.35, 0.35))));
+      m.box(i % 2 ? 'rock' : 'rockD', [rng.uniform(-0.32, 0.32), rng.uniform(-0.27, 0.27), 0.16 + 0.06 * (i % 3)], [rng.uniform(0.28, 0.5), rng.uniform(0.26, 0.44), rng.uniform(0.26, 0.46)], { rotation: rot });
+    }
+    for (let i = 0; i < 7; i++) m.blob('gold', [rng.uniform(-0.38, 0.38), rng.uniform(-0.32, 0.32), rng.uniform(0.12, 0.42)], [0.09, 0.08, 0.08], { seed: seed + 20 + i, roughness: 0.5, subdivisions: 1 });
     saveStatic(key, rt.renderSprite(m, cam(1.4, [0, 0, 0.3]), { groundTexture: TX.dirt }), 'props');
   }
   { const m = model(); m.material('meat', { color: [0.46, 0.16, 0.11] }); m.material('bone', { color: [0.85, 0.80, 0.68] });

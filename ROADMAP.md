@@ -52,13 +52,14 @@ Fazy to grube tematy, podpunkty ich szczegóły. Te same numery są w planie pra
 | 4 | Narzędzia balansu (B0, B1) | ✅ |
 | 5 | Grafika w stylu oryginału (G1, G1b, G2) | ✅ |
 | 6 | Fundament: frakcje jako dane, trudność, zapis (C2) | ✅ |
-| 7 | Frakcja Osadnicy (C3) | 🔶 7.1 mechanika ✅, 7.2 grafika ✅, 7.3 bot i balans ✅ (bez ablacji banku), 7.4 dokumenty |
-| 8 | Teren i brzegi | ✅ 8.1 brzeg wody (płycizna, mokry piasek, nierówna linia, woda z atlasu), 8.2 szuwary i trzciny, 8.3 trawa khaki zamiast pomarańczowej (piasek zostaje ochrowy, w plamach), 8.4 zielone kępki i żwirowiska, 8.5 skały kanciaste zamiast „bułek”, 8.6 test. Wygląd do Twojej oceny w grze; szczegóły graficzne na sam koniec |
-| 9 | Mechaniki misyjne i Sioux (C8a, M0) | ⬜ 9.1 pakowanie tepee, 9.2 skradanie i wykrywanie, 9.3 etapy celów, 9.4 wóz kryty, eskorta, rabunek |
-| 10 | Kampanie Sioux i USA, misje 1–2 (M1) | ⬜ 10.1 szkielet misji, 10.2 Sioux, 10.3 USA |
-| 11 | Desperado, AI wszystkich frakcji, misje Desperado (C4, C4b, M2) | ⬜ |
-| 12 | Meksykanie i ich misje (C7, M3) | ⬜ |
-| 13 | Backlog | ⬜ add-on (technologie, tartak, obóz treningowy, restauracja, namiot starszyzny, tomahawk, pionier, Gatling, miotacz ognia, sabotuer, dyliżans), jednostki rzeczne, tutoriale (4 poziomy Indian), misje 3+, mapy 64/128/192 i A*, edytor poziomów, **multiplayer (mgliste TODO)** |
+| 7 | Frakcja Osadnicy (C3) | ✅ (bez ablacji banku, do zrobienia przed fazą 12) |
+| 8 | Teren i brzegi | 🔶 8.1–8.6 wypchnięte; 8.7 grunt w 2× rozdzielczości (był „niedoczytany”), 8.8 sucha preria i jasny piasek, 8.9 skały i żyły złota kanciaste; czeka na Twoją ocenę w grze |
+| 9 | Interfejs jak w oryginale (nowa): panele drewno/pergamin, ikony, pasek zasobów, minimapa, menu | ⬜ potrzebne zrzuty UI z oryginału |
+| 10 | Mechaniki misyjne i Sioux (C8a, M0) | ⬜ 10.1 pakowanie tepee, 10.2 skradanie i wykrywanie, 10.3 etapy celów, 10.4 wóz kryty, eskorta, rabunek |
+| 11 | Kampanie Sioux i USA, misje 1–2 (M1) | ⬜ 11.1 szkielet misji, 11.2 Sioux, 11.3 USA |
+| 12 | Desperado, AI wszystkich frakcji, misje Desperado (C4, C4b, M2) | ⬜ |
+| 13 | Meksykanie i ich misje (C7, M3) | ⬜ |
+| 14 | Backlog | ⬜ add-on, tutoriale, misje 3+, jednostki rzeczne, mapy 64/128/192 i A*, edytor, **multiplayer (mgliste TODO)** |
 
 Szczegóły zrobionych faz: 1 i 3 w sekcji 2 (dziennik napraw); 4 w sekcji 6; 5 w sekcji 5; 6: tabela `RACES`, 5 poziomów trudności (docs/parametry.md), zapis/odczyt w localStorage (wersjonowany JSON, stany obu RNG, test identycznego przebiegu po wczytaniu), testy z 14.5. Nie zrobione z fazy 6, przeniesione do fazy 11: wybór frakcji wroga, kapitulacja AI, zwiadowca przed falą.
 

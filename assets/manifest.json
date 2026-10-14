@@ -58,18 +58,18 @@
  "prop_rock0": {
   "file": "assets/props/prop_rock0.png",
   "shadow": "assets/props/prop_rock0_shadow.png",
-  "w": 84,
-  "h": 54,
-  "ax": 47,
-  "ay": 35
+  "w": 97,
+  "h": 62,
+  "ax": 58,
+  "ay": 41
  },
  "prop_rock1": {
   "file": "assets/props/prop_rock1.png",
   "shadow": "assets/props/prop_rock1_shadow.png",
-  "w": 63,
+  "w": 67,
   "h": 44,
-  "ax": 33,
-  "ay": 26
+  "ax": 35,
+  "ay": 27
  },
  "prop_bush0": {
   "file": "assets/props/prop_bush0.png",
@@ -107,17 +107,17 @@
   "file": "assets/props/gold_vein0.png",
   "shadow": "assets/props/gold_vein0_shadow.png",
   "w": 117,
-  "h": 90,
-  "ax": 78,
-  "ay": 61
+  "h": 89,
+  "ax": 64,
+  "ay": 59
  },
  "gold_vein1": {
   "file": "assets/props/gold_vein1.png",
   "shadow": "assets/props/gold_vein1_shadow.png",
-  "w": 124,
-  "h": 84,
-  "ax": 72,
-  "ay": 51
+  "w": 122,
+  "h": 81,
+  "ax": 76,
+  "ay": 49
  },
  "carcass": {
   "file": "assets/props/carcass.png",
@@ -741,10 +741,10 @@
  "prop_rock2": {
   "file": "assets/props/prop_rock2.png",
   "shadow": "assets/props/prop_rock2_shadow.png",
-  "w": 94,
-  "h": 73,
-  "ax": 53,
-  "ay": 52
+  "w": 101,
+  "h": 80,
+  "ax": 60,
+  "ay": 59
  },
  "prop_reed0": {
   "file": "assets/props/prop_reed0.png",
@@ -769,5 +769,13 @@
   "h": 96,
   "ax": 66,
   "ay": 70
+ },
+ "ground_sand": {
+  "file": "assets/terrain/ground_sand.png",
+  "tw": 128,
+  "th": 64,
+  "cols": 6,
+  "rows": 6,
+  "period": 6
  }
 }
