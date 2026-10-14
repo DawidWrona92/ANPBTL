@@ -39,6 +39,14 @@ Dostęp: 2026-10-14. Zebrane przez właściciela projektu z wyszukiwarki i film�
 ## Wymagania mechaniczne wynikające z misji
 Ukrycie i wykrywanie (Sioux 1), rajd i rabunek jako cel (Sioux 2, Desperado), pakowanie tepee (Sioux 2), zmiana celów w trakcie misji (wiele), eskorta wozu A→B (USA 1), fale obronne (Meksyk 2), cele ekonomiczne i ochrona szlaku (Meksyk 1). Patrz `ROADMAP.md`, chunki C8a i M0.
 
+
+## Wygląd budynków i kolor (pamięć gracza, 2026-10-14) `[Ź: pamięć gracza]`
+- **Budynki nie mają koloru frakcji ani właściciela**: frakcje odróżnia styl architektury, nie kolor. Kolor drużyny dotyczy jednostek.
+- **Desperado:** budynki z postarzonych, szarych, zniszczonych desek (wiele dziur i rusztowań), jak na dostarczonych screenach.
+- **Osadnicy (USA):** też drewniane, ale **ze świeżego drewna, bez dziur i zniszczeń**. Zwykłe domy z **brązowych desek**. **Główna baza z desek malowanych na biało.** Jedynie **magazyn** (szopa) jest w zniszczonym, szarym stylu jak u Desperado.
+- Meksykanie: biały tynk, czerwone dachy (ze screenów); Sioux: tepee ze skóry z niebieskimi pasami (ze screenów).
+- Niebieskie i żółte wykończenia ze screenów USA i Desperado traktujemy jako stały element stylu (nie zależą od właściciela); do potwierdzenia.
+
 ## Do ustalenia
 - Tytuł, cele i przebieg misji Desperado 2.
 - Szczegółowe cele: Sioux 1 i 2, Meksyk 1, USA 1 i 2.
