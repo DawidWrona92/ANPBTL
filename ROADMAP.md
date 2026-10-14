@@ -1,6 +1,6 @@
 # Mapa drogowa: America: No Peace Beyond the Line (prototyp)
 
-Gra to jeden plik `index.html` (canvas 2D, bez zależności). Źródłem zasad jest [docs/dokumentacja-zasad.md](docs/dokumentacja-zasad.md); oznaczenia `[Ź]` (źródło) i `[P]` (projekt własny) są tam wyjaśnione w sekcji 19.0.
+Gra to `index.html` (canvas 2D, bez zależności); po migracji grafiki dojdzie katalog `assets/`. Źródłem zasad jest [docs/dokumentacja-zasad.md](docs/dokumentacja-zasad.md); oznaczenia `[Ź]` (źródło) i `[P]` (projekt własny) są tam wyjaśnione w sekcji 19.0.
 Testy: `npm install && npx playwright install chromium && npm test` (21 sprawdzeń na prawdziwym `index.html`).
 
 ## 1. Stan na dziś
@@ -36,33 +36,44 @@ Nie jest błędem, tylko brakiem funkcji (przeniesione do C4): AI Desperado nie 
 
 Nie zweryfikowane: odczucie z gry (tempo, balans po zmianie `aggro` wojownika), wygląd grafiki, zachowanie na ekranach dotykowych i w innych przeglądarkach niż Chromium.
 
-## 3. Co zostało względem dokumentacji
+## 3. Nadrzędny cel i zasady
 
-Rozmiary: S = kilka godzin, M = jeden dzień, L = kilka dni. Każdy chunk kończy się commitem, własnym testem w `tests/regression.js` i wpisem w sekcji 2.
+Cel: **jak najwierniejsze odtworzenie oryginału.** Przy sprzeczności lub luce szukamy w źródłach, nie zgadujemy (hierarchia: manual > recenzje z 2001 > patch notes > wiki > teksty maszynowe). Każda mechanika ma status `[Ź]` (źródło) albo `[P]` (rekonstrukcja); wartości `[Ź]` nie „poprawiamy" dla wygody balansu. Ustalenia i źródła: [docs/zrodla.md](docs/zrodla.md).
 
-| Chunk | Zakres | Rozmiar | Zależy od |
+## 4. Co zostało: kolejność chunków
+
+Rozmiary: S = kilka godzin, M = dzień, L = kilka dni. Definicja ukończenia chunku: mechanika + sprite'y (po G2) + test w `tests/regression.js` + budżet regresji balansu + wpis tutaj.
+
+| Faza | Chunk | Rozmiar | Zakres |
 |---|---|---|---|
-| **C1 Komendy i UX** (start) | punkty zbiórki (flaga rally per budynek, `P`), Shift-waypointy, skróty `A` atak / `S` stop / `H` hold / spacja = ostatni alert, podwójny klik zaznacza wszystkich tego typu, anulowanie slotu kolejki ze zwrotem kosztu, alert z kierunkiem ataku, slot czeka przy braku zasobów (dok. 19.7) | M | — |
-| **C2 Fundament silnika** | wybór frakcji i trudności także dla **przeciwnika**, zapis i odczyt (snapshot + seed), tabele danych wydzielone z `CFG` (14.3), testy z 14.5 (las, rozbierane obiekty, rozkaz grupowy) | M | — |
-| **C3 Dokończenie Osadników** | frontiersman/frontierswoman (podział płci), bank (limit 5 sprawdzany **przy starcie budowy**, +1 złota/s, +500 limitu), szeryf (wzrok 10, aura +10), armata (gałąź `art` w `typeMult` już jest), ranczo (+150 żywności), cap populacji 200 | M | C2 |
-| **C4 Desperado i AI** | whiskey i destylarnia, kradzież broni, łowca / zabójca / trzaska bicza, 5 poziomów trudności (19.9), fale: pierwsza 480 s, interwał 180 s, wielkość `5+2n` cap 40, alokacja robotników 40/30/20/10, **zagroda dla AI** (konne bandy od fali 3), kapitulacja AI, przełącznik `cpuon/cpuoff` | L | C2 |
-| **C5 Technologie i budynki add-onu** | 10 brakujących technologii z 14 (19.4), tartak, obóz treningowy, restauracja, namiot starszyzny | M | C3 |
-| **C6 Zdolności specjalne** | leczenie (ksiądz/zakonnica), konwersja padre, klątwa szamana, szarża kawalerii, mount/dismount, bohaterowie, jednostki add-onu (tomahawk, pionier, Gatling, miotacz ognia, sabotuer, opancerzony dyliżans) | M | C3, C5 |
-| **C7 Meksykanie** | milicjant, gaucho (bolas), gunslinger, commandant, mobilna armata, ksiądz | L | C2, C6 |
-| **C8 Woda i obóz Sioux** | kanu, tratwa, łódź żaglowa (rekonstrukcja z okładki pudełka, bez danych liczbowych), pakowanie i przenoszenie tepee | M | — |
-| **C9 Misje i kampanie** | format JSON z triggerami (19.8), cele: zniszcz / eskortuj / uratuj / zdobądź / przetrwaj / zbierz, tutorial 4 poziomów, kampanie, później edytor | L | C2, C4 |
-| **C10 Grafika painted** (równolegle od C1) | migracja całej gry (patrz niżej) | L | — |
-| **C11 Skala i wydajność** (opcjonalnie) | mapy 64/128/192, A* z sektorami 16×16, błoto i droga, klify, stały tick 10 Hz, LOD poza kamerą | L | C2 |
+| A | **G1 Spike grafiki** | S–M | cztery próbki (dom, drzewo, humanoid, koń) w stylu AoE2; decyzja właściciela: hybryda `rts-prerender-3d` (budynki, drzewa, teren) + `painted-rts-sprites` (jednostki, zwierzęta) / tylko painted / tylko prerender. Sprite'y w 128 px, `CFG` zostaje 64×32 i `ZOOM=2` |
+| A | **C1 Komendy i UX** | M | punkty zbiórki (`P`), Shift-waypointy, skróty `A` atak / `S` stop / `H` hold / spacja = ostatni alert, podwójny klik zaznacza wszystkich tego typu, anulowanie slotu kolejki ze zwrotem, alert z kierunkiem ataku, slot czeka przy braku zasobów (19.7) |
+| A | **R0 Badania źródłowe** | S | w tle; wyniki w `docs/zrodla.md`, dalsze po odblokowaniu domen (manual PDF, filmy) |
+| B | **B1 Balans: bot + baseline** (+ B0 rejestr parametrów) | M | bot z build orderem, `npm run balance`, ≥20 seedów, horyzonty 5/10/20 min; baseline z dok. 20.1; wyniki jako „wyniki modelu" |
+| B | **G2 Migracja grafiki** | L | atomowo za flagą `CFG.art`: teren, drzewa, budynki ×3 nacje, jednostki, Sioux, zwierzyna; maska drużyny; koniec placeholderów |
+| C | **C2 Fundament** | M | reguły frakcji jako dane, wybór frakcji obu stron i trudności, zapis/odczyt, tabele danych, testy z 14.5 |
+| D | **C3 Osadnicy** | M | bank (limit sprawdzany przy starcie budowy), szeryf, armata, ranczo, frontiersman/woman, wóz kryty, cap 200 |
+| D | **C8a Pakowanie tepee** | S–M | wymagane przez Sioux 2 |
+| D | **M0 Mechaniki misyjne** | M | ukrycie i wykrywanie (traperzy), etapy celów zmieniane w trakcie, eskorta A→B, rabunek jako cel |
+| D | **M1 Misje Sioux 1–2 i USA 1–2** | L | The Santee Sioux Uprising, Battle of North Platte River, The Trek West, Remember the Alamo; format JSON z triggerami (19.8); klątwa szamana |
+| E | **C4 Desperado grywalni** | L | brak własnej produkcji, wszystko z napadów, destylarnia → whisky; bandleader, łowca, zabójca, trzaska bicza; rabunek z przewozem do obozu |
+| E | **C4b AI dla każdej frakcji** | L | poziomy trudności 19.9, fale `5+2n` cap 40, alokacja robotników, zagroda dla AI (konne bandy), kapitulacja, `cpuon/cpuoff` |
+| E | **M2 Misje Desperado 1–2** | M | Band Terror + misja 2 (tytuł do ustalenia) |
+| F | **C7 Meksykanie** + **M3 Misje Meksyku 1–2** | L + M | leczenie, konwersja padre, mobilna armata, gaucho; Trade Routes, Border Protection |
+| Backlog | | | add-on (technologie, tartak, obóz treningowy, restauracja, namiot starszyzny, tomahawk, pionier, Gatling, miotacz ognia, sabotuer, dyliżans), jednostki rzeczne, tutoriale (4 poziomy Indian), misje 3+, mapy 64/128/192 i A*, edytor poziomów, **multiplayer (mgliste TODO)** |
 
-Poza zakresem do osobnej decyzji: multiplayer lockstep (19.10), głosy i muzyka (19.11), lokalizacja.
+Zdolności i technologie frakcyjne (klątwa szamana, leczenie, konwersja) wchodzą razem z frakcją.
 
-### C10, uwagi do grafiki
+## 5. Grafika
 
-Decyzja właściciela: przejście na **painted** (skill painted-rts-sprites). Obecna gra ma kafel 64×32 (`CFG.tileW/tileH`), a skill domyślnie 96 px, więc najpierw trzeba wybrać: renderować painted w `tilePx: 64` (bez zmian w silniku, wcześniejsze próby z dokumentacji 20.17 tak robiły) albo przeskalować `CFG` i kamerę. Światło w grze pada z lewego górnego rogu, w skillu z prawego górnego, więc sprite'y trzeba odbić poziomo. Kolejność: teren i drzewa → budynki 3 nacji → jednostki (8 kierunków, chód i atak) → Sioux (tepee, squaw, wojownik, łucznik, medicine man, wódz) → zwierzyna (bizon, bydło, koń) → detale terenu. Kolor drużyny przez maskę zamiast palet, cień jako osobna warstwa. Do czasu migracji obowiązuje stary styl: nie mieszać obu w jednej scenie.
+Kierunek: styl AoE2 (pre-render 3D). `rts-prerender-3d` jest dobry do budynków, drzew, rekwizytów i kafli, ale słaby dla ludzi i koni, dlatego rekomendowana jest hybryda z `painted-rts-sprites` dla jednostek (obie dzielą kamerę 2:1, światło z prawej góry i maskę drużyny). Rozstrzyga G1. Sprite'y renderowane w 128 px i rysowane w połowie rozmiaru z wygładzaniem; światło w grze idzie dziś z lewej, w nowych sprite'ach z prawej (odbicie poziome). Grafika w `assets/` (koniec „jednego pliku" zaakceptowany).
 
-## 4. Pytania otwarte do właściciela
+## 6. Balans
 
-1. Skala painted: `tilePx 64` (zalecane, bez zmian w silniku) czy 96?
-2. Czy Desperado ma być frakcją grywalną (C4), czy tylko przeciwnikiem?
-3. Czy multiplayer w ogóle jest celem?
-4. Ile misji kampanii wchodzi do pierwszego wydania (dokumentacja: ponad 30)?
+Protokół: rejestr parametrów z proweniencją, bot gracza, ≥20 seedów, jedna zmienna na eksperyment, mediana/p90, przyczyny końca partii. Pytania: zgodność ekonomii z dok. 20.1 po naprawach, czy bot przeżywa pierwszą wyprawę AI (480 s), macierz TTK (efekt zasięgu wręcz 1.5), parytet Sioux i Osadników, rozkład zakończeń. Po każdym chunku przebieg kontrolny 5 seedów.
+
+## 7. Pytania otwarte
+
+1. Tytuł i treść misji Desperado 2; cele Sioux 1–2, Meksyk 1, USA 1–2 (filmy, manual, pamięć gracza).
+2. Liczby z manuala PDF (koszty, czasy, whisky).
+3. Wybór stylu grafiki po G1.
