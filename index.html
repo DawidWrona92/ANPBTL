@@ -934,7 +934,8 @@ function updateUnit(u, dt) {
       if (rectDist(u.x, u.y, b) > Math.max(def.range, 1)) {
         u.repathT -= dt;
         if (u.repathT <= 0) { u.path = pathToBuildingU(u, b); u.pathI = 0; u.repathT = 1.5; }
-        if (u.path.length) followPath(u, dt);
+        // ponowne wyznaczenie w połowie kafla widzi jednostkę "już w celu" i daje pustą ścieżkę: dochodzimy wprost do obrysu
+        if (u.path.length) followPath(u, dt); else stepToward(u, b.cx, b.cy, dt);
       } else if (u.cd <= 0 && !isSwimming(u)) {
         u.cd = def.cd;
         u.kick = 0.15;
