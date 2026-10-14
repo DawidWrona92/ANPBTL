@@ -52,7 +52,7 @@ Fazy to grube tematy, podpunkty ich szczegóły. Te same numery są w planie pra
 | 4 | Narzędzia balansu (B0, B1) | ✅ |
 | 5 | Grafika w stylu oryginału (G1, G1b, G2) | ✅ |
 | 6 | Fundament: frakcje jako dane, trudność, zapis (C2) | ✅ |
-| 7 | Frakcja Osadnicy (C3) | ✅ (bez ablacji banku, do zrobienia przed fazą 13) |
+| 7 | Frakcja Osadnicy (C3) | ✅ (bez ablacji banku, do zrobienia przed fazą 14) |
 | 8 | Teren i brzegi | 🔶 8.1–8.6 wypchnięte; 8.7 grunt w 2× rozdzielczości (był „niedoczytany”), 8.8 sucha preria i jasny piasek, 8.9 skały i żyły złota kanciaste; czeka na Twoją ocenę w grze |
 | 9 | Interfejs jak w oryginale | ✅ 9.1 zrzuty od właściciela (docs/zrodla.md), 9.2 deski i pergamin (`tools/art/build_ui.js`) i pasek zasobów z ikonami, 9.3 panel dolny (info o zaznaczeniu, siatka poleceń na pergaminie, zakładki grup 1–6), 9.4 minimapa w ramie z przyciskami (pomoc, zapis, odczyt), 9.5 menu główne, wybór ludu (cztery koła), ustawienia (dźwięk, przewijanie, szybkość gry, cienie, trudność), okna dialogowe z deskami, 9.6 testy. Do oceny w grze; szczegóły na koniec |
 | 10 | Potyczka: mapy, kaniony, motywy terenu, wybór przeciwnika | ✅ 10.1 mapy jako dane ASCII (`assets/maps.js` z `tools/maps/build_maps.js`), zmienny rozmiar mapy, teren w kafelkach 512 px; 10.2 klify `T_CLIFF` (nieprzekraczalne, bez zabudowy; sprite'y warstwowego piaskowca per motyw); 10.3 mapy: Preria (klasyczna), Kanion Dwóch Przejść, Bród, Płaskowyż 56×56; 10.4 motywy arid / preria / trawiasta / auto; 10.5 ekran ustawień potyczki z miniaturami map, wyborem terenu, przeciwnika (tylko Desperado aktywny, reszta „wkrótce” do fazy 14) i trudności; 10.6 testy (przejścia na każdej mapie, klify, zapis, AI 6 min na nowych mapach) |
@@ -61,7 +61,7 @@ Fazy to grube tematy, podpunkty ich szczegóły. Te same numery są w planie pra
 | 13 | Kampanie Sioux i USA, misje 1–2 (M1) | ⬜ 13.1 szkielet misji, 13.2 Sioux, 13.3 USA |
 | 14 | Desperado, AI wszystkich frakcji, misje Desperado (C4, C4b, M2) | ⬜ |
 | 15 | Meksykanie i ich misje (C7, M3) | ⬜ |
-| 15 | Backlog | ⬜ add-on, tutoriale, misje 3+, jednostki rzeczne, mapy 64/128/192 i A*, edytor, **multiplayer (mgliste TODO)** |
+| 16 | Backlog | ⬜ add-on, tutoriale, misje 3+, jednostki rzeczne, mapy 64/128/192 i A*, edytor, **multiplayer (mgliste TODO)** |
 
 Szczegóły zrobionych faz: 1 i 3 w sekcji 2 (dziennik napraw); 4 w sekcji 6; 5 w sekcji 5; 6: tabela `RACES`, 5 poziomów trudności (docs/parametry.md), zapis/odczyt w localStorage (wersjonowany JSON, stany obu RNG, test identycznego przebiegu po wczytaniu), testy z 14.5. Nie zrobione z fazy 6, przeniesione do fazy 11: wybór frakcji wroga, kapitulacja AI, zwiadowca przed falą.
 
