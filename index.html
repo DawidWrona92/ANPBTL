@@ -626,10 +626,22 @@ function tryPlace(type, tx, ty) {
   const def = CFG.buildings[type];
   for (let y = ty; y < ty + def.h; y++) for (let x = tx; x < tx + def.w; x++)
     if (!inMap(x, y) || isBlocked(x, y)) { uiAlert('Nie można tu budować'); return; }
+    else if (!S.explored[idx(x, y)]) { uiAlert('Nie można budować w nieodkrytym terenie'); return; }
   if (!pay(def.cost)) { uiAlert('Brak surowców'); return; }
   const b = addBuilding(type, tx, ty, 'player');
   sfx('place', b.cx, b.cy);
+  ejectUnitsFrom(b);
   assignBuilders(b, S.selected.units.filter(u => unitRole(u, 'builder')));
+}
+// jednostki stojące na planie nowego budynku wychodzą na najbliższe wolne pole przy jego krawędzi
+function ejectUnitsFrom(b) {
+  for (const u of S.units) {
+    if (u.x < b.tx || u.x >= b.tx + b.w || u.y < b.ty || u.y >= b.ty + b.h) continue;
+    const spot = spawnSpotNear(b, CFG.units[u.type]);
+    if (!spot) continue;
+    u.x = spot[0] + 0.5; u.y = spot[1] + 0.5; u.path = [];
+    if (u.state === 'move') u.state = 'idle';
+  }
 }
 function tryTrain(b, unitType) {
   if (!b.built || b.queue.length >= 5) return;
@@ -701,6 +713,8 @@ function stepSnd(u, dist) {
 function followPath(u, dt) {
   const def = CFG.units[u.type];
   const [nx, ny] = u.path[u.pathI];
+  // przeszkoda (np. budynek) pojawiła się na trasie po jej wyznaczeniu: stań jak przy końcu ścieżki, stan jednostki sam wyznaczy nową
+  if (!passableFor(def, nx, ny)) { u.path = []; return true; }
   const tx = nx + 0.5, ty = ny + 0.5;
   const dx = tx - u.x, dy = ty - u.y;
   const d = Math.hypot(dx, dy);
