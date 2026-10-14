@@ -57,18 +57,20 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   });
 
   console.log('Grafika (G2)');
-  await test('G2: tryb prerender ładuje zasoby, rysuje teren i drzewa bez błędów', async () => {
+  await test('G2: zasoby ładują się, każdy typ jednostki i budynek ma sprite, scena rysuje się bez błędów', async () => {
     const p2 = await browser.newPage({ viewport: { width: 1280, height: 720 } }), errs = []; p2.on('pageerror', e => errs.push(String(e).slice(0, 200)));
-    await p2.goto('file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html')) + '?art=prerender');
+    await p2.goto('file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html')));
     await p2.waitForFunction(() => window.GAME_READY, null, { timeout: 20000 });
     const r = await p2.evaluate(() => {
       startRace('settler'); document.getElementById('overlay').style.display = 'none'; S.menuOpen = false; S.explored.fill(1);
       for (let i = 0; i < 300; i++) update(1 / 60); render();
       const man = window.ASSETS, broken = Object.keys(man).filter(k => man[k]._img && !(man[k]._img.complete && man[k]._img.naturalWidth > 0));
-      return { art: ART, layer: !!S.groundLayer, assets: Object.keys(man).length, broken };
+      const missU = Object.keys(CFG.units).filter(t => !man[t]), missB = [];
+      for (const t of Object.keys(CFG.buildings)) for (const n of t === 'tepee' ? ['sx'] : ['us', 'ban']) if (!man['bld_' + t + '_' + n]) missB.push(t + '_' + n);
+      return { layer: !!S.groundLayer, assets: Object.keys(man).length, broken, missU, missB };
     });
     await p2.close();
-    eq(errs, [], 'błędy strony'); eq(r.art, 'prerender', 'tryb'); ok(r.layer && r.assets > 10, 'warstwa terenu i manifest'); eq(r.broken, [], 'niezaładowane obrazy');
+    eq(errs, [], 'błędy strony'); eq(r.missU, [], 'jednostki bez sprite\'a'); eq(r.missB, [], 'budynki bez sprite\'a'); ok(r.layer && r.assets > 10, 'warstwa terenu i manifest'); eq(r.broken, [], 'niezaładowane obrazy');
   });
 
   console.log('Walka i ruch');
