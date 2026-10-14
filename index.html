@@ -170,6 +170,7 @@ function newGame(seed, race) {
   S.shots = [];
   S.hits = [];
   S.muted = !!S.muted; // wyciszenie to ustawienie gracza, nie część partii
+  S.lastAlert = null; S.attackMove = false; S.rallyMode = false; S.lastClick = null;
   S.paused = false;
   S.testMode = false;
   S.menuOpen = false;
@@ -513,6 +514,10 @@ function processCmds() {
     else if (c.action === 'train') tryTrain(c.building, c.unitType);
     else if (c.action === 'research') tryResearch(c.building, c.techId);
     else if (c.action === 'toggle') { c.building.on = !c.building.on; }
+    else if (c.action === 'cancel') cancelQueueSlot(c.building, c.index);
+    else if (c.action === 'rally') { if (S.buildings.includes(c.building) && inMap(c.x, c.y)) c.building.rally = [c.x, c.y]; }
+    else if (c.action === 'stop') stopUnits(c.units);
+    else if (c.action === 'attackmove') executeAttackMove(c);
     else if (c.action === 'resume') {
       if (!S.buildings.includes(c.building)) continue;
       const idle = S.units.filter(u => u.fac === 'player' && unitRole(u, 'builder') && u.state === 'idle');
@@ -521,11 +526,33 @@ function processCmds() {
     }
   }
 }
+// stop: jednostka porzuca wszystko, co robiła (nawet pracę), i czeka na rozkaz
+function stopUnits(list) {
+  for (const u of list) {
+    if (!S.units.includes(u) || u.state === 'flee') continue;
+    releaseFarm(u);
+    u.state = 'idle'; u.path = []; u.attackTarget = null; u.ordered = false; u.orderBuilding = null; u.node = null;
+    u.buildTarget = null; u.captureTarget = null; u.waypoints = null; u.amTarget = null;
+  }
+}
+// atak-ruch: marsz do punktu z walką po drodze; po zabiciu celu marsz trwa (resumeAfterInterrupt)
+function executeAttackMove(c) {
+  const units = c.units.filter(u => S.units.includes(u) && u.state !== 'flee');
+  executeOrder({ units, x: c.x, y: c.y, targetUnit: null, targetHorse: null });
+  for (const u of units) if (u.state === 'move' && CFG.units[u.type].aggro > 0) u.amTarget = [c.x, c.y];
+}
+// anulowanie slotu kolejki: zapłacony koszt wraca
+function cancelQueueSlot(b, i) {
+  if (!S.buildings.includes(b) || !b.queue[i]) return;
+  const q = b.queue.splice(i, 1)[0];
+  if (q.paid) for (const k in CFG.units[q.type].cost) addRes(k, CFG.units[q.type].cost[k], b.fac);
+}
 function executeOrder(c) {
   const units = c.units.filter(u => S.units.includes(u) && u.state !== 'flee');
+  if (!c.queue) for (const u of units) { u.waypoints = null; u.amTarget = null; }
   if (c.units.some(u => S.units.includes(u) && u.state === 'flee')) uiAlert('Spanikowana jednostka ignoruje rozkazy');
   if (!units.length) return;
-  sfx('order', c.x, c.y);
+  if (!c.silent) sfx('order', c.x, c.y);
   // cel: jednostka wroga?
   const target = c.targetUnit && S.units.includes(c.targetUnit) ? c.targetUnit : null;
   // polowanie: klik na zwierzę; jednostki z flagą hunter (worker, desperado-łowca) atakują, reszta tylko podchodzi
@@ -596,8 +623,9 @@ function executeOrder(c) {
     }
     return;
   }
-  // ruch
+  // ruch; z Shiftem kolejne punkty tworzą trasę (waypointy), jeśli jednostka już idzie
   for (const u of units) {
+    if (c.queue && u.state === 'move') { (u.waypoints = u.waypoints || []).push([c.x, c.y]); continue; }
     u.node = null; releaseFarm(u); u.buildTarget = null; u.attackTarget = null; u.orderBuilding = null;
     u.path = uPath(u, c.x, c.y); u.pathI = 0;
     u.state = 'move';
@@ -651,8 +679,9 @@ function tryTrain(b, unitType) {
     if (cnt >= def.limit) { uiAlert('Limit: maksymalnie ' + def.limit); return; }
   }
   if (popUsed(b.fac) + queuedCount(b.fac) >= popCap(b.fac)) { uiAlert('Brak miejsc (zbuduj dom)'); return; }
-  if (!pay(def.cost)) { uiAlert('Brak surowców'); return; }
-  b.queue.push({ type: unitType, remaining: def.train });
+  if (!canAfford(def.cost, b.fac)) { uiAlert('Brak surowców'); return; }
+  // koszt pobierany dopiero, gdy slot zaczyna pracę; do tego czasu brak surowców wstrzymuje slot (dok. 19.7)
+  b.queue.push({ type: unitType, remaining: def.train, paid: false });
 }
 function tryResearch(b, techId) {
   const td = CFG.techs[techId];
@@ -808,7 +837,11 @@ function updateUnit(u, dt) {
     }
     case 'idle': break;
     case 'move':
-      if (!u.path.length || followPath(u, dt)) u.state = 'idle';
+      if (!u.path.length || followPath(u, dt)) {
+        const nw = u.waypoints && u.waypoints.shift();
+        if (nw) { u.path = uPath(u, nw[0], nw[1]); u.pathI = 0; if (!u.path.length) u.state = 'idle'; }
+        else { u.state = 'idle'; u.amTarget = null; }
+      }
       break;
     case 'toNode': if (!u.path.length || followPath(u, dt)) u.state = 'gather'; break;
     case 'toDeposit': if (!u.path.length || followPath(u, dt)) u.state = 'deposit'; break;
@@ -901,6 +934,7 @@ function updateUnit(u, dt) {
       } else if (u.cd <= 0 && !isSwimming(u)) {
         u.cd = def.cd;
         u.kick = 0.15;
+        if (t.fac === 'player' && u.fac === 'enemy') notifyAttack(t.x, t.y, u.x, u.y);
         if (def.range > 1) addShot(u, t.x, t.y); else sfx('melee', t.x, t.y);
         const tdef = CFG.units[t.type];
         // strzał płoszy zwierzynę w promieniu 5 od celu [Ź 19.6], cios wręcz tylko trafione zwierzę
@@ -939,6 +973,7 @@ function updateUnit(u, dt) {
       } else if (u.cd <= 0 && !isSwimming(u)) {
         u.cd = def.cd;
         u.kick = 0.15;
+        if (b.fac === 'player' && u.fac === 'enemy') notifyAttack(b.cx, b.cy, u.x, u.y);
         if (def.range > 1) addShot(u, b.cx, b.cy);
         addHitFx(b.cx, b.cy, { melee: def.range <= 1 });
         b.hp -= rollDamage(def.dmg, u.lvl, typeMult(def, null, true), 0);
@@ -969,6 +1004,11 @@ function resumeAfterInterrupt(u) {
   }
   const bt = u.resumeBuild; u.resumeBuild = null;
   if (bt && S.buildings.includes(bt) && !bt.built) { assignBuilders(bt, [u]); return; }
+  if (u.amTarget) {
+    u.path = uPath(u, u.amTarget[0], u.amTarget[1]); u.pathI = 0;
+    if (u.path.length) { u.state = 'move'; return; }
+    u.amTarget = null;
+  }
   u.state = 'idle';
 }
 function switchToDeposit(u) {
@@ -1261,7 +1301,7 @@ function updateAnimal(a, dt) {
 }
 function destroyBuilding(b) {
   // zamówienia w toku wracają do puli: koszt zapłacono przy zamówieniu
-  for (const q of b.queue) for (const k in CFG.units[q.type].cost) addRes(k, CFG.units[q.type].cost[k], b.fac);
+  for (const q of b.queue) if (q.paid) for (const k in CFG.units[q.type].cost) addRes(k, CFG.units[q.type].cost[k], b.fac);
   if (b.research) for (const k in CFG.techs[b.research.id].cost) addRes(k, CFG.techs[b.research.id].cost[k], b.fac);
   b.queue = []; b.research = null;
   sfx('boom', b.cx, b.cy);
@@ -1304,13 +1344,17 @@ function updateBuilding(b, dt) {
   if (b.queue.length) {
     const q = b.queue[0];
     if (popUsed(b.fac) >= popCap(b.fac)) { /* czekaj na dom (każdy producent, nie tylko obóz) */ }
-    else {
+    else if (!q.paid && !pay(CFG.units[q.type].cost, b.fac)) {
+      if (b.fac === 'player' && S.time - (S.alertCooldown.queue ?? -99) > 20) { S.alertCooldown.queue = S.time; uiAlert('Kolejka czeka: brak surowców', [b.cx, b.cy]); }
+    } else {
+      q.paid = true;
       q.remaining -= dt;
       if (q.remaining <= 0) {
         b.queue.shift();
         const spot = spawnSpotNear(b, CFG.units[q.type]);
         if (spot) {
-          addUnit(q.type, b.fac, spot[0] + 0.5, spot[1] + 0.5);
+          const nu = addUnit(q.type, b.fac, spot[0] + 0.5, spot[1] + 0.5);
+          if (b.rally) executeOrder({ units: [nu], x: b.rally[0], y: b.rally[1], targetUnit: null, targetHorse: null, silent: true });
           if (b.fac === 'player') sfx('ok');
         } else {
           // brak miejsca przy budynku: jednostka czeka na początku kolejki zamiast zniknąć razem z kosztem
@@ -1422,7 +1466,7 @@ function aiTrain(b, unitType) {
   const def = CFG.units[unitType];
   if (popUsed('enemy') + queuedCount('enemy') >= popCap('enemy')) return false;
   if (!pay(def.cost, 'enemy')) return false;
-  b.queue.push({ type: unitType, remaining: def.train });
+  b.queue.push({ type: unitType, remaining: def.train, paid: true });
   return true;
 }
 function aiAttack(target) {
@@ -1521,7 +1565,7 @@ function updateAI(dt) {
     if (target && aiAttack(target) > 0) {
       st.attacks++; st.attackCd = A.attackCooldown;
       if (S.buildings.some(b => b.fac === 'player' && b.type === 'hq'))
-        uiAlert('Zwiadowcy donoszą: banda ruszyła na twoją osadę!');
+        uiAlert('Zwiadowcy donoszą: banda ruszyła na twoją osadę!', [target.cx, target.cy]);
     }
   }
 }
@@ -1624,8 +1668,16 @@ canvas.addEventListener('pointerup', e => {
   const tx = Math.floor(px), ty = Math.floor(py);
   if (S.placing && !right) { queueCmd({ action: 'place', type: S.placing, x: tx, y: ty }); if (!e.shiftKey) S.placing = null; mouse.dragging = false; return; }
   if (S.placing && right) { S.placing = null; return; }
+  if ((S.attackMove || S.rallyMode) && right) { S.attackMove = false; S.rallyMode = false; return; }
+  if (S.attackMove) { queueCmd({ action: 'attackmove', units: [...S.selected.units], x: tx, y: ty }); S.attackMove = false; S.fx = { x: px, y: py, age: 0 }; return; }
+  if (S.rallyMode) { if (S.selected.building) queueCmd({ action: 'rally', building: S.selected.building, x: tx, y: ty }); S.rallyMode = false; S.fx = { x: px, y: py, age: 0 }; return; }
   if (right) {
-    if (!S.selected.units.length) return;
+    if (!S.selected.units.length) {
+      // PPM przy zaznaczonym budynku produkcyjnym ustawia punkt zbiórki
+      const sb = S.selected.building;
+      if (sb && sb.built && trainMenuFor(sb, S.playerRace).length) { queueCmd({ action: 'rally', building: sb, x: tx, y: ty }); S.fx = { x: px, y: py, age: 0 }; }
+      return;
+    }
     let targetUnit = null, bd = 400;
     for (const u of S.units) {
       const isAnimal = u.fac === 'neutral' && CFG.units[u.type] && CFG.units[u.type].animal;
@@ -1644,7 +1696,7 @@ canvas.addEventListener('pointerup', e => {
         if (d < hb) { hb = d; targetHorse = u; }
       }
     }
-    queueCmd({ action: 'order', units: [...S.selected.units], x: tx, y: ty, targetUnit, targetHorse });
+    queueCmd({ action: 'order', units: [...S.selected.units], x: tx, y: ty, targetUnit, targetHorse, queue: e.shiftKey });
     S.fx = { x: px, y: py, age: 0 };
     return;
   }
@@ -1670,7 +1722,20 @@ canvas.addEventListener('pointerup', e => {
     const d = (ux - ex) ** 2 + (uy - ey) ** 2;
     if (d < bd) { bd = d; hit = u; }
   }
-  if (hit) { S.selected.units = [hit]; S.selected.building = null; updatePanels(); sfx('sel', hit.x, hit.y); return; }
+  if (hit) {
+    const now = Date.now();
+    if (S.lastClick && now - S.lastClick.t < 350 && S.lastClick.type === hit.type) {
+      // podwójny klik: wszystkie jednostki tego typu widoczne na ekranie
+      const VW = canvasW / ZOOM, VH = canvasH / ZOOM;
+      S.selected.units = S.units.filter(u => {
+        if (u.fac !== 'player' || u.type !== hit.type) return false;
+        const [sx, sy] = tileToScreen(u.x, u.y);
+        return sx >= 0 && sx <= VW && sy >= 0 && sy <= VH;
+      });
+      S.lastClick = null;
+    } else { S.selected.units = [hit]; S.lastClick = { t: now, type: hit.type }; }
+    S.selected.building = null; updatePanels(); sfx('sel', hit.x, hit.y); return;
+  }
   // klik: budynek?
   const b = inMap(tx, ty) ? buildingAt(tx, ty) : null;
   if (b && b.fac === 'player') { S.selected.building = b; S.selected.units = []; updatePanels(); sfx('sel', b.cx, b.cy); return; }
@@ -1691,7 +1756,20 @@ document.addEventListener('keydown', e => {
   const plain = !e.ctrlKey && !e.altKey && !e.metaKey;
   ensureAudio();
   if (plain && k === 'C' && !e.repeat) { S.muted = !S.muted; if (!S.muted) ensureAudio(); }
-  if (S.placing && e.key === 'Escape') S.placing = null;
+  if (e.key === 'Escape') { S.placing = null; S.attackMove = false; S.rallyMode = false; }
+  if (plain && !e.repeat) {
+    const armedSel = S.selected.units.some(u => u.fac === 'player' && CFG.units[u.type] && CFG.units[u.type].aggro > 0);
+    const sb = S.selected.building;
+    if (k === 'X' && S.selected.units.length) queueCmd({ action: 'stop', units: [...S.selected.units] });
+    if (k === 'Q' && armedSel) { S.attackMove = true; S.rallyMode = false; S.placing = null; }
+    if (k === 'P' && sb && sb.fac === 'player' && sb.built && trainMenuFor(sb, S.playerRace).length) { S.rallyMode = true; S.attackMove = false; S.placing = null; }
+  }
+  if (e.key === ' ') {
+    // spacja: kamera na miejsce ostatniego alertu; fokus z przycisku, żeby spacja go nie "klikała"
+    e.preventDefault();
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    if (S.lastAlert) { centerCameraOn(S.lastAlert.x, S.lastAlert.y); clampCam(); }
+  }
   const item = plain && buildMenuFor(S.playerRace).find(m => m.key === k);
   if (item && S.selected.units.some(u => unitRole(u, 'builder'))) S.placing = item.type;
   // zdolności medicine mana: R deszcz, B burza; B nie koliduje, bo fabrykę (B) stawiają tylko Osadnicy, a medicine man jest jednostką Sioux
@@ -1739,7 +1817,8 @@ const abilitybar = document.getElementById('abilitybar');
 const alertsEl = document.getElementById('alerts');
 const overlay = document.getElementById('overlay');
 
-function uiAlert(msg) {
+function uiAlert(msg, pos) {
+  if (pos) S.lastAlert = { x: pos[0], y: pos[1] }; // spacja przenosi kamerę na miejsce ostatniego alertu
   sfx('warn'); // każdy alert (porażka budowy, brak surowców, wyprawa wroga) ma wspólne brzmienie
   const d = document.createElement('div');
   d.className = 'alert'; d.textContent = msg;
@@ -1747,13 +1826,24 @@ function uiAlert(msg) {
   setTimeout(() => d.remove(), 6000);
   while (alertsEl.children.length > 4) alertsEl.firstChild.remove();
 }
+// strona świata, z której nadchodzi napastnik, widziana na ekranie izometrycznym (góra ekranu = północ)
+function compassFrom(ax, ay, vx, vy) {
+  const dx = (ax - ay) - (vx - vy), dy = (ax + ay) - (vx + vy);
+  const names = ['północy', 'północnego wschodu', 'wschodu', 'południowego wschodu', 'południa', 'południowego zachodu', 'zachodu', 'północnego zachodu'];
+  return names[(Math.round(Math.atan2(dx, -dy) / (Math.PI / 4)) + 8) % 8];
+}
+function notifyAttack(vx, vy, ax, ay) {
+  if (S.time - (S.alertCooldown.attack ?? -99) < 12) return; // jeden alert na bitwę, nie na każdy cios
+  S.alertCooldown.attack = S.time;
+  uiAlert('Atak z ' + compassFrom(ax, ay, vx, vy) + '!', [vx, vy]);
+}
 function costText(cost) {
   const names = { wood: '🪵', food: '🌾', gold: '⛏', guns: '🔫', horses: '🐎' };
   return Object.entries(cost).map(([k, v]) => v + names[k]).join(' ');
 }
 const buildBtns = [];
 let buildBarRace = null;
-let bpanelBuilding = null, bpanelBuilt = null;
+let bpanelBuilding = null, bpanelBuilt = null, bpanelSlotSig = null;
 let stanceBtns = [];
 const ABILITY_MENU = [
   { id: 'rain', key: 'R', name: 'Deszcz', desc: 'Taniec deszczu: wszystkie pola +100% plonów przez 60 s, cooldown 180 s' },
@@ -1802,6 +1892,9 @@ function updatePanels() {
         stancebar.appendChild(btn);
         stanceBtns.push({ btn, id: st.id });
       }
+      for (const [label, title, fn] of [['Stop [X]', 'Porzuca bieżące zadanie', () => queueCmd({ action: 'stop', units: [...S.selected.units] })], ['Atak-ruch [Q]', 'Marsz z walką po drodze: kliknij cel', () => { S.attackMove = true; S.rallyMode = false; S.placing = null; }]]) {
+        const btn = document.createElement('button'); btn.textContent = label; btn.title = title; btn.onclick = fn; stancebar.appendChild(btn);
+      }
     }
     const cur = armed[0].stance || 'norm';
     for (const sb of stanceBtns) sb.btn.className = sb.id === cur ? 'active' : '';
@@ -1829,7 +1922,7 @@ function updatePanels() {
   }
   // panel budynku: przebudowa tylko przy zmianie obiektu albo stanu budowy
   const b = S.selected.building;
-  if (!(b && b.fac === 'player')) { bpanel.style.display = 'none'; bpanelBuilding = null; bpanelBuilt = null; return; }
+  if (!(b && b.fac === 'player')) { bpanel.style.display = 'none'; bpanelBuilding = null; bpanelBuilt = null; bpanelSlotSig = null; return; }
   bpanel.style.display = 'block';
   if (bpanelBuilding !== b || bpanelBuilt !== b.built) {
     bpanelBuilding = b; bpanelBuilt = b.built;
@@ -1854,6 +1947,10 @@ function updatePanels() {
         btn.onclick = () => queueCmd({ action: 'train', building: b, unitType: ut });
         row.appendChild(btn);
       }
+      const rb = document.createElement('button');
+      rb.dataset.role = 'rally'; rb.title = 'Nowe jednostki idą w to miejsce (albo PPM na mapie przy zaznaczonym budynku)';
+      rb.onclick = () => { S.rallyMode = true; S.attackMove = false; S.placing = null; };
+      row.appendChild(rb);
     }
     if (b.built && (b.type === 'factory' || b.type === 'zagroda')) {
       const btn = document.createElement('button');
@@ -1879,19 +1976,35 @@ function updatePanels() {
         row.appendChild(btn);
       }
     }
-    const q = document.createElement('button');
-    q.dataset.role = 'queue';
-    q.disabled = true;
-    q.style.display = 'none';
-    row.appendChild(q);
+    const slots = document.createElement('div');
+    slots.className = 'row slots'; slots.style.marginTop = '6px';
+    bpanel.appendChild(slots);
+    bpanelSlotSig = null;
   }
   // odświeżanie treści bez ruszania DOM
   const nameEl = bpanel.querySelector('.name');
   nameEl.textContent = CFG.buildings[b.type].label + (b.built ? '' : ' (budowa ' + Math.floor(b.progress * 100) + '%)');
-  const q = bpanel.querySelector('[data-role="queue"]');
-  if (b.queue.length) { q.style.display = 'inline-block'; q.textContent = 'Kolejka: ' + b.queue.length + ' (' + Math.ceil(b.queue[0].remaining) + 's)'; }
-  else q.style.display = 'none';
   const UNIT_NAMES = { worker: 'Robotnik', piechota: 'Piechota', jezdiec: 'Jeździec', squaw: 'Squaw', wojownik: 'Wojownik', wodz: 'Wódz', lucznik: 'Łucznik', medicine: 'Medicine man' };
+  // sloty kolejki: kliknięcie anuluje slot i zwraca zapłacony koszt; przyciski odbudowywane tylko przy zmianie składu kolejki
+  const slotsEl = bpanel.querySelector('.slots');
+  if (slotsEl) {
+    const sig = b.queue.map(q => q.type + (q.paid ? '1' : '0')).join(',');
+    if (sig !== bpanelSlotSig) {
+      bpanelSlotSig = sig; slotsEl.innerHTML = '';
+      b.queue.forEach((q, i) => {
+        const sb = document.createElement('button'); sb.dataset.slot = i;
+        sb.onclick = () => queueCmd({ action: 'cancel', building: b, index: i });
+        slotsEl.appendChild(sb);
+      });
+    }
+    b.queue.forEach((q, i) => {
+      const sb = slotsEl.children[i]; if (!sb) return;
+      sb.textContent = (UNIT_NAMES[q.type] || q.type) + (i === 0 ? (q.paid ? ' ' + Math.ceil(q.remaining) + 's' : ' ⏸') : '');
+      sb.title = 'Kliknij, aby anulować' + (q.paid ? ' (zwrot kosztu)' : ' (nic jeszcze nie zapłacono)') + (i === 0 && !q.paid ? '; czeka na surowce lub miejsce' : '');
+    });
+  }
+  const rbtn = bpanel.querySelector('[data-role="rally"]');
+  if (rbtn) rbtn.textContent = 'Punkt zbiórki [P]' + (b.rally ? ' ✓' : '');
   for (const ut of trainMenuFor(b, S.playerRace)) {
     const btn = bpanel.querySelector('[data-role="train_' + ut + '"]');
     if (!btn) continue;
@@ -1967,6 +2080,8 @@ function showHelp() {
       'Morale: rany i straty w pobliżu zbijają morale. Poniżej 30 jednostka panikuje i ucieka, nie przyjmuje rozkazów. Odpoczynek z dala od walki i aura obozu odbudowują odwagę. Niskie morale zwalnia też pracę: zbieranie, budowę i farmę.',
       'Doświadczenie: jednostki zdobywają XP nie tylko w walce, także z czasu pracy (zbieranie, budowa, farma). Awans podnosi trafienie i obrażenia w walce.',
       'Postawy: G Agresywna (goni bez ograniczeń), N Neutralna (atakuje w zasięgu broni, goni do promienia agresji), O Obronna (nie rusza się z miejsca), T Trzymaj (ignoruje prowokacje, walczy tylko z rozkazanymi celami). Rozkaz wydany ręcznie zawsze goni.',
+      'Rozkazy: Shift+PPM dodaje punkty trasy, X stop, Q atak-ruch (kliknij cel), podwójny klik zaznacza wszystkie jednostki tego typu na ekranie, spacja przenosi kamerę na ostatni alert.',
+      'Punkt zbiórki: zaznacz Obóz lub Koszary i naciśnij P (albo kliknij PPM na mapie): nowe jednostki idą tam same, a na surowcu zaczynają pracę. Kolejka: kliknięcie slotu anuluje go ze zwrotem kosztu; brak surowców wstrzymuje slot.',
       'Grupy: Ctrl+1-9 przypisuje zaznaczenie, cyfra wybiera grupę, podwójne wciśnięcie tej samej cyfry centruje na niej kamerę.',
       'Dzikie konie wędrują po mapie. PPM na koniu: jednostka podchodzi i chwyta go przez 5 s. Jeździec w koszarach wymaga żywności, złota, broni i konia; strzela z konia (karabinek, zasięg 4). Zabity jeździec zostawia konia na mapie, każda strona może go schwycić. Konne bandy bandytów atakują wręcz.',
       'Zagroda koni hoduje konie za żywność i złoto (włącz Produkcję w panelu budynku): stabilne zaopatrzenie bez gonienia stad po mapie.',
@@ -2467,6 +2582,26 @@ function render() {
     ctx.strokeStyle = '#7fff7f'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(n[0], n[1]); ctx.lineTo(e[0], e[1]); ctx.lineTo(s[0], s[1]); ctx.lineTo(wv[0], wv[1]); ctx.closePath(); ctx.stroke();
   }
+  // punkt zbiórki zaznaczonego budynku
+  if (S.selected.building && S.selected.building.rally) {
+    const [fx, fy] = tileToScreen(S.selected.building.rally[0] + 0.5, S.selected.building.rally[1] + 0.5);
+    ctx.strokeStyle = '#ffd97a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - 22); ctx.stroke();
+    ctx.fillStyle = '#d14a1e'; ctx.beginPath(); ctx.moveTo(fx, fy - 22); ctx.lineTo(fx + 12, fy - 17); ctx.lineTo(fx, fy - 12); ctx.closePath(); ctx.fill();
+  }
+  // trasy waypointów zaznaczonych jednostek
+  for (const u of S.selected.units) {
+    if (!u.waypoints || !u.waypoints.length) continue;
+    let [lx, ly] = u.path.length ? u.path[u.path.length - 1] : [Math.floor(u.x), Math.floor(u.y)];
+    ctx.strokeStyle = 'rgba(127,255,127,0.8)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    for (const [wx, wy] of u.waypoints) {
+      const [ax, ay] = tileToScreen(lx + 0.5, ly + 0.5), [bx, by] = tileToScreen(wx + 0.5, wy + 0.5);
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+      ctx.beginPath(); ctx.arc(bx, by, 3, 0, 7); ctx.stroke();
+      lx = wx; ly = wy;
+    }
+    ctx.setLineDash([]);
+  }
   // duch budynku
   if (S.placing) {
     const [px, py] = screenToTile(mouse.x, mouse.y);
@@ -2514,6 +2649,10 @@ function render() {
     ctx.strokeStyle = '#7fff7f';
     ctx.lineWidth = 1;
     ctx.strokeRect(Math.min(mouse.sx, mouse.x) + 0.5, Math.min(mouse.sy, mouse.y) + 0.5, Math.abs(mouse.x - mouse.sx), Math.abs(mouse.y - mouse.sy));
+  }
+  if (S.attackMove || S.rallyMode) {
+    ctx.fillStyle = '#ffd97a'; ctx.font = '14px Georgia'; ctx.textAlign = 'center';
+    ctx.fillText(S.attackMove ? 'Atak-ruch: kliknij cel (PPM lub Esc anuluje)' : 'Punkt zbiórki: kliknij miejsce (PPM lub Esc anuluje)', canvasW / 2, 92);
   }
   renderMinimap();
 }

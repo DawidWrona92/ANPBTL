@@ -141,13 +141,14 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await test('R9: zwrot kosztu kolejki po zburzeniu i brak chwytania koni ponad limit', async () => {
     const r = await page.evaluate(() => {
       T.fresh(); S.res = { wood: 300, food: 300, gold: 100, guns: 5, horses: 0 };
-      const br = testPlace('player', 'barracks', 28, 28); tryTrain(br, 'piechota'); tryTrain(br, 'piechota'); destroyBuilding(br);
+      const br = testPlace('player', 'barracks', 28, 28); tryTrain(br, 'piechota'); tryTrain(br, 'piechota'); update(1 / 60);
+      const paidNow = S.res.food < 300; destroyBuilding(br);
       const refunded = [S.res.food, S.res.gold, S.res.guns];
       S.res.horses = CFG.resCap.horses; const h = addUnit('horse', 'neutral', 20.5, 20.5), u = addUnit('worker', 'player', 20.5, 21.5);
       executeOrder({ units: [u], x: 20, y: 20, targetUnit: null, targetHorse: h }); T.run(8);
-      return { refunded, horseStillOnMap: S.units.includes(h) };
+      return { paidNow, refunded, horseStillOnMap: S.units.includes(h) };
     });
-    eq(r, { refunded: [300, 100, 5], horseStillOnMap: true }, 'zwroty / koń');
+    eq(r, { paidNow: true, refunded: [300, 100, 5], horseStillOnMap: true }, 'zwroty / koń');
   });
   await test('R3: średnia liczba koni na mapie ~19.5 (stada losowane raz)', async () => {
     const mean = await page.evaluate(() => { let t = 0; for (let s = 1; s <= 150; s++) { newGame(s, 'settler'); t += S.units.filter(u => u.type === 'horse').length; } newGame(7, 'settler'); return t / 150; });
@@ -167,6 +168,90 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       return { walkedThrough: inside, ejected, builtInFog: S.buildings.length > n };
     });
     eq(r, { walkedThrough: false, ejected: true, builtInFog: false }, 'umieszczanie');
+  });
+
+
+  console.log('C1: komendy i UX');
+  await test('C1: punkt zbiórki wysyła nowe jednostki w miejsce, a na surowiec do pracy', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); S.res.food = 999; S.terrain[idx(26, 33)] = T_FOREST; S.amt[idx(26, 33)] = 100;
+      const hq = S.buildings.find(b => b.type === 'hq');
+      queueCmd({ action: 'rally', building: hq, x: 26, y: 33 }); update(1 / 60);
+      tryTrain(hq, 'worker'); hq.queue[0].remaining = 0.01; update(1 / 30); const w = S.units[S.units.length - 1];
+      const gatherState = w.state;
+      T.fresh(); S.res.food = 999; S.res.gold = 999; S.res.guns = 9;
+      const br = testPlace('player', 'barracks', 30, 28); queueCmd({ action: 'rally', building: br, x: 28, y: 30 }); update(1 / 60);
+      tryTrain(br, 'piechota'); br.queue[0].remaining = 0.01; update(1 / 30); const sol = S.units[S.units.length - 1]; T.run(15);
+      return { gatherState, soldierNearRally: Math.hypot(sol.x - 28.5, sol.y - 30.5) < 2 };
+    });
+    ok(['toNode', 'gather'].includes(r.gatherState), 'robotnik na surowcu: ' + r.gatherState);
+    ok(r.soldierNearRally, 'żołnierz nie doszedł do punktu zbiórki');
+  });
+  await test('C1: Shift+PPM tworzy trasę, X zatrzymuje, atak-ruch walczy po drodze i idzie dalej', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); const u = addUnit('worker', 'player', 12.5, 12.5);
+      executeOrder({ units: [u], x: 20, y: 12, targetUnit: null }); update(1 / 60);
+      executeOrder({ units: [u], x: 20, y: 20, targetUnit: null, queue: true }); const wps = u.waypoints.length;
+      T.run(40); const reached = Math.hypot(u.x - 20.5, u.y - 20.5) < 1.5;
+      executeOrder({ units: [u], x: 12, y: 20, targetUnit: null }); T.run(1); stopUnits([u]); const stopped = u.state === 'idle' && u.path.length === 0;
+      T.fresh(); const a = addUnit('piechota', 'player', 12.5, 20.5), e = addUnit('desperado', 'enemy', 16.5, 20.5); e.hp = 10; e.stance = 'hold';
+      executeAttackMove({ units: [a], x: 24, y: 20 }); T.run(30);
+      return { wps, reached, stopped, enemyDead: !S.units.includes(e), arrived: Math.hypot(a.x - 24.5, a.y - 20.5) < 2 };
+    });
+    eq(r, { wps: 1, reached: true, stopped: true, enemyDead: true, arrived: true }, 'komendy');
+  });
+  await test('C1: podwójny klik zaznacza wszystkich z tego typu na ekranie (prawdziwe kliknięcia)', async () => {
+    await page.evaluate(() => { T.fresh(); centerCameraOn(20, 20); for (let i = 0; i < 3; i++) addUnit('worker', 'player', 19.5 + i, 20.5); addUnit('piechota', 'player', 21.5, 21.5); S.selected.units = []; });
+    const pos = await page.evaluate(() => { const u = S.units.find(x => x.type === 'worker'); const [sx, sy] = tileToScreen(u.x, u.y); return [sx * ZOOM, sy * ZOOM]; });
+    await page.mouse.click(pos[0], pos[1]); await page.mouse.click(pos[0], pos[1]);
+    eq(await page.evaluate(() => S.selected.units.map(u => u.type)), ['worker', 'worker', 'worker'], 'zaznaczenie');
+  });
+  await test('C1: kolejka czeka bez surowców, potem rusza; anulowanie zwraca tylko zapłacone', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); S.res = { wood: 0, food: 30, gold: 0, guns: 0, horses: 0 }; addUnit('piechota', 'player', 12.5, 12.5); // bez żadnej jednostki gra ogłasza kapitulację
+      const hq = S.buildings.find(b => b.type === 'hq');
+      tryTrain(hq, 'worker'); tryTrain(hq, 'worker' ); // drugi: stać tylko na jeden (koszt 30)
+      const secondQueued = hq.queue.length;
+      update(1 / 60); const paid1 = hq.queue[0].paid && S.res.food === 0;
+      hq.queue[0].remaining = 0.01; update(1 / 30); update(1 / 30);   // pierwszy wychodzi, drugi czeka bez surowców
+      const stalled = hq.queue.length === 1 && !hq.queue[0].paid;
+      T.run(20); const stillStalled = !hq.queue[0].paid;
+      S.res.food = 30; T.run(2); const started = hq.queue[0].paid && S.res.food === 0;
+      queueCmd({ action: 'cancel', building: hq, index: 0 }); update(1 / 60);
+      return { secondQueued, paid1, stalled, stillStalled, started, refundedFood: S.res.food, empty: hq.queue.length === 0 };
+    });
+    eq(r, { secondQueued: 2, paid1: true, stalled: true, stillStalled: true, started: true, refundedFood: 30, empty: true }, 'kolejka');
+  });
+  await test('C1: panel budynku: kliknięcie slotu kolejki anuluje go, a przycisk punktu zbiórki istnieje', async () => {
+    await page.evaluate(() => {
+      T.fresh(); S.res.food = 999; const hq = S.buildings.find(b => b.type === 'hq');
+      S.selected.building = hq; S.selected.units = []; tryTrain(hq, 'worker'); tryTrain(hq, 'worker'); update(1 / 60); updatePanels();
+    });
+    ok(await page.$('[data-role="rally"]') !== null, 'brak przycisku punktu zbiórki');
+    eq(await page.$$eval('[data-slot]', b => b.length), 2, 'sloty w panelu');
+    await page.click('[data-slot="1"]'); await page.waitForTimeout(100);
+    await page.evaluate(() => { update(1 / 60); updatePanels(); });
+    eq(await page.evaluate(() => S.buildings.find(b => b.type === 'hq').queue.length), 1, 'długość kolejki po anulowaniu');
+    eq(await page.$$eval('[data-slot]', b => b.length), 1, 'sloty po anulowaniu');
+  });
+  await test('C1: alert z kierunkiem ataku i spacja centrująca kamerę na jego miejscu', async () => {
+    const r = await page.evaluate(() => {
+      const dirs = [[0, -1, 'północy'], [1, -1, 'wschodu'], [1, 0, 'południowego wschodu'], [1, 1, 'południa'], [0, 1, 'południowego zachodu'], [-1, 1, 'zachodu'], [-1, 0, 'północnego zachodu'], [-1, -1, 'północy']];
+      // wektor w kaflach (dx,dy) -> strona świata na ekranie izometrycznym; sprawdzamy 4 pewne osie: -1,-1 = góra ekranu
+      const names = { n: compassFrom(10, 10, 20, 20), e: compassFrom(20, 10, 10, 10 + 0) };
+      T.fresh(); S.time = 100; S.alertCooldown = {}; centerCameraOn(5, 5);
+      const v = addUnit('worker', 'player', 25.5, 25.5), a = addUnit('desperado', 'enemy', 20.5, 20.5);
+      notifyAttack(v.x, v.y, a.x, a.y);
+      const text = [...document.querySelectorAll('.alert')].map(x => x.textContent).pop();
+      const second = S.alertCooldown.attack === 100; notifyAttack(v.x, v.y, a.x, a.y);
+      const alertsAfterSecond = document.querySelectorAll('.alert').length;
+      return { north: names.n, text, alertsAfterSecond, lastAlert: S.lastAlert, second };
+    });
+    eq(r.north, 'północy', 'napastnik w górę ekranu');
+    ok(/^Atak z północy!$/.test(r.text), 'tekst alertu: ' + r.text);
+    await page.keyboard.press('Space');
+    const off = await page.evaluate(() => { const [sx, sy] = tileToScreen(25.5, 25.5); return Math.hypot(sx * ZOOM - canvasW / 2, sy * ZOOM - canvasH / 2); });
+    ok(off < 3, 'kamera po spacji ' + off.toFixed(1) + ' px od alertu');
   });
 
   console.log('Sterowanie i interfejs');

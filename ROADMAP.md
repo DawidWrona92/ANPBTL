@@ -47,7 +47,7 @@ Rozmiary: S = kilka godzin, M = dzień, L = kilka dni. Definicja ukończenia chu
 | Faza | Chunk | Rozmiar | Zakres |
 |---|---|---|---|
 | A | **G1 Spike grafiki** | S–M | cztery próbki (dom, drzewo, humanoid, koń) w stylu AoE2; decyzja właściciela: hybryda `rts-prerender-3d` (budynki, drzewa, teren) + `painted-rts-sprites` (jednostki, zwierzęta) / tylko painted / tylko prerender. Sprite'y w 128 px, `CFG` zostaje 64×32 i `ZOOM=2` |
-| A | **C1 Komendy i UX** | M | punkty zbiórki (`P`), Shift-waypointy, skróty `A` atak / `S` stop / `H` hold / spacja = ostatni alert, podwójny klik zaznacza wszystkich tego typu, anulowanie slotu kolejki ze zwrotem, alert z kierunkiem ataku, slot czeka przy braku zasobów (19.7) |
+| A | **C1 Komendy i UX** — **zrobione** | M | punkt zbiórki (`P`, przycisk albo PPM przy zaznaczonym budynku), Shift+PPM = trasa, `X` stop, `Q` atak-ruch, podwójny klik zaznacza typ na ekranie, sloty kolejki anulowane kliknięciem ze zwrotem, kolejka czeka przy braku surowców, alert „Atak z …” i spacja na jego miejsce. Odstępstwo od 19.7 `[P]`: skróty `X/Q/P` zamiast `S/A/H`, bo `S` i `A` to kamera (WASD), a `H` to Dom; `H` (trzymaj pozycję) jest już pod `T`. **Zmiana ekonomii:** koszt jednostki pobierany przy starcie slotu, nie przy zamówieniu; wpływa na baseline B1 |
 | A | **R0 Badania źródłowe** | S | w tle; wyniki w `docs/zrodla.md`, dalsze po odblokowaniu domen (manual PDF, filmy) |
 | B | **B1 Balans: bot + baseline** (+ B0 rejestr parametrów) | M | bot z build orderem, `npm run balance`, ≥20 seedów, horyzonty 5/10/20 min; baseline z dok. 20.1; wyniki jako „wyniki modelu" |
 | B | **G2 Migracja grafiki** | L | atomowo za flagą `CFG.art`: teren, drzewa, budynki ×3 nacje, jednostki, Sioux, zwierzyna; maska drużyny; koniec placeholderów |
