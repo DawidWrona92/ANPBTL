@@ -409,6 +409,12 @@ function popCap(fac) {
   return p;
 }
 function popUsed(fac) { return S.units.filter(u => u.fac === (fac || 'player')).length; }
+// jednostki w kolejkach WSZYSTKICH budynków frakcji: miejsce rezerwuje się przy zamówieniu, nie przy wyjściu z budynku
+function queuedCount(fac) {
+  let n = 0;
+  for (const b of S.buildings) if (b.fac === (fac || 'player')) n += b.queue.length;
+  return n;
+}
 function deposits(fac) {
   return S.buildings.filter(b => b.fac === (fac || 'player') && b.built && CFG.buildings[b.type].deposit);
 }
@@ -595,7 +601,7 @@ function tryTrain(b, unitType) {
     const cnt = S.units.filter(u => u.fac === b.fac && u.type === unitType).length + b.queue.filter(q => q.type === unitType).length;
     if (cnt >= def.limit) { uiAlert('Limit: maksymalnie ' + def.limit); return; }
   }
-  if (popUsed(b.fac) + b.queue.length >= popCap(b.fac)) { uiAlert('Brak miejsc (zbuduj dom)'); return; }
+  if (popUsed(b.fac) + queuedCount(b.fac) >= popCap(b.fac)) { uiAlert('Brak miejsc (zbuduj dom)'); return; }
   if (!pay(def.cost)) { uiAlert('Brak surowców'); return; }
   b.queue.push({ type: unitType, remaining: def.train });
 }
@@ -1214,7 +1220,7 @@ function updateBuilding(b, dt) {
   // kolejka produkcji (obóz: robotnik, koszary: piechota)
   if (b.queue.length) {
     const q = b.queue[0];
-    if (b.type === 'hq' && popUsed(b.fac) >= popCap(b.fac)) { /* czekaj na dom */ }
+    if (popUsed(b.fac) >= popCap(b.fac)) { /* czekaj na dom (każdy producent, nie tylko obóz) */ }
     else {
       q.remaining -= dt;
       if (q.remaining <= 0) {
@@ -1328,7 +1334,7 @@ function aiPlace(type) {
 function aiTrain(b, unitType) {
   if (!b || !b.built || b.queue.length >= CFG.ai.trainCap) return false;
   const def = CFG.units[unitType];
-  if (popUsed('enemy') + b.queue.length >= popCap('enemy')) return false;
+  if (popUsed('enemy') + queuedCount('enemy') >= popCap('enemy')) return false;
   if (!pay(def.cost, 'enemy')) return false;
   b.queue.push({ type: unitType, remaining: def.train });
   return true;
