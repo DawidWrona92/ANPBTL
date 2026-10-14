@@ -51,7 +51,7 @@ Rozmiary: S = kilka godzin, M = dzień, L = kilka dni. Definicja ukończenia chu
 | A | **R0 Badania źródłowe** | S | w tle; wyniki w `docs/zrodla.md`, dalsze po odblokowaniu domen (manual PDF, filmy) |
 | B | **B1 Balans: bot + baseline** (+ B0 rejestr parametrów) — **narzędzia i pierwsze wyniki gotowe** | M | bot z build orderem, `npm run balance`, `npm run balance:duels`, ≥20 seedów; wyniki w sekcji 6. Zostaje: lepszy bot (złoto), bot Sioux, N ≥ 100 dla porównań wyników partii |
 | B | **G2 Migracja grafiki** | L | **zrobione**: zasoby w `assets/` (teren ochra/oliwka, drzewa, rekwizyty, budynki wg stylu nacji, jednostki 8-kierunkowe, zwierzyna), stary zestaw retro usunięty, generator w `tools/art/` (`node tools/art/build_assets.js`); test pokrycia zasobów w `tests/regression.js` |
-| C | **C2 Fundament** | M | reguły frakcji jako dane, wybór frakcji obu stron i trudności, zapis/odczyt, tabele danych, testy z 14.5 |
+| C | **C2 Fundament** | M | **zrobione**: `RACES` (frakcje jako dane: jednostki startowe, menu budowy i produkcji, styl budynków, teren, zestaw testowy), wybór frakcji i 5 poziomów trudności w menu, zapis/odczyt (localStorage, wersjonowany JSON, stany obu RNG; test: po wczytaniu przebieg identyczny), testy z 14.5 (grupa przez las, postawy, brak duchów we mgle); **nie zrobione**: wybór frakcji wroga (czeka na C4b), kapitulacja AI i zwiadowca przed falą (C4b) |
 | D | **C3 Osadnicy** | M | bank (limit sprawdzany przy starcie budowy), szeryf, armata, ranczo, frontiersman/woman, wóz kryty, cap 200 |
 | D | **C8a Pakowanie tepee** | S–M | wymagane przez Sioux 2 |
 | D | **M0 Mechaniki misyjne** | M | ukrycie i wykrywanie (traperzy), etapy celów zmieniane w trakcie, eskorta A→B, rabunek jako cel |

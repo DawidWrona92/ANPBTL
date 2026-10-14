@@ -59,3 +59,18 @@ Budynki (dom, farma, magazyn, fabryka, zagroda, tepee) zgodnie z 19.3 `[P]`. Kos
 
 ## AI (`CFG.ai`)
 `thinkEvery` 2 s, `startRes`, `trainCap` 3, `buildR` 6, `farmsPer` 5: feel. `workersMax`, `armyBase/Grow/Cap`, `attackCooldown`: patrz odchylenia wyżej.
+
+
+## Poziomy trudności AI (C2) [P]
+Źródło kształtu: tabela 19.9 (robotnicy AI 6/10/14/18/22, interwał fal 300/240/180/150/120 s, „bardzo łatwy: nie atakuje budynków, kapituluje szybko" `[Ź]`).
+Prototyp ma słabszą bazę AI niż ta tabela (3 robotników, wyprawa po 480 s co 150 s), więc **normalny = dotychczasowe wartości** (punkt odniesienia balansu z `ROADMAP.md` §6, wyniki 5 seedów bez zmian), a pozostałe poziomy skalują je proporcjami z tabeli:
+
+| Poziom | robotnicy | wojsko bazowe | mnożnik przerwy | pierwsza wyprawa [s] | budynki |
+|---|---|---|---|---|---|
+| Bardzo łatwy | 2 | 3 | ×1.67 | 800 | armia ich nie rusza |
+| Łatwy | 2 | 3 | ×1.33 | 640 | tak |
+| Normalny | 3 | 4 | ×1.00 | 480 | tak |
+| Trudny | 4 | 5 | ×0.83 | 400 | tak |
+| Bardzo trudny | 5 | 6 | ×0.67 | 320 | tak |
+
+Nie zrobione: kapitulacja AI na „bardzo łatwym", zwiadowca przed falą, mikro (słabe/standardowe/koncentracja ognia), niszczenie gospodarki na „trudnym" (C4b). Poziomy nie mają jeszcze pomiaru balansu (N ≥ 20 na poziom), więc ich realna trudność jest nieznana.

@@ -47,9 +47,9 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   });
 
   console.log('Start');
-  await test('gra startuje bez błędów, menu ma 4 przyciski', async () => {
+  await test('gra startuje bez błędów, menu ma przyciski frakcji, trudności i testów', async () => {
     eq(pageErrors, [], 'błędy strony');
-    eq(await page.$$eval('#overlay button', b => b.length), 4, 'przyciski menu');
+    eq(await page.$$eval('#overlay button', b => b.map(x => x.textContent)), ['Graj: Osadnicy', 'Graj: Sioux', 'Trudność: Normalny', 'Test: Osadnicy', 'Test: Sioux'], 'przyciski menu');
   });
   await test('F1: ścieżki jednostek nie zapętlają się', async () => {
     const r = await page.evaluate(() => { T.fresh(); const u = addUnit('worker', 'player', 20.5, 20.5); return [uPath(u, 25, 20).length, pathToBuildingU(u, S.buildings[0]).length >= 0]; });
@@ -320,6 +320,121 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     eq(await page.evaluate(() => [S.gameOver, S.testMode]), [null, true], 'stan po wejściu w test z menu');
   });
 
+  console.log('C2: fundament (frakcje jako dane, trudność, zapis)');
+  await test('C2: tabela frakcji jest spójna z jednostkami, budynkami, zasobami graficznymi', async () => {
+    const r = await page.evaluate(() => {
+      const bad = [];
+      for (const k in RACES) {
+        const R = RACES[k], man = window.ASSETS;
+        if ((R.playable || k === 'outlaw') && !man['bld_hq_' + R.nation]) bad.push(k + ': brak sprite\'a obozu stylu ' + R.nation);
+        if (!R.playable) continue;
+        for (const u of R.startUnits) if (!CFG.units[u]) bad.push(k + ': startowa jednostka ' + u);
+        for (const m of R.build) if (!CFG.buildings[m.type]) bad.push(k + ': budynek ' + m.type);
+        for (const b in R.train) for (const u of R.train[b]) if (!CFG.units[u]) bad.push(k + ': produkcja ' + u);
+        for (const t of R.noTechs) if (!CFG.techs[t]) bad.push(k + ': technologia ' + t);
+        for (const t in R.test.units) if (!CFG.units[t]) bad.push(k + ': testowa jednostka ' + t);
+        for (const t of R.test.buildings) if (!CFG.buildings[t]) bad.push(k + ': testowy budynek ' + t);
+        if (R.startOrders.length !== R.startUnits.length) bad.push(k + ': rozkazy startowe');
+      }
+      return bad;
+    });
+    eq(r, [], 'niespójności');
+  });
+  await test('C2: poziomy trudności rosną monotonicznie, a normalny to dotychczasowe wartości AI', async () => {
+    const r = await page.evaluate(() => {
+      const ks = ['veryeasy', 'easy', 'normal', 'hard', 'veryhard'], D = ks.map(k => CFG.difficulty[k]);
+      const mono = (f, dir) => D.every((d, i) => i === 0 || (dir > 0 ? f(d) >= f(D[i - 1]) : f(d) <= f(D[i - 1])));
+      return { w: mono(d => d.workers, 1), a: mono(d => d.armyBase, 1), m: mono(d => d.waveMul, -1), f: mono(d => d.firstWave, -1),
+        normal: CFG.difficulty.normal.workers === CFG.ai.workersMax && CFG.difficulty.normal.armyBase === CFG.ai.armyBase && CFG.difficulty.normal.waveMul === 1 && CFG.difficulty.normal.firstWave === 480 };
+    });
+    ok(r.w && r.a && r.m && r.f, 'monotoniczność'); ok(r.normal, 'normalny = bazowe CFG.ai');
+  });
+  await test('C2: trudność zmienia AI: liczba robotników, przerwa między wyprawami; bardzo łatwy nie rusza budynków', async () => {
+    const r = await page.evaluate(() => {
+      const out = {};
+      for (const lvl of ['veryeasy', 'veryhard']) {
+        S.difficulty = lvl; newGame(3, 'settler'); S.menuOpen = false; document.getElementById('overlay').style.display = 'none';
+        out[lvl] = { cd: S.ai.attackCd };
+        for (let i = 0; i < 60 * 150; i++) update(1 / 60);
+        out[lvl].workers = S.units.filter(u => u.fac === 'enemy' && u.type === 'worker').length;
+      }
+      // armia, która ma nie atakować budynków: dociera, stoi, budynek nietknięty (z hitsBuildings=true ten sam układ burzy budynek)
+      const hp = flag => {
+        T.fresh(); const b = addBuilding('barracks', 20, 18, 'player'); b.built = true; const hp0 = b.hp;
+        for (let i = 0; i < 5; i++) addUnit('desperado', 'enemy', 20 + i * 0.3, 24).stance = 'norm';
+        aiAttack(b, flag); T.run(60); return [hp0, b.hp];
+      };
+      out.noHit = hp(false); out.hit = hp(true);
+      return out;
+    });
+    ok(r.veryeasy.cd > r.veryhard.cd, 'przerwa do pierwszej wyprawy'); ok(r.veryeasy.workers < r.veryhard.workers, 'robotnicy AI: ' + r.veryeasy.workers + ' vs ' + r.veryhard.workers);
+    eq(r.noHit[1], r.noHit[0], 'budynek nietknięty'); ok(r.hit[1] < r.hit[0], 'zwykła wyprawa niszczy budynek');
+  });
+  await test('C2: zapis i odczyt zachowują partię; po wczytaniu przebieg jest identyczny jak bez zapisu', async () => {
+    const r = await page.evaluate(() => {
+      newGame(5, 'sioux'); S.menuOpen = false; document.getElementById('overlay').style.display = 'none'; S.difficulty = 'hard';
+      const me = S.units.filter(u => u.fac === 'player');
+      orderGatherAuto(me[0], T_GOLD);
+      for (let i = 0; i < 60 * 240; i++) update(1 / 60);
+      const snap = JSON.stringify(serializeGame());
+      for (let i = 0; i < 60 * 90; i++) update(1 / 60);
+      const a = JSON.stringify(serializeGame());
+      restoreGame(JSON.parse(snap));
+      const same0 = JSON.stringify(serializeGame()) === snap;
+      for (let i = 0; i < 60 * 90; i++) update(1 / 60);
+      const b = JSON.stringify(serializeGame());
+      return { same0, same: a === b, len: snap.length, units: S.units.length, diff: S.difficulty, race: S.playerRace, drawn: (() => { render(); return true; })() };
+    });
+    ok(r.same0, 'odczyt odtwarza stan zapisu'); ok(r.same, 'dalszy przebieg różni się po odczycie'); eq([r.diff, r.race], ['hard', 'sioux'], 'ustawienia partii');
+    ok(r.len < 500000, 'rozmiar zapisu ' + r.len);
+  });
+  await test('C2: przycisk Zapisz/Wczytaj i wpis w menu; uszkodzony zapis nie psuje gry', async () => {
+    const r = await page.evaluate(() => {
+      localStorage.removeItem(SAVE_KEY);
+      T.fresh(); const had0 = hasSave();
+      const saved = saveGame(); const had1 = hasSave();
+      localStorage.setItem(SAVE_KEY, '{zepsute'); const loaded = loadGame();
+      const stillRuns = (() => { for (let i = 0; i < 120; i++) update(1 / 60); return true; })();
+      localStorage.removeItem(SAVE_KEY);
+      return { had0, saved, had1, loaded, stillRuns };
+    });
+    eq(r, { had0: false, saved: true, had1: true, loaded: false, stillRuns: true }, 'zapis');
+  });
+  console.log('Lekcje QA z oryginału (14.5)');
+  await test('14.5: grupa 12 jednostek rozkazem przechodzi przez las i dociera do celu', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh();
+      // pas lasu z przerwą: grupa musi znaleźć przejście, nie zakleszczyć się
+      for (let y = 10; y < 28; y++) if (y !== 19) for (let x = 20; x < 23; x++) { S.terrain[idx(x, y)] = T_FOREST; S.amt[idx(x, y)] = 100; }
+      const us = []; for (let i = 0; i < 12; i++) us.push(addUnit('worker', 'player', 12 + (i % 4) * 0.8, 17 + Math.floor(i / 4) * 0.8));
+      executeOrder({ units: us, x: 30, y: 19, targetUnit: null }); T.run(60);
+      return us.filter(u => Math.hypot(u.x - 30, u.y - 19) < 4).length;
+    });
+    eq(r, 12, 'dotarło');
+  });
+  await test('14.5: postawa realnie zmienia automatyczne rozkazy (hold stoi, norm bije w zasięgu broni, aggr goni w promieniu agresji)', async () => {
+    const r = await page.evaluate(() => {
+      const res = {};
+      for (const d of [3, 5.5]) for (const st of ['hold', 'norm', 'aggr']) {
+        T.fresh(); const a = addUnit('piechota', 'player', 20.5, 20.5); a.stance = st;
+        const e = addUnit('worker', 'enemy', 20.5, 20.5 + d); e.stance = 'hold';
+        T.run(2); res[d + st] = !!a.attackTarget || e.hp < e.maxHp;
+      }
+      return res;
+    });
+    eq(r, { '3hold': false, '3norm': true, '3aggr': true, '5.5hold': false, '5.5norm': false, '5.5aggr': true }, 'postawy');
+  });
+  await test('14.5: jednostki wroga poza zasięgiem wzroku nie są rysowane (brak duchów)', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); S.explored.fill(1); S.visible.fill(0);
+      const e = addUnit('desperado', 'enemy', 5.5, 5.5), seen = [];
+      const orig = drawUnit; window.drawUnit = u => { seen.push(u.id); };
+      try { centerCameraOn(5.5, 5.5); render(); const hidden = seen.includes(e.id); seen.length = 0;
+        S.visible[idx(5, 5)] = 1; render(); return [hidden, seen.includes(e.id)]; }
+      finally { window.drawUnit = orig; }
+    });
+    eq(r, [false, true], 'ukryty/widoczny');
+  });
   console.log('Smoke');
   for (const race of ['settler', 'sioux']) {
     await test('smoke: 10 minut gry (' + race + ') bez wyjątków, NaN i ujemnych zasobów', async () => {

@@ -36,6 +36,8 @@
   #overlay ul { margin: 10px 0 10px 22px; font-size: 15px; line-height: 1.6; }
   #overlay button { margin-top: 14px; background: #7a5836; color: #fff; border: 1px solid #a8845c; padding: 10px 22px; font-size: 16px; border-radius: 5px; cursor: pointer; font-family: inherit; }
   #overlay button:hover { background: #96703f; }
+  .topbtn { position: absolute; top: 8px; padding: 6px 10px; background: #5a4128; color: #f0e2bd; border: 1px solid #8a6b45; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 14px; }
+  #savebtn { right: 52px; } #loadbtn { right: 120px; }
   #helpbtn { position: absolute; top: 8px; right: 8px; padding: 6px 12px; background: #5a4128; color: #f0e2bd; border: 1px solid #8a6b45; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 14px; }
 </style>
 </head>
@@ -43,6 +45,8 @@
 <canvas id="game"></canvas>
 <div id="topbar" class="panel"></div>
 <button id="helpbtn">?</button>
+<button id="savebtn" class="topbtn" title="Zapisz grę">Zapisz</button>
+<button id="loadbtn" class="topbtn" title="Wczytaj zapis">Wczytaj</button>
 <div id="alerts"></div>
 <div id="buildbar" class="panel"></div>
 <div id="bpanel" class="panel"></div>
@@ -69,6 +73,16 @@ const CFG = {
     thinkEvery: 2.0, startRes: { wood: 250, food: 250, gold: 60, guns: 0, horses: 0 },
     workersMax: 3, farmsPer: 5, armyBase: 4, armyGrow: 2, armyCap: 12,
     attackCooldown: 150, trainCap: 3, buildR: 6,
+  },
+  // poziomy trudności AI [P]: tabela 19.9 podaje robotników 6/10/14/18/22 i interwał fal 300/240/180/150/120 s; prototyp ma słabszą bazę AI niż ta tabela,
+  // więc 'normal' zostaje dokładnie obecnymi wartościami (punkt odniesienia balansu), a pozostałe poziomy skalują je proporcjami z tabeli.
+  // waveMul mnoży przerwę między wyprawami, firstWave to najwcześniejszy czas pierwszej wyprawy. hitsBuildings:false [Ź 19.9] = armia nie niszczy budynków.
+  difficulty: {
+    veryeasy: { label: 'Bardzo łatwy', workers: 2, armyBase: 3, waveMul: 1.67, firstWave: 800, hitsBuildings: false },
+    easy:     { label: 'Łatwy',        workers: 2, armyBase: 3, waveMul: 1.33, firstWave: 640, hitsBuildings: true },
+    normal:   { label: 'Normalny',     workers: 3, armyBase: 4, waveMul: 1.0,  firstWave: 480, hitsBuildings: true },
+    hard:     { label: 'Trudny',       workers: 4, armyBase: 5, waveMul: 0.83, firstWave: 400, hitsBuildings: true },
+    veryhard: { label: 'Bardzo trudny', workers: 5, armyBase: 6, waveMul: 0.67, firstWave: 320, hitsBuildings: true },
   },
   units: {
     worker:    { hp: 50,  dmg: 4,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 30 }, train: 12, aggro: 0, letter: 'W', color: '#3a7bd5', kind: 'melee', hunter: true, builder: true, farmer: true },
@@ -104,41 +118,69 @@ const CFG = {
     sztauga:  { bld: 'barracks', cost: { gold: 100 }, time: 45, name: 'Kowbojska sztauga', desc: 'jeźdźcy +10% HP' },
   },
 };
-const BUILD_MENU_SETTLER = [
-  { type: 'house', key: 'H', name: 'Dom' }, { type: 'farm', key: 'F', name: 'Farma' },
-  { type: 'storehouse', key: 'M', name: 'Magazyn' }, { type: 'barracks', key: 'K', name: 'Koszary' },
-  { type: 'factory', key: 'B', name: 'Fabryka broni' },
-  { type: 'zagroda', key: 'Z', name: 'Zagroda koni' },
-];
-// Sioux: tepee zamiast domu (pop +5), bez fabryki broni (łuki robią się z drewna) i bez zagrody (brak kawalerii); koszary produkują łuczników i medicine manów
-const BUILD_MENU_SIOUX = [
-  { type: 'tepee', key: 'E', name: 'Tepee' }, { type: 'farm', key: 'F', name: 'Farma' },
-  { type: 'storehouse', key: 'M', name: 'Magazyn' }, { type: 'barracks', key: 'K', name: 'Koszary' },
-];
-function buildMenuFor(race) { return race === 'sioux' ? BUILD_MENU_SIOUX : BUILD_MENU_SETTLER; }
-// produkcja z budynków per frakcja: obóz Osadników wypuszcza robotnika, obóz Sioux squawę, wojownika i wodza; koszary różnie
-function trainMenuFor(b, race) {
-  if (b.type === 'hq') return race === 'sioux' ? ['squaw', 'wojownik', 'wodz'] : ['worker'];
-  if (b.type === 'barracks') return race === 'sioux' ? ['lucznik', 'medicine'] : ['piechota', 'jezdiec'];
-  return [];
-}
+// ============================== FRAKCJE JAKO DANE (C2) ==============================
+// Cała różnica między frakcjami (jednostki startowe, menu budowy i produkcji, styl budynków, teren) leży w tej tabeli; kod gry nie porównuje nazw frakcji.
+// playable: false = dane są, ale frakcja nie ma jeszcze mechaniki (Desperado: C4, Meksykanie: C7); wróg gry to na razie zawsze Desperado.
+const RACES = {
+  settler: {
+    label: 'Osadnicy', nation: 'us', biome: 'ochre', playable: true,
+    desc: 'Robotnicy budują, rąbią, kopią i farmią; piechota z fabryki broni, jazda ze stajni.',
+    startUnits: ['worker', 'worker', 'worker', 'worker'], startOrders: ['forest', 'forest', 'gold', null],
+    build: [
+      { type: 'house', key: 'H', name: 'Dom' }, { type: 'farm', key: 'F', name: 'Farma' },
+      { type: 'storehouse', key: 'M', name: 'Magazyn' }, { type: 'barracks', key: 'K', name: 'Koszary' },
+      { type: 'factory', key: 'B', name: 'Fabryka broni' }, { type: 'zagroda', key: 'Z', name: 'Zagroda koni' },
+    ],
+    train: { hq: ['worker'], barracks: ['piechota', 'jezdiec'] },
+    noTechs: [],
+    test: { res: { wood: 500, food: 500, gold: 1000, guns: 50, horses: 20 },
+      buildings: ['storehouse', 'farm', 'barracks', 'factory', 'zagroda', 'house', 'house', 'farm'],
+      units: { worker: 6, piechota: 8, jezdiec: 4 } },
+  },
+  // Sioux: tepee zamiast domu (pop +5), bez fabryki broni (łuki z drewna) i bez zagrody (brak kawalerii); koszary produkują łuczników i medicine manów
+  sioux: {
+    label: 'Sioux', nation: 'sx', biome: 'olive', playable: true,
+    desc: 'Squawy budują i farmią, wojownicy rąbią i polują; łuki z drewna, tepee, medicine man.',
+    startUnits: ['squaw', 'squaw', 'wojownik', 'wojownik'], startOrders: [null, null, 'forest', 'forest'],
+    build: [
+      { type: 'tepee', key: 'E', name: 'Tepee' }, { type: 'farm', key: 'F', name: 'Farma' },
+      { type: 'storehouse', key: 'M', name: 'Magazyn' }, { type: 'barracks', key: 'K', name: 'Koszary' },
+    ],
+    train: { hq: ['squaw', 'wojownik', 'wodz'], barracks: ['lucznik', 'medicine'] },
+    noTechs: ['sztauga'],   // kawaleryjna technologia bez sensu dla Sioux
+    test: { res: { wood: 500, food: 500, gold: 1000, guns: 0, horses: 0 },
+      buildings: ['storehouse', 'farm', 'barracks', 'tepee', 'tepee', 'farm'],
+      units: { squaw: 4, wojownik: 6, lucznik: 6, medicine: 1, wodz: 1 } },
+  },
+  outlaw:  { label: 'Desperado', nation: 'ban', biome: 'ochre', playable: false, desc: 'Brak własnej produkcji: łupy, destylarnia (C4).', build: [], train: {}, noTechs: [] },
+  mexican: { label: 'Meksykanie', nation: 'mx', biome: 'ochre', playable: false, desc: 'Leczenie i konwersja, mobilna armata (C7).', build: [], train: {}, noTechs: [] },
+};
+const PLAYABLE_RACES = Object.keys(RACES).filter(k => RACES[k].playable);
+function raceOf(fac) { return RACES[fac === 'enemy' ? S.enemyRace : S.playerRace] || RACES.settler; }
+function buildMenuFor(race) { return (RACES[race] || RACES.settler).build; }
+function trainMenuFor(b, race) { return ((RACES[race] || RACES.settler).train[b.type]) || []; }
 
 // ============================== RNG ==============================
 function mulberry32(seed) {
   let s = seed >>> 0;
-  return function () {
+  const f = function () {
     s = (s + 0x6D2B79F5) >>> 0;
     let t = s;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+  f.getState = () => s;          // stan jest całą pamięcią generatora: zapis gry bierze go stąd
+  f.setState = v => { s = v >>> 0; };
+  return f;
 }
 let rng = mulberry32(1);
 // osobny strumień na rzuty w walce: kolejność rozstrzygania trafień nie przesuwa losowań mapy i zwierzyny, a partia z tym samym seedem i rozkazami da ten sam przebieg
 let rngCombat = mulberry32(2);
 
 // ============================== STATE ==============================
+function diffOf() { return CFG.difficulty[S.difficulty] || CFG.difficulty.normal; }
+function newAIState() { return { thinkT: 1, attacks: 0, attackCd: CFG.ai.attackCooldown * diffOf().waveMul, trainQ: 0 }; }
 const MAP = CFG.map;
 const T_GRASS = 0, T_FOREST = 1, T_GOLD = 2, T_WATER = 3, T_MEAT = 4, T_THICK = 5;
 // przybliżenie kamery: świat rysowany przez transform ZOOM; 2 = piksel-art 2x bez wygładzania, 1 = stara skala
@@ -148,7 +190,9 @@ const idx = (x, y) => y * MAP + x;
 const inMap = (x, y) => x >= 0 && y >= 0 && x < MAP && y < MAP;
 
 function newGame(seed, race) {
-  S.playerRace = race || S.playerRace || 'settler';
+  S.playerRace = RACES[race] && RACES[race].playable ? race : (S.playerRace || 'settler');
+  S.enemyRace = 'outlaw';
+  S.difficulty = CFG.difficulty[S.difficulty] ? S.difficulty : 'normal';
   rng = mulberry32(seed >>> 0);
   rngCombat = mulberry32((seed >>> 0) ^ 0x9E3779B9);
   S.time = 0; S.nextId = 1;
@@ -177,15 +221,15 @@ function newGame(seed, race) {
   S.menuOpen = false;
   // gospodarka bandytów: własne zasoby i kontroler AI (fale zastąpione realną produkcją)
   S.resE = { ...CFG.ai.startRes };
-  S.ai = { thinkT: 1, attacks: 0, attackCd: CFG.ai.attackCooldown, trainQ: 0 };
+  S.ai = newAIState();
 
   genMap();
-  S.biome = S.playerRace === 'sioux' ? 'olive' : 'ochre'; // preria ochrowa; mapy Sioux oliwkowo-żółte (screeny oryginału)
+  S.biome = raceOf('player').biome;   // preria ochrowa; mapy Sioux oliwkowo-żółte (screeny oryginału)
   buildGround();
   const hq = addBuilding('hq', 33, 33, 'player');
   addBuilding('hq', 2, 2, 'enemy');
   // start per frakcja: Osadnicy 4 robotników, Sioux 2 squawy i 2 wojowników (asymetria ekonomii od pierwszej sekundy)
-  const startU = S.playerRace === 'sioux' ? ['squaw', 'squaw', 'wojownik', 'wojownik'] : ['worker', 'worker', 'worker', 'worker'];
+  const startU = raceOf('player').startUnits;
   const pu = [];
   for (let i = 0; i < 4; i++) {
     const u = addUnit(startU[i], 'player', 32 + (i % 2), 36 + Math.floor(i / 2));
@@ -199,13 +243,7 @@ function newGame(seed, race) {
   orderGatherAuto(eWorkers[1], T_FOREST);
   computeFog();
   // startowe rozkazy: 2 drwale, 1 górnik, czwarty wolny (autostart gospodarki); Sioux: wojownicy rąbią, squawy czekają na budowę
-  if (S.playerRace === 'sioux') {
-    const wojs = pu.filter(u => u.type === 'wojownik');
-    orderGatherAuto(wojs[0], T_FOREST); orderGatherAuto(wojs[1], T_FOREST);
-  } else {
-    orderGatherAuto(pu[0], T_FOREST); orderGatherAuto(pu[1], T_FOREST);
-    orderGatherAuto(pu[2], T_GOLD);
-  }
+  raceOf('player').startOrders.forEach((o, i) => { if (o) orderGatherAuto(pu[i], o === 'gold' ? T_GOLD : T_FOREST); });
   centerCameraOn(34.5, 34.5);
 }
 
@@ -1475,21 +1513,22 @@ function aiTrain(b, unitType) {
   b.queue.push({ type: unitType, remaining: def.train, paid: true });
   return true;
 }
-function aiAttack(target) {
+function aiAttack(target, hitsBuildings = true) {
   let sent = 0;
   for (const u of S.units) {
     if (u.fac !== 'enemy' || u.type === 'worker' || u.type === 'horse') continue;
     if (u.state === 'assault' || u.state === 'flee') continue;
-    u.orderBuilding = target; u.attackTarget = null; u.node = null; releaseFarm(u); u.buildTarget = null;
+    u.attackTarget = null; u.node = null; releaseFarm(u); u.buildTarget = null;
     u.path = pathToBuildingU(u, target); u.pathI = 0;
-    u.state = 'assault';
+    // 'move' zamiast 'assault': na miejscu armia walczy tylko z jednostkami w zasięgu agresji i nie rusza budynków (bardzo łatwy)
+    if (hitsBuildings) { u.orderBuilding = target; u.state = 'assault'; } else { u.orderBuilding = null; u.state = 'move'; }
     sent++;
   }
   return sent;
 }
 function updateAI(dt) {
   if (S.testMode) return; // tryb testowy: kontroler strategiczny milczy, zostaje tylko auto-aggro jednostek
-  const A = CFG.ai, st = S.ai;
+  const A = CFG.ai, D = diffOf(), st = S.ai;
   st.thinkT -= dt;
   st.attackCd -= dt;
   if (st.thinkT > 0) return;
@@ -1502,7 +1541,7 @@ function updateAI(dt) {
   const barr = S.buildings.find(b => b.fac === 'enemy' && b.type === 'barracks' && b.built);
   // 1. robotnicy (trening w obozie)
   const queuedW = ehq.queue.filter(q => q.type === 'worker').length;
-  if (myWorkers.length + queuedW < A.workersMax) aiTrain(ehq, 'worker');
+  if (myWorkers.length + queuedW < D.workers) aiTrain(ehq, 'worker');
   // 2. bezczynni robotnicy: surowiec wg potrzeb albo farmowanie
   const myFarms = S.buildings.filter(b => b.fac === 'enemy' && b.type === 'farm' && b.built);
   for (const u of myWorkers) {
@@ -1548,7 +1587,7 @@ function updateAI(dt) {
   }
   // 4. trening wojska w koszarach
   if (barr) {
-    const armyAt = Math.min(A.armyCap, A.armyBase + A.armyGrow * st.attacks);
+    const armyAt = Math.min(A.armyCap, D.armyBase + A.armyGrow * st.attacks);
     const leaders = myArmy.filter(u => u.type === 'bandleader').length;
     const barrQ = barr.queue.length;
     if (myArmy.length + barrQ < armyAt) {
@@ -1558,8 +1597,8 @@ function updateAI(dt) {
     }
   }
   // 5. wyprawa łupieżcza (karencja startowa 8 min: fabryka+broń+2 piechota muszą być osiągalne)
-  const armyAt = Math.min(A.armyCap, A.armyBase + A.armyGrow * st.attacks);
-  if (myArmy.length >= armyAt && st.attackCd <= 0 && S.time > 480) {
+  const armyAt = Math.min(A.armyCap, D.armyBase + A.armyGrow * st.attacks);
+  if (myArmy.length >= armyAt && st.attackCd <= 0 && S.time > D.firstWave) {
     const phq = S.buildings.find(b => b.fac === 'player' && b.type === 'hq' && b.built);
     let target = phq;
     let bd = 1e9;
@@ -1568,8 +1607,8 @@ function updateAI(dt) {
       const d = (b.cx - ehq.cx) ** 2 + (b.cy - ehq.cy) ** 2;
       if (d < bd) { bd = d; target = b; }
     }
-    if (target && aiAttack(target) > 0) {
-      st.attacks++; st.attackCd = A.attackCooldown;
+    if (target && aiAttack(target, D.hitsBuildings) > 0) {
+      st.attacks++; st.attackCd = A.attackCooldown * D.waveMul;
       if (S.buildings.some(b => b.fac === 'player' && b.type === 'hq'))
         uiAlert('Zwiadowcy donoszą: banda ruszyła na twoją osadę!', [target.cx, target.cy]);
     }
@@ -1974,7 +2013,7 @@ function updatePanels() {
       for (const tid in CFG.techs) {
         const td = CFG.techs[tid];
         if (td.bld !== b.type) continue;
-        if (S.playerRace === 'sioux' && tid === 'sztauga') continue; // kawaleryjna technologia bez sensu dla Sioux
+        if (raceOf('player').noTechs.includes(tid)) continue;
         const btn = document.createElement('button');
         btn.dataset.role = 'tech_' + tid;
         btn.title = td.desc;
@@ -2071,6 +2110,8 @@ function showOverlay(o) {
   overlay.appendChild(box);
 }
 document.getElementById('helpbtn').onclick = () => showHelp();
+document.getElementById('savebtn').onclick = () => saveGame();
+document.getElementById('loadbtn').onclick = () => { if (!S.menuOpen) loadGame(); };
 function showHelp() {
   if (!S.menuOpen && !S.gameOver) S.paused = true; // pomoc w trakcie gry zatrzymuje symulację
 
@@ -2103,15 +2144,19 @@ function startRace(race) {
   newGame(Date.now(), race);
   updatePanels();
 }
+function cycleDifficulty() {
+  const ks = Object.keys(CFG.difficulty);
+  S.difficulty = ks[(ks.indexOf(S.difficulty) + 1) % ks.length];
+}
 function showMenu() {
   S.menuOpen = true;
-  showOverlay({ title: 'America: No Peace Beyond the Line (prototyp)', body: 'Wybierz frakcję i tryb. Gra: Osadnicy albo Sioux (squawy budują, wojownicy rąbią i polują, łuki z drewna, tepee). Test: rozbudowane bazy i pełne zapasy, AI bierne, jednostki reagują tylko na zbliżenie. Do szybkiego sprawdzania nowych jednostek bez czekania na rozbudowę.',
-    buttons: [
-      { label: 'Graj: Osadnicy', cb: () => startRace('settler') },
-      { label: 'Graj: Sioux', cb: () => startRace('sioux') },
-      { label: 'Test: Osadnicy', cb: () => setupTest('settler') },
-      { label: 'Test: Sioux', cb: () => setupTest('sioux') },
-    ] });
+  const btns = PLAYABLE_RACES.map(k => ({ label: 'Graj: ' + RACES[k].label, cb: () => startRace(k) }));
+  btns.push({ label: 'Trudność: ' + diffOf().label, cb: () => { cycleDifficulty(); showMenu(); } });
+  if (hasSave()) btns.push({ label: 'Wczytaj zapis', cb: () => { if (!loadGame()) showMenu(); } });
+  for (const k of PLAYABLE_RACES) btns.push({ label: 'Test: ' + RACES[k].label, cb: () => setupTest(k) });
+  showOverlay({ title: 'America: No Peace Beyond the Line (prototyp)',
+    body: PLAYABLE_RACES.map(k => RACES[k].label + ': ' + RACES[k].desc).join(' ') + ' Przeciwnik: Desperado (AI). Trudność zmienia liczbę robotników i wypraw wroga. Test: rozbudowane bazy i pełne wojsko od razu; przeciwnik milczy.',
+    buttons: btns });
 }
 // tryb testowy: deterministyczne rozmieszczenie budowli spiralą wokół obozu
 function testPlace(fac, type, cx, cy) {
@@ -2136,14 +2181,11 @@ function setupTest(race) {
   S.buildings = S.buildings.filter(b => b.type === 'hq');
   const phq = S.buildings.find(b => b.fac === 'player');
   const ehq = S.buildings.find(b => b.fac === 'enemy');
-  const pBlds = S.playerRace === 'sioux'
-    ? ['storehouse', 'farm', 'barracks', 'tepee', 'tepee', 'farm']
-    : ['storehouse', 'farm', 'barracks', 'factory', 'zagroda', 'house', 'house', 'farm'];
-  for (const t of pBlds)
+  for (const t of raceOf('player').test.buildings)
     testPlace('player', t, Math.floor(phq.cx), Math.floor(phq.cy));
   for (const t of ['storehouse', 'farm', 'barracks', 'factory', 'house', 'house'])
     testPlace('enemy', t, Math.floor(ehq.cx), Math.floor(ehq.cy));
-  S.res = S.playerRace === 'sioux' ? { wood: 500, food: 500, gold: 1000, guns: 0, horses: 0 } : { wood: 500, food: 500, gold: 1000, guns: 50, horses: 20 };
+  S.res = { ...raceOf('player').test.res };
   S.resE = { wood: 500, food: 500, gold: 1000, guns: 50, horses: 20 };
   // jednostki dopiero PO zabudowie: spawn na wolnych kaflach wokół obozu
   const ps = freeTilesAround(Math.floor(phq.cx), Math.floor(phq.cy), 5);
@@ -2152,23 +2194,73 @@ function setupTest(race) {
   const spawnP = t => { if (pi < ps.length) { const u = addUnit(t, 'player', ps[pi][0], ps[pi][1]); u.x += 0.5; u.y += 0.5; pi++; } };
   const spawnE = t => { if (ei < es.length) { const u = addUnit(t, 'enemy', es[ei][0], es[ei][1]); u.x += 0.5; u.y += 0.5; ei++; } };
   for (let i = 0; i < 6; i++) spawnE('worker');
-  if (S.playerRace === 'sioux') {
-    for (let i = 0; i < 4; i++) spawnP('squaw');
-    for (let i = 0; i < 6; i++) spawnP('wojownik');
-    for (let i = 0; i < 6; i++) spawnP('lucznik');
-    spawnP('medicine'); spawnP('wodz');
-  } else {
-    for (let i = 0; i < 6; i++) spawnP('worker');
-    for (let i = 0; i < 8; i++) spawnP('piechota');
-    for (let i = 0; i < 4; i++) spawnP('jezdiec');
-  }
+  const tu = raceOf('player').test.units;
+  for (const t in tu) for (let i = 0; i < tu[t]; i++) spawnP(t);
   for (let i = 0; i < 10; i++) spawnE('desperado');
   for (let i = 0; i < 3; i++) spawnE('bandleader');
   for (let i = 0; i < 4; i++) spawnE('konnobanda');
-  S.ai = { thinkT: 1, attacks: 0, attackCd: CFG.ai.attackCooldown, trainQ: 0 };
+  S.ai = newAIState();
   computeFog();
   centerCameraOn(phq.cx, phq.cy + 4);
   updateTopbar(); updatePanels();
+}
+
+// ============================== ZAPIS I ODCZYT (C2) ==============================
+// Zapis to wersjonowany JSON w localStorage: stan symulacji + stany obu generatorów losowych, więc wczytana partia toczy się dokładnie tak samo jak nie zapisana.
+// Odwołania między encjami (cel ataku, farma, plac budowy...) idą jako {__r: id}; zaznaczenie, kamera i efekty chwilowe nie są częścią partii.
+const SAVE_KEY = 'anpbtl_save_v1', SAVE_VERSION = 1;
+function b64Of(arr) { const u8 = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength); let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); }
+function fromB64(str, Type) { const s = atob(str), u8 = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u8[i] = s.charCodeAt(i); return new Type(u8.buffer); }
+function serializeGame() {
+  const ents = new Set([...S.units, ...S.buildings]);
+  // martwy cel (już poza S.units) ma 'hp' i 'id', ale nie istnieje w zapisie: wskazanie na niego znika, tak jak w grze (includes zwraca false)
+  const isEnt = v => v && typeof v === 'object' && !Array.isArray(v) && 'hp' in v && 'id' in v;
+  const ser = e => { const o = {}; for (const k in e) { const v = e[k]; o[k] = isEnt(v) ? (ents.has(v) ? { __r: v.id } : null) : v; } return o; };
+  const groups = {}; for (const g in S.groups) groups[g] = S.groups[g].filter(u => ents.has(u)).map(u => u.id);
+  return {
+    version: SAVE_VERSION,
+    playerRace: S.playerRace, enemyRace: S.enemyRace, difficulty: S.difficulty, biome: S.biome, testMode: S.testMode,
+    time: S.time, nextId: S.nextId, res: S.res, resE: S.resE, techs: S.techs, ai: S.ai, rainT: S.rainT, storms: S.storms,
+    moraleT: S.moraleT, woodAlertT: S.woodAlertT, groups,
+    terrain: b64Of(S.terrain), amt: b64Of(S.amt), explored: b64Of(S.explored),
+    units: S.units.map(ser), buildings: S.buildings.map(ser),
+    rng: rng.getState(), rngCombat: rngCombat.getState(),
+  };
+}
+function restoreGame(d) {
+  if (!d || d.version !== SAVE_VERSION) return false;
+  S.playerRace = d.playerRace; S.enemyRace = d.enemyRace; S.difficulty = d.difficulty; S.biome = d.biome; S.testMode = !!d.testMode;
+  S.time = d.time; S.nextId = d.nextId; S.res = d.res; S.resE = d.resE; S.techs = d.techs; S.ai = d.ai; S.rainT = d.rainT || {}; S.storms = d.storms || [];
+  S.moraleT = d.moraleT || 0; S.woodAlertT = d.woodAlertT || 0;
+  S.terrain = fromB64(d.terrain, Uint8Array); S.amt = fromB64(d.amt, Float32Array); S.explored = fromB64(d.explored, Uint8Array);
+  S.visible = new Uint8Array(MAP * MAP);
+  S.units = d.units; S.buildings = d.buildings;
+  const byId = new Map(); for (const e of [...S.units, ...S.buildings]) byId.set(e.id, e);
+  for (const e of byId.values()) for (const k in e) { const v = e[k]; if (v && typeof v === 'object' && !Array.isArray(v) && '__r' in v) e[k] = byId.get(v.__r) || null; }
+  S.groups = {}; for (const g in d.groups) S.groups[g] = d.groups[g].map(id => byId.get(id)).filter(Boolean);
+  rng = mulberry32(0); rng.setState(d.rng); rngCombat = mulberry32(0); rngCombat.setState(d.rngCombat);
+  // chwilowe: zaznaczenie, efekty, polecenia w kolejce, alerty
+  S.selected = { units: [], building: null }; S.placing = null; S.gameOver = null; S.pending = []; S.shots = []; S.hits = []; S.fx = null;
+  S.alertCooldown = {}; S.lastAlert = null; S.attackMove = false; S.rallyMode = false; S.lastClick = null; S.lastGroup = 0; S.lastGroupT = 0;
+  S.paused = false; S.menuOpen = false;
+  buildGround(); computeFog();
+  const phq = S.buildings.find(b => b.fac === 'player' && b.type === 'hq');
+  if (phq) centerCameraOn(phq.cx, phq.cy + 4);
+  overlay.style.display = 'none';
+  updateTopbar(); updatePanels();
+  return true;
+}
+function hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; } }
+function saveGame() {
+  if (S.menuOpen || S.gameOver) return false;
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(serializeGame())); uiAlert('Gra zapisana.', null); return true; }
+  catch (e) { uiAlert('Nie udało się zapisać gry.', null); return false; }
+}
+function loadGame() {
+  try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return false; if (restoreGame(JSON.parse(raw))) { uiAlert('Gra wczytana.', null); return true; } }
+  catch (e) { /* uszkodzony zapis */ }
+  uiAlert('Zapis jest uszkodzony albo z innej wersji gry.', null);
+  return false;
 }
 
 // ============================== RENDER ==============================
@@ -2656,7 +2748,7 @@ function drawProp(x, y, cx, cy) {
 }
 // budynek wg nacji (styl, nie kolor właściciela): wróg = Desperado (ban), gracz = Osadnicy (us) albo Sioux (sx); brak wariantu = sprite Osadników
 function drawBld(b, sx, sy) {
-  const nat = b.fac === 'enemy' ? 'ban' : (S.playerRace === 'sioux' ? 'sx' : 'us'), A = window.ASSETS;
+  const nat = raceOf(b.fac).nation, A = window.ASSETS;
   const key = 'bld_' + b.type + '_' + nat;
   drawStatic(A[key] ? key : 'bld_' + b.type + '_us', sx, sy);
 }
