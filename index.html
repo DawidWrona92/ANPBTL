@@ -337,8 +337,8 @@ function isSwimming(u) {
   return inMap(Math.floor(u.x), Math.floor(u.y)) && S.terrain[idx(Math.floor(u.x), Math.floor(u.y))] === T_WATER;
 }
 // wersje findPath/pathToBuilding dla jednostki: droga liczone przez passableFor jej definicji
-function uPath(u, gx, gy, r) { return uPath(u, gx, gy, r, CFG.units[u.type]); }
-function pathToBuildingU(u, b) { return pathToBuildingU(u, b, CFG.units[u.type]); }
+function uPath(u, gx, gy, r) { return findPath(u.x, u.y, gx, gy, r, CFG.units[u.type]); }
+function pathToBuildingU(u, b) { return pathToBuilding(u.x, u.y, b, CFG.units[u.type]); }
 function freeTilesAround(cx, cy, r) {
   const out = [];
   for (let y = cy - r; y <= cy + r; y++)
