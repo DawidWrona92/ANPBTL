@@ -425,7 +425,16 @@ function pay(cost, fac) {
   for (const k in cost) R[k] -= cost[k];
   return true;
 }
-function addRes(type, n, fac) { const R = facRes(fac || 'player'); R[type] = Math.min(CFG.resCap[type], R[type] + n); }
+function addRes(type, n, fac) {
+  const R = facRes(fac || 'player');
+  const over = R[type] + n > CFG.resCap[type];
+  R[type] = Math.min(CFG.resCap[type], R[type] + n);
+  // nadwyżka przepada: gracz musi o tym wiedzieć (alert raz na 30 s na surowiec)
+  if (over && (fac || 'player') === 'player' && S.time - (S.alertCooldown['cap_' + type] ?? -99) > 30) {
+    S.alertCooldown['cap_' + type] = S.time;
+    uiAlert('Magazyn pełny: nadwyżka ' + type + ' przepada');
+  }
+}
 function popCap(fac) {
   let p = 0;
   for (const b of S.buildings) if (b.fac === (fac || 'player') && b.built) p += CFG.buildings[b.type].pop || 0;
@@ -542,6 +551,7 @@ function executeOrder(c) {
   // schwytanie dzikiego konia (dowolna jednostka, 5 s [Ź])
   if (c.targetHorse && S.units.includes(c.targetHorse)) {
     const h = c.targetHorse;
+    if (facRes(units[0].fac).horses >= CFG.resCap.horses) { uiAlert('Zagroda pełna: limit koni ' + CFG.resCap.horses); return; }
     for (const u of units) {
       u.captureTarget = h; u.node = null; releaseFarm(u); u.buildTarget = null; u.attackTarget = null; u.orderBuilding = null;
       u.path = uPath(u, Math.floor(h.x), Math.floor(h.y)); u.pathI = 0;
@@ -768,6 +778,12 @@ function updateUnit(u, dt) {
       if (d > 2.2) { u.state = 'toCapture'; u.path = uPath(u, Math.floor(h.x), Math.floor(h.y)); u.pathI = 0; break; }
       u.captureT -= dt;
       if (u.captureT <= 0) {
+        // limit koni mógł się zapełnić w trakcie chwytania: koń zostaje na mapie zamiast przepaść
+        if (facRes(u.fac).horses >= CFG.resCap.horses) {
+          u.captureTarget = null; u.state = 'idle';
+          if (u.fac === 'player') uiAlert('Zagroda pełna: limit koni ' + CFG.resCap.horses);
+          break;
+        }
         removeHorse(h);
         addRes('horses', 1, u.fac);
         u.captureTarget = null; u.state = 'idle';
@@ -1228,6 +1244,10 @@ function updateAnimal(a, dt) {
   }
 }
 function destroyBuilding(b) {
+  // zamówienia w toku wracają do puli: koszt zapłacono przy zamówieniu
+  for (const q of b.queue) for (const k in CFG.units[q.type].cost) addRes(k, CFG.units[q.type].cost[k], b.fac);
+  if (b.research) for (const k in CFG.techs[b.research.id].cost) addRes(k, CFG.techs[b.research.id].cost[k], b.fac);
+  b.queue = []; b.research = null;
   sfx('boom', b.cx, b.cy);
   addHitFx(b.cx, b.cy, { boom: true });
   S.buildings = S.buildings.filter(x => x !== b);
