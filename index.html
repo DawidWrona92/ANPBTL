@@ -12,11 +12,14 @@
   #topbar { top: 8px; left: 50%; transform: translateX(-50%); padding: 6px 16px; display: flex; gap: 18px; align-items: center; font-size: 15px; white-space: nowrap; }
   #topbar b { color: #ffd97a; }
   #buildbar { bottom: 8px; left: 8px; padding: 8px; display: flex; gap: 6px; flex-wrap: wrap; max-width: 460px; }
-  #buildbar button, #bpanel button, #stancebar button { background: #5a4128; color: #f0e2bd; border: 1px solid #8a6b45; padding: 7px 10px; font-family: inherit; font-size: 13px; border-radius: 4px; cursor: pointer; }
-  #buildbar button:hover:not(:disabled), #bpanel button:hover:not(:disabled), #stancebar button:hover:not(:disabled) { background: #7a5836; }
+  #buildbar button, #bpanel button, #stancebar button, #abilitybar button { background: #5a4128; color: #f0e2bd; border: 1px solid #8a6b45; padding: 7px 10px; font-family: inherit; font-size: 13px; border-radius: 4px; cursor: pointer; }
+  #buildbar button:hover:not(:disabled), #bpanel button:hover:not(:disabled), #stancebar button:hover:not(:disabled), #abilitybar button:hover:not(:disabled) { background: #7a5836; }
   #buildbar button:disabled { opacity: 0.45; cursor: not-allowed; }
   #stancebar { bottom: 8px; left: 480px; padding: 8px; display: none; gap: 6px; flex-wrap: wrap; max-width: 340px; }
-  #stancebar button.active { background: #a5822f; border-color: #ffd97a; color: #fff6dd; }
+  #stancebar button.active, #abilitybar button.active { background: #a5822f; border-color: #ffd97a; color: #fff6dd; }
+  #abilitybar button:disabled { opacity: 0.45; cursor: not-allowed; }
+  /* nad paskiem postaw: zaznaczenie z medicine manem i wodzem pokazuje oba paski naraz */
+  #abilitybar { bottom: 106px; left: 480px; padding: 8px; display: none; gap: 6px; flex-wrap: wrap; max-width: 340px; }
   #bpanel { bottom: 8px; left: 480px; padding: 8px; display: none; min-width: 220px; }
   #bpanel .name { color: #ffd97a; font-size: 14px; margin-bottom: 6px; }
   #bpanel .row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -339,6 +342,21 @@ function isSwimming(u) {
 // wersje findPath/pathToBuilding dla jednostki: droga liczone przez passableFor jej definicji
 function uPath(u, gx, gy, r) { return findPath(u.x, u.y, gx, gy, r, CFG.units[u.type]); }
 function pathToBuildingU(u, b) { return pathToBuilding(u.x, u.y, b, CFG.units[u.type]); }
+// najbliższy wolny kafel przy obrysie budynku, pierścieniami od krawędzi (do 6 kafli); pomija zajęte przez inne jednostki
+function spawnSpotNear(b, def) {
+  for (let r = 1; r <= 6; r++) {
+    let best = null, bd = 1e9;
+    for (let y = b.ty - r; y < b.ty + b.h + r; y++) for (let x = b.tx - r; x < b.tx + b.w + r; x++) {
+      const onRing = x < b.tx - r + 1 || x >= b.tx + b.w + r - 1 || y < b.ty - r + 1 || y >= b.ty + b.h + r - 1;
+      if (!onRing || !passableFor(def, x, y)) continue;
+      if (S.units.some(u => Math.floor(u.x) === x && Math.floor(u.y) === y)) continue;
+      const d = (x + 0.5 - b.cx) ** 2 + (y + 0.5 - b.cy) ** 2;
+      if (d < bd) { bd = d; best = [x, y]; }
+    }
+    if (best) return best;
+  }
+  return null;
+}
 function freeTilesAround(cx, cy, r) {
   const out = [];
   for (let y = cy - r; y <= cy + r; y++)
@@ -1228,11 +1246,14 @@ function updateBuilding(b, dt) {
       q.remaining -= dt;
       if (q.remaining <= 0) {
         b.queue.shift();
-        const spots = freeTilesAround(Math.floor(b.cx), Math.floor(b.cy), 3);
-        if (spots.length) {
-          const u = addUnit(q.type, b.fac, spots[0][0] + 0.5, spots[0][1] + 0.5);
-          if (q.type === 'worker' && b.fac === 'player') { /* nowy robotnik bezczynny */ }
+        const spot = spawnSpotNear(b, CFG.units[q.type]);
+        if (spot) {
+          addUnit(q.type, b.fac, spot[0] + 0.5, spot[1] + 0.5);
           if (b.fac === 'player') sfx('ok');
+        } else {
+          // brak miejsca przy budynku: jednostka czeka na początku kolejki zamiast zniknąć razem z kosztem
+          q.remaining = 0;
+          b.queue.unshift(q);
         }
       }
     }
