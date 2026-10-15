@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
 <title>America: prototyp</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -111,6 +111,40 @@
   .set-rows { display: grid; grid-template-columns: calc(var(--u) * 300px) calc(var(--u) * 220px); gap: calc(var(--u) * 14px) calc(var(--u) * 22px); margin-top: calc(var(--u) * 34px); align-items: center; }
   .set-rows .scr-pill { text-align: left; }
   #overlay .set-rows button { margin: 0; background: linear-gradient(#2a160b, #150a05); color: #ffd97a; }
+  /* faza 11: dotyk i małe ekrany. Tryb zwarty (html.compact) włącza się na telefonach/tabletach i niskich oknach; przyciski mają min. 44 px, panel można zwinąć */
+  #cancelbtn { position: absolute; top: calc(var(--u) * 34px); left: 50%; transform: translateX(-50%); z-index: 7; display: none; background: linear-gradient(#5a1a10, #2a0a05); color: #ffd9a0; border: 2px solid #a8442a; border-radius: 20px; padding: calc(var(--u) * 8px) calc(var(--u) * 22px); font: bold calc(var(--u) * 15px) Georgia, serif; box-shadow: 0 3px 8px #000; cursor: pointer; }
+  #hudtoggle { display: none; position: absolute; top: 2px; right: 10px; z-index: 5; min-width: 44px; min-height: 30px; background: linear-gradient(#2a160b, #150a05); color: #f2c35c; border: 2px solid #5a3a1c; border-radius: 15px; font: bold 14px Georgia, serif; cursor: pointer; }
+  #hud, #miniframe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  #hud { padding-left: env(safe-area-inset-left, 0px); }
+  #miniframe { padding-right: calc(var(--u) * 12px + env(safe-area-inset-right, 0px)); }
+  #topbar { padding-left: calc(var(--u) * 12px + env(safe-area-inset-left, 0px)); padding-right: calc(var(--u) * 12px + env(safe-area-inset-right, 0px)); }
+  #rotate { position: fixed; inset: 0; z-index: 60; background: #120a05; color: #f3dfb6; display: none; align-items: center; justify-content: center; text-align: center; padding: 24px; font: 20px/1.4 Georgia, serif; }
+  @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
+  html.compact #hudtoggle { display: block; }
+  html.compact .cmd { width: 52px; height: 48px; min-width: 44px; min-height: 44px; font-size: 9px; }
+  html.compact .cmd .ico { height: 30px; } html.compact .cmd .ico canvas { width: 32px; height: 32px; }
+  html.compact .cmd.slot { min-width: 40px; min-height: 40px; }
+  html.compact .cmd .lbl { font-size: 9px; }
+  html.compact .tab { min-width: 34px; min-height: 26px; }
+  html.compact .sbtn { min-width: 44px; min-height: 38px; }
+  html.compact #infoblock { width: calc(var(--u) * 200px); font-size: 11px; padding-top: 8px; }
+  html.compact #infoblock .nm { font-size: 12px; }
+  html.compact #infoblock .port { display: none; }
+  html.compact #infoblock .grid canvas { width: 26px; height: 26px; }
+  html.compact #topbar { font-size: 12px; height: 26px; gap: 14px; }
+  html.compact #hud { height: auto; min-height: 0; width: min(64vw, 520px); }
+  html.compact .cmd .lbl { overflow: hidden; font-size: 8px; }
+  html.compact #cmdarea { padding: 6px 6px 6px 4px; gap: 3px; }
+  html.compact #buildbar, html.compact #stancebar, html.compact #abilitybar, html.compact #bpanel .row { gap: 4px; }
+  html.compact #miniframe { height: auto; min-height: 118px; width: 250px; padding-top: 8px; align-items: flex-end; }
+  html.compact #minimapWrap { width: 104px; height: 104px; }
+  html.compact.hudmin #cmdarea { display: none; }
+  html.compact.hudmin #hud { min-height: 0; width: min(46vw, 320px); }
+  html.compact #alerts { bottom: 150px; }
+  html.compact #overlay.scr-wood, html.compact #overlay.scr-main { overflow: auto; justify-content: flex-start; }
+  html.compact .scr-foot { position: relative; bottom: auto; margin-top: calc(var(--u) * 14px); padding-bottom: 10px; }
+  html.compact .mm-title { font-size: calc(var(--u) * 64px); }
+  html.compact .mm-menu { right: 8%; top: 38%; gap: calc(var(--u) * 14px); }
 </style>
 </head>
 <body>
@@ -130,8 +164,10 @@
 </svg>
 <canvas id="game"></canvas>
 <div id="topbar"></div>
+<button id="cancelbtn">Anuluj</button>
+<div id="rotate">Obróć telefon do poziomu,<br>żeby zagrać.</div>
 <div id="alerts"></div>
-<div id="hud"><div id="infoblock"></div><div id="cmdarea"><div id="grouprow"></div><div id="abilitybar"></div><div id="stancebar"></div><div id="buildbar"></div><div id="bpanel"></div></div></div>
+<div id="hud"><button id="hudtoggle" title="Zwiń lub rozwiń panel poleceń">▾</button><div id="infoblock"></div><div id="cmdarea"><div id="grouprow"></div><div id="abilitybar"></div><div id="stancebar"></div><div id="buildbar"></div><div id="bpanel"></div></div></div>
 <div id="miniframe">
   <div id="sidebtns">
     <button id="helpbtn" class="sbtn" title="Pomoc i sterowanie">?</button>
@@ -283,7 +319,8 @@ function newAIState() { return { thinkT: 1, attacks: 0, attackCd: CFG.ai.attackC
 let MAP = CFG.map;   // rozmiar bieżącej mapy (kafle); zmienia go newGame/restoreGame zależnie od mapy
 const T_GRASS = 0, T_FOREST = 1, T_GOLD = 2, T_WATER = 3, T_MEAT = 4, T_THICK = 5, T_CLIFF = 6;
 // przybliżenie kamery: świat rysowany przez transform ZOOM; 2 = piksel-art 2x bez wygładzania, 1 = stara skala
-const ZOOM = 2;
+let ZOOM = 2;   // zmienny: dotyk (szczypanie) i kółko myszy zmieniają przybliżenie w zakresie ZOOM_MIN..ZOOM_MAX
+const ZOOM_MIN = 1.2, ZOOM_MAX = 3;
 const S = {};
 const idx = (x, y) => y * MAP + x;
 const inMap = (x, y) => x >= 0 && y >= 0 && x < MAP && y < MAP;
@@ -1847,7 +1884,7 @@ const mctx = mini.getContext('2d');
 const cam = { x: 0, y: 0 };
 let canvasW = 800, canvasH = 600;
 function resize() {
-  const ratio = window.devicePixelRatio || 1;
+  const ratio = Math.min(window.devicePixelRatio || 1, SETTINGS.quality ? 2 : 1);   // niska jakość: bez nadpróbkowania na ekranach o dużym DPR
   canvasW = window.innerWidth; canvasH = window.innerHeight;
   canvas.width = Math.round(canvasW * ratio); canvas.height = Math.round(canvasH * ratio);
   canvas.style.width = canvasW + 'px'; canvas.style.height = canvasH + 'px';
@@ -1877,10 +1914,17 @@ function clampCam() {
   cam.y = Math.max(canvasH / ZOOM - bh, Math.min(0, cam.y));
 }
 
+// zmiana przybliżenia wokół punktu ekranu (fx, fy): punkt świata pod palcem/kursorem zostaje w miejscu
+function setZoom(z, fx, fy) {
+  z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z)); if (z === ZOOM) return;
+  const wx = fx / ZOOM - cam.x, wy = fy / ZOOM - cam.y;
+  ZOOM = z; cam.x = fx / ZOOM - wx; cam.y = fy / ZOOM - wy; clampCam();
+}
 let mouse = { x: 400, y: 300, down: false, dragging: false, sx: 0, sy: 0, inside: false };
 const keys = {};
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointerdown', e => {
+  if (isTouch(e)) return touchDown(e);
   ensureAudio();
   mouse.down = true; mouse.dragging = false;
   mouse.sx = e.offsetX; mouse.sy = e.offsetY;
@@ -1888,10 +1932,13 @@ canvas.addEventListener('pointerdown', e => {
 });
 // kursor poza płótnem (okno, panel UI) nie przewija krawędzią: ostatnia pozycja przy brzegu zostawała na zawsze
 canvas.addEventListener('pointerleave', () => { mouse.inside = false; });
-canvas.addEventListener('pointermove', e => { mouse.inside = true; mouse.x = e.offsetX; mouse.y = e.offsetY; if (mouse.down && (Math.abs(mouse.x - mouse.sx) > 4 || Math.abs(mouse.y - mouse.sy) > 4)) mouse.dragging = true; });
+canvas.addEventListener('pointermove', e => { if (isTouch(e)) return touchMove(e); mouse.inside = true; mouse.x = e.offsetX; mouse.y = e.offsetY; if (mouse.down && (Math.abs(mouse.x - mouse.sx) > 4 || Math.abs(mouse.y - mouse.sy) > 4)) mouse.dragging = true; });
 // puszczenie przycisku nad panelem UI: bez tego następny klik robił gigantyczną ramkę zaznaczania
 window.addEventListener('pointerup', () => { mouse.down = false; mouse.dragging = false; });
-canvas.addEventListener('pointerup', e => {
+canvas.addEventListener('pointerup', e => { if (isTouch(e)) return touchUp(e); onCanvasUp(e); });
+canvas.addEventListener('pointercancel', e => { if (isTouch(e)) touchUp(e, true); });
+canvas.addEventListener('wheel', e => { e.preventDefault(); setZoom(ZOOM * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.offsetX, e.offsetY); }, { passive: false });
+function onCanvasUp(e) {
   mouse.down = false;
   if (S.gameOver) return;
   const right = e.button === 2;
@@ -1974,7 +2021,63 @@ canvas.addEventListener('pointerup', e => {
   if (b && b.fac === 'player') { S.selected.building = b; S.selected.units = []; updatePanels(); sfx('sel', b.cx, b.cy); return; }
   S.selected.units = []; S.selected.building = null;
   updatePanels();
-});
+}
+// ============================== DOTYK (faza 11) ==============================
+// Gesty na tym samym torze poleceń co mysz: onCanvasUp dostaje zdarzenie-zastępnik. Jeden palec: dotknięcie = zaznacz albo rozkaz, przeciągnięcie po terenie = kamera,
+// przytrzymanie 350 ms i przeciągnięcie = ramka zaznaczenia, samo przytrzymanie = rozkaz z kolejką (jak Shift+PPM). Dwa palce: kamera i zoom. W trybie budowy/celowania palec tylko
+// celuje (duch budowli podąża), a puszczenie wykonuje akcję.
+const touch = { pts: new Map(), mode: null, timer: null, ox: 0, oy: 0, startT: 0, pinch: null };
+const isTouch = e => e.pointerType === 'touch' || e.pointerType === 'pen';
+const aiming = () => !!(S.placing || S.attackMove || S.rallyMode);
+function pickOwnAt(offsetX, offsetY) {
+  const ex = offsetX / ZOOM, ey = offsetY / ZOOM; let best = null, bd = 400 * (ZOOM >= 2 ? 1 : 2);
+  for (const u of S.units) { if (u.fac !== 'player') continue; const [ux, uy] = tileToScreen(u.x, u.y); const d = (ux - ex) ** 2 + (uy - ey) ** 2; if (d < bd) { bd = d; best = u; } }
+  if (best) return best;
+  const [px, py] = screenToTile(offsetX, offsetY), tx = Math.floor(px), ty = Math.floor(py), b = inMap(tx, ty) ? buildingAt(tx, ty) : null;
+  return b && b.fac === 'player' ? b : null;
+}
+function pinchState() { const [a, b] = [...touch.pts.values()]; return { mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) || 1 }; }
+function touchDown(e) {
+  ensureAudio(); mouse.inside = false;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* bez przechwytu też działa */ }
+  touch.pts.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+  if (touch.pts.size === 1) {
+    touch.mode = aiming() ? 'aim' : null; touch.startT = Date.now(); touch.ox = e.offsetX; touch.oy = e.offsetY;
+    mouse.x = mouse.sx = e.offsetX; mouse.y = mouse.sy = e.offsetY; mouse.down = false; mouse.dragging = false;
+    clearTimeout(touch.timer);
+    if (!touch.mode) touch.timer = setTimeout(() => { if (touch.mode === null && touch.pts.size === 1) { touch.mode = 'hold'; if (navigator.vibrate) navigator.vibrate(12); } }, 350);
+  } else if (touch.pts.size === 2) {
+    clearTimeout(touch.timer); mouse.down = false; mouse.dragging = false; touch.mode = 'pinch'; touch.pinch = pinchState();
+  }
+}
+function touchMove(e) {
+  const p = touch.pts.get(e.pointerId); if (!p) return;
+  const dx = e.offsetX - p.x, dy = e.offsetY - p.y; p.x = e.offsetX; p.y = e.offsetY;
+  if (touch.mode === 'pinch' && touch.pts.size >= 2) {
+    const n = pinchState(), o = touch.pinch;
+    cam.x += (n.mx - o.mx) / ZOOM; cam.y += (n.my - o.my) / ZOOM; setZoom(ZOOM * n.d / o.d, n.mx, n.my); clampCam(); touch.pinch = n; return;
+  }
+  if (touch.pts.size !== 1) return;
+  mouse.x = e.offsetX; mouse.y = e.offsetY;
+  const far = Math.hypot(e.offsetX - touch.ox, e.offsetY - touch.oy);
+  if (touch.mode === null && far > 10) { clearTimeout(touch.timer); touch.mode = 'pan'; }
+  else if (touch.mode === 'hold' && far > 8) { touch.mode = 'box'; mouse.down = true; mouse.dragging = true; mouse.sx = touch.ox; mouse.sy = touch.oy; }
+  if (touch.mode === 'pan') { cam.x += dx / ZOOM; cam.y += dy / ZOOM; clampCam(); }
+}
+function touchUp(e, cancelled) {
+  touch.pts.delete(e.pointerId);
+  if (touch.pts.size > 0) { if (touch.mode === 'pinch') touch.mode = 'done'; return; }
+  clearTimeout(touch.timer);
+  const mode = touch.mode, held = Date.now() - touch.startT; touch.mode = null; touch.pinch = null;
+  if (cancelled || mode === 'pan' || mode === 'pinch' || mode === 'done') { mouse.down = false; mouse.dragging = false; return; }
+  const at = { offsetX: e.offsetX, offsetY: e.offsetY, shiftKey: false, button: 0 };
+  if (mode === 'box') { mouse.down = true; mouse.dragging = true; onCanvasUp(at); mouse.dragging = false; return; }
+  if (mode === 'aim') { onCanvasUp(at); return; }
+  const own = pickOwnAt(e.offsetX, e.offsetY);
+  if (mode === 'hold') { if (S.selected.units.length && !own) { at.button = 2; at.shiftKey = true; onCanvasUp(at); } return; }
+  if (S.selected.units.length && !own) at.button = 2;   // dotknięcie terenu, wroga albo zasobu przy zaznaczonych jednostkach = rozkaz
+  onCanvasUp(at);
+}
 mini.addEventListener('pointerdown', e => {
   const r = mini.getBoundingClientRect();
   const mx = (e.clientX - r.left) / r.width * MAP, my = (e.clientY - r.top) / r.height * MAP;
@@ -2058,8 +2161,12 @@ const overlay = document.getElementById('overlay');
 
 // skala interfejsu: 1.0 przy 1280x800; wszystkie rozmiary UI w CSS mnożone przez --u
 function applyUiScale() {
-  const u = Math.max(0.7, Math.min(1.3, Math.min(window.innerWidth / 1280, window.innerHeight / 800)));
+  const coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches, h = window.innerHeight, w = window.innerWidth;
+  const compact = h < 560 || (coarse && h < 700);
+  document.documentElement.classList.toggle('compact', compact);
+  const u = compact ? Math.max(0.55, Math.min(0.85, h / 620, w / 900)) : Math.max(0.7, Math.min(1.3, Math.min(w / 1280, h / 800)));
   document.documentElement.style.setProperty('--u', u.toFixed(3));
+  if (!window.__zoomInit) { window.__zoomInit = true; ZOOM = compact ? 1.4 : 2; }   // na małym ekranie start z szerszym widokiem
   raggedEdges();
 }
 // postrzępione krawędzie paneli drewnianych (deterministyczne): górna krawędź i boczna od strony mapy
@@ -2084,6 +2191,8 @@ function raggedEdges() {
   poly(hudEl, 'right'); poly(miniframe, 'left');
 }
 window.addEventListener('resize', applyUiScale);
+// wysokość panelu zależy od zawartości (tryb zwarty): obrys postrzępionej krawędzi liczony od nowa przy każdej zmianie rozmiaru
+if (window.ResizeObserver) { const ro = new ResizeObserver(() => raggedEdges()); ro.observe(document.getElementById('hud')); ro.observe(document.getElementById('miniframe')); }
 
 function uiAlert(msg, pos) {
   if (pos) S.lastAlert = { x: pos[0], y: pos[1] }; // spacja przenosi kamerę na miejsce ostatniego alertu
@@ -2150,7 +2259,8 @@ function cmdBtn(o) {
   if (o.title) b.title = o.title; if (o.role) b.dataset.role = o.role; if (o.onclick) b.onclick = o.onclick;
   return b;
 }
-function setLbl(b, html) { const l = b.querySelector('.lbl'); if (l && l.innerHTML !== html) l.innerHTML = html; }
+// na dotyku skróty klawiszowe w etykietach ([P], [X]) tylko zabierają miejsce
+function setLbl(b, html) { if (document.documentElement.classList.contains('compact')) html = html.replace(/\s*\[[A-Za-z0-9]\]/g, ''); const l = b.querySelector('.lbl'); if (l && l.innerHTML !== html) l.innerHTML = html; }
 
 const UNIT_NAMES = { worker: 'Robotnik', frontiersman: 'Frontiersman', frontierswoman: 'Frontierswoman', szeryf: 'Szeryf', armata: 'Armata', piechota: 'Piechota', jezdiec: 'Jeździec', squaw: 'Squaw', wojownik: 'Wojownik', wodz: 'Wódz', lucznik: 'Łucznik', medicine: 'Medicine man', desperado: 'Desperado', bandleader: 'Bandleader', konnobanda: 'Konna banda', horse: 'Dziki koń', bizon: 'Bizon', bydlo: 'Bydło' };
 const buildBtns = [];
@@ -2434,8 +2544,10 @@ function cycleDifficulty() {
 }
 // ustawienia gracza zapisywane w przeglądarce (indeksy poziomów); dźwięk to S.muted
 const SET_KEY = 'anpbtl_settings_v1';
-const SET_LEVELS = { scroll: [['Wolne', 0.6], ['Normalne', 1], ['Szybkie', 1.6]], speed: [['Wolna', 0.75], ['Normalna', 1], ['Szybka', 1.5]], shadow: [['Wyłączone', 0], ['Przezroczyste', 1]] };
-const SETTINGS = { scroll: 1, speed: 1, shadow: 1, skirmish: { map: 'prairie', biome: 'auto', enemy: 'outlaw' } };
+const SET_LEVELS = { quality: [['Niska (oszczędna)', 0], ['Wysoka', 1]], scroll: [['Wolne', 0.6], ['Normalne', 1], ['Szybkie', 1.6]], speed: [['Wolna', 0.75], ['Normalna', 1], ['Szybka', 1.5]], shadow: [['Wyłączone', 0], ['Przezroczyste', 1]] };
+const COARSE = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+// domyślna jakość: niska na ekranach dotykowych i przy deklarowanej pamięci ≤ 4 GB (warstwa terenu 2× to największy koszt pamięci); zapisany wybór gracza ma pierwszeństwo
+const SETTINGS = { scroll: 1, speed: 1, shadow: 1, quality: (COARSE || (navigator.deviceMemory && navigator.deviceMemory <= 4)) ? 0 : 1, skirmish: { map: 'prairie', biome: 'auto', enemy: 'outlaw' } };
 try { const sv = JSON.parse(localStorage.getItem(SET_KEY) || '{}'); Object.assign(SETTINGS, sv); SETTINGS.skirmish = Object.assign({ map: 'prairie', biome: 'auto', enemy: 'outlaw' }, sv.skirmish || {}); } catch (e) { /* brak zapisu */ }
 const settingVal = k => (SET_LEVELS[k][SETTINGS[k]] || SET_LEVELS[k][1])[1];
 function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(SETTINGS)); } catch (e) { /* bez zapisu też działa */ } }
@@ -2525,6 +2637,7 @@ function showSettings(back) {
     ['Dźwięk', () => S.muted ? 'Wyłączony' : 'Włączony', () => { S.muted = !S.muted; if (!S.muted) ensureAudio(); }],
     ['Szybkość przewijania', () => SET_LEVELS.scroll[SETTINGS.scroll][0], () => { SETTINGS.scroll = (SETTINGS.scroll + 1) % SET_LEVELS.scroll.length; }],
     ['Szybkość gry', () => SET_LEVELS.speed[SETTINGS.speed][0], () => { SETTINGS.speed = (SETTINGS.speed + 1) % SET_LEVELS.speed.length; }],
+    ['Jakość grafiki', () => SET_LEVELS.quality[SETTINGS.quality][0], () => { SETTINGS.quality = SETTINGS.quality ? 0 : 1; resize(); if (S.terrain && S.gch) buildGround(); }],
     ['Cienie', () => SET_LEVELS.shadow[SETTINGS.shadow][0], () => { SETTINGS.shadow = (SETTINGS.shadow + 1) % SET_LEVELS.shadow.length; }],
     ['Trudność wroga', () => diffOf().label, cycleDifficulty],
   ];
@@ -2661,7 +2774,7 @@ function drawStatic(key, px, py) {
   const e = window.ASSETS && window.ASSETS[key]; if (!e) return;
   const x = Math.round(px - e.ax * AK), y = Math.round(py - e.ay * AK);
   ctx.imageSmoothingEnabled = true;
-  if (e._sh && SETTINGS.shadow) ctx.drawImage(e._sh, x, y, e.w * AK, e.h * AK);
+  if (e._sh && SETTINGS.shadow && SETTINGS.quality) ctx.drawImage(e._sh, x, y, e.w * AK, e.h * AK);
   ctx.drawImage(e._img, x, y, e.w * AK, e.h * AK);
 }
 // kafel gruntu z atlasu okresowego 6x6: (x mod 6, -(y+1) mod 6) daje ciągłą powierzchnię; romb powiększony o 1 px, żeby sąsiednie kafle się nakładały
@@ -2692,9 +2805,11 @@ function softBlob(g, cx, cy, rx, ry, stops) {
   for (const [o, c] of stops) gr.addColorStop(o, c);
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
 }
-const GS = 2, CHK = 512, CPAD = 8;
+let GS = 2;   // rozdzielczość warstwy terenu względem świata: 2 (wysoka) albo 1 (niska, ok. 1/4 pamięci)
+const CHK = 512, CPAD = 8;
 function buildGround() {
   groundDims();
+  GS = SETTINGS.quality ? 2 : 1;
   const B = biomeDef(), ms = S.mapSeed || 0, cw = (CHK + 2 * CPAD) * GS;
   const mk = () => { const c = document.createElement('canvas'); c.width = c.height = cw; return c; };
   const prep = (c, x0, y0) => { const k = c.getContext('2d'); k.setTransform(GS, 0, 0, GS, -x0 * GS, -y0 * GS); k.imageSmoothingEnabled = true; return k; };
@@ -3297,7 +3412,7 @@ function drawUnitPre(u, sx, sy) {
   const img = e.file_p ? (u.fac === 'enemy' ? e._imge : e._imgp) : e._img;
   const fx = col * (e.fw + e.pad), fy = row * (e.fh + e.pad), dx = Math.round(sx + kx - e.ax * AK), dy = Math.round(sy + 2 + by - e.ay * AK);
   ctx.imageSmoothingEnabled = true;
-  if (SETTINGS.shadow) ctx.drawImage(e._sh, fx, fy, e.fw, e.fh, dx, dy, e.fw * AK, e.fh * AK);
+  if (SETTINGS.shadow && SETTINGS.quality) ctx.drawImage(e._sh, fx, fy, e.fw, e.fh, dx, dy, e.fw * AK, e.fh * AK);
   ctx.drawImage(img, fx, fy, e.fw, e.fh, dx, dy, e.fw * AK, e.fh * AK);
   return sy + 2 + by - e.ay * AK;   // górna krawędź sprite'a (do pasków nad jednostką)
 }
@@ -3386,6 +3501,7 @@ function frame(now) {
     if (mouse.y < 24) cam.y += cs; if (mouse.y > canvasH - 24) cam.y -= cs;
   }
   clampCam();
+  cancelBtn.style.display = aiming() && !S.menuOpen ? 'block' : 'none';
   render();
   uiTimer += 1;
   if (stepped && uiTimer % 15 === 0) { updateTopbar(); updatePanels(); }
@@ -3394,6 +3510,9 @@ function frame(now) {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) prevTime = performance.now(); });
 
 applyUiScale(); initGroupRow(); resize();
+document.getElementById('hudtoggle').onclick = () => { const on = document.documentElement.classList.toggle('hudmin'); document.getElementById('hudtoggle').textContent = on ? '▴' : '▾'; };
+const cancelBtn = document.getElementById('cancelbtn');
+cancelBtn.onclick = () => { S.placing = null; S.attackMove = false; S.rallyMode = false; };
 overlay.style.display = 'flex'; overlay.innerHTML = '<div class="box"><h2>Ładowanie…</h2></div>';
 loadAssets().then(ok => {
   if (!ok) { overlay.innerHTML = '<div class="box"><h2>Brak zasobów graficznych</h2><p>Nie załadowano katalogu <code>assets/</code> (obok index.html). Uruchom grę z całego repozytorium.</p></div>'; return; }

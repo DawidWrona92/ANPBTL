@@ -616,6 +616,103 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     });
     for (const id in r) ok(r[id].blds >= 2 && r[id].army >= 3 && !r[id].bad && r[id].res, id + ': ' + JSON.stringify(r[id]));
   });
+  console.log('Faza 11: dotyk i małe ekrany');
+  {
+    const gameUrl = 'file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html'));
+    const mk = async (w, h) => { const c = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }); const pg = await c.newPage(); pg.errs = []; pg.on('pageerror', e => pg.errs.push(String(e).slice(0, 200))); await pg.goto(gameUrl); await pg.waitForFunction(() => window.GAME_READY, null, { timeout: 20000 }); pg.cdp = await c.newCDPSession(pg); pg.ctxn = c; return pg; };
+    const tp = (pg, type, pts) => pg.cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y], i) => ({ x, y, id: i + 1 })) });
+    const start = async pg => { await pg.evaluate(() => { leaveScreens(); newGame(3, 'settler'); S.menuOpen = false; S.explored.fill(1); S.visible.fill(1); centerCameraOn(34, 34); updatePanels(); }); await pg.waitForTimeout(150); };
+    const scr = (pg, x, y) => pg.evaluate(([x, y]) => { const [sx, sy] = tileToScreen(x, y); return [sx * ZOOM, sy * ZOOM]; }, [x, y]);
+    const tap = async (pg, x, y) => { await tp(pg, 'touchStart', [[x, y]]); await pg.waitForTimeout(40); await tp(pg, 'touchEnd', []); await pg.waitForTimeout(60); };
+
+    await test('F11: na telefonie (740×360) włącza się tryb zwarty, przyciski mają min. 44 px, nic nie wychodzi poza ekran, menu da się przewinąć', async () => {
+      const pg = await mk(740, 360);
+      const r = await pg.evaluate(() => {
+        const out = { compact: document.documentElement.classList.contains('compact'), zoom: ZOOM, sw: document.documentElement.scrollWidth, iw: innerWidth, small: [] };
+        showFactionScreen(); out.fxScroll = overlay.scrollHeight >= overlay.clientHeight && getComputedStyle(overlay).overflowY === 'auto';
+        leaveScreens(); newGame(3, 'settler'); S.menuOpen = false; S.selected.units = S.units.filter(u => u.fac === 'player').slice(0, 1); updatePanels();
+        for (const b of document.querySelectorAll('#buildbar .cmd, .sbtn')) if (b.offsetParent && Math.min(b.getBoundingClientRect().width, b.getBoundingClientRect().height) < 38) out.small.push(b.className);
+        const hud = hudEl.getBoundingClientRect(); out.hudInside = hud.bottom <= innerHeight + 1 && hud.right <= innerWidth + 1 && hud.height < innerHeight * 0.55;
+        return out;
+      });
+      await pg.ctxn.close();
+      ok(r.compact && r.zoom < 2, 'tryb zwarty i szerszy widok: ' + JSON.stringify(r)); ok(r.sw <= r.iw, 'brak poziomego przewijania'); eq(r.small, [], 'za małe przyciski'); ok(r.hudInside, 'panel mieści się w oknie'); ok(r.fxScroll, 'ekran wyboru ludu przewijalny'); eq(pg.errs, [], 'błędy strony');
+    });
+    await test('F11: w pionie pojawia się komunikat „obróć telefon”, a przyciski poleceń mają ≥44 px na 844×390', async () => {
+      const pg = await mk(360, 740), shown = await pg.evaluate(() => getComputedStyle(document.getElementById('rotate')).display); await pg.ctxn.close();
+      eq(shown, 'flex', 'komunikat w pionie');
+      const pg2 = await mk(844, 390), hid = await pg2.evaluate(() => { start: { } leaveScreens(); newGame(3, 'settler'); S.menuOpen = false; const hq = S.buildings.find(b => b.type === 'hq' && b.fac === 'player'); S.selected.building = hq; updatePanels(); return [getComputedStyle(document.getElementById('rotate')).display, Math.min(...[...document.querySelectorAll('#bpanel .cmd:not(.slot)')].map(b => Math.min(b.offsetWidth, b.offsetHeight)))]; });
+      await pg2.ctxn.close(); eq(hid[0], 'none', 'poziomo bez komunikatu'); ok(hid[1] >= 44, 'przyciski produkcji: ' + hid[1]);
+    });
+    await test('F11: dotknięcie zaznacza jednostkę, dotknięcie terenu wydaje rozkaz ruchu', async () => {
+      const pg = await mk(740, 360); await start(pg);
+      const id = await pg.evaluate(() => { const a = S.units.find(u => u.fac === 'player' && u.type === 'frontierswoman'); a.x = 30.5; a.y = 34.5; a.path = []; a.state = 'idle'; return a.id; });
+      const [ax, ay] = await scr(pg, 30.5, 34.5); await tap(pg, ax, ay - 10);
+      const sel1 = await pg.evaluate(() => S.selected.units.map(u => u.id));
+      const [gx, gy] = await scr(pg, 28.5, 36.5); await tap(pg, gx, gy);
+      await pg.waitForTimeout(400);
+      const moved = await pg.evaluate(id => { const u = S.units.find(u => u.id === id); return Math.hypot(u.x - 30.5, u.y - 34.5); }, id);
+      await pg.ctxn.close();
+      eq(sel1, [id], 'zaznaczenie dotknięciem'); ok(moved > 0.3, 'jednostka ruszyła na rozkaz: ' + moved);
+    });
+    await test('F11: podwójne dotknięcie zaznacza wszystkie jednostki tego typu na ekranie', async () => {
+      const pg = await mk(740, 360); await start(pg);
+      await pg.evaluate(() => { S.paused = true; });
+      const pos = await pg.evaluate(() => { const u = S.units.filter(u => u.fac === 'player' && u.type === 'frontierswoman')[0]; const [sx, sy] = tileToScreen(u.x, u.y); return [sx * ZOOM, sy * ZOOM]; });
+      await tap(pg, pos[0], pos[1] - 10); await tap(pg, pos[0], pos[1] - 10);
+      const n = await pg.evaluate(() => [S.selected.units.filter(u => u.type === 'frontierswoman').length, S.units.filter(u => u.fac === 'player' && u.type === 'frontierswoman').length]);
+      await pg.ctxn.close();
+      eq(n[0], n[1], 'wszystkie frontierswoman zaznaczone'); ok(n[0] >= 2, 'co najmniej dwie');
+    });
+    await test('F11: przeciągnięcie palcem po terenie przesuwa kamerę, a przytrzymanie z przeciągnięciem robi ramkę zaznaczenia', async () => {
+      const pg = await mk(740, 360); await start(pg);
+      await pg.evaluate(() => { S.paused = true; });
+      const c0 = await pg.evaluate(() => [cam.x, cam.y]);
+      await tp(pg, 'touchStart', [[300, 150]]); for (let i = 1; i <= 6; i++) { await tp(pg, 'touchMove', [[300 + i * 20, 150 + i * 8]]); await pg.waitForTimeout(16); } await tp(pg, 'touchEnd', []); await pg.waitForTimeout(80);
+      const c1 = await pg.evaluate(() => [cam.x, cam.y, S.selected.units.length]);
+      // ramka obejmująca wszystkie jednostki gracza: przytrzymanie 450 ms w lewym górnym rogu, potem przeciągnięcie na prawy dolny
+      const bb = await pg.evaluate(() => { const p = S.units.filter(u => u.fac === 'player').map(u => { const [sx, sy] = tileToScreen(u.x, u.y); return [sx * ZOOM, sy * ZOOM]; }); return [Math.min(...p.map(q => q[0])) - 30, Math.min(...p.map(q => q[1])) - 30, Math.max(...p.map(q => q[0])) + 30, Math.max(...p.map(q => q[1])) + 30]; });
+      await tp(pg, 'touchStart', [[bb[0], bb[1]]]); await pg.waitForTimeout(450);
+      for (let i = 1; i <= 8; i++) { await tp(pg, 'touchMove', [[bb[0] + (bb[2] - bb[0]) * i / 8, bb[1] + (bb[3] - bb[1]) * i / 8]]); await pg.waitForTimeout(16); }
+      const boxing = await pg.evaluate(() => mouse.dragging); await tp(pg, 'touchEnd', []); await pg.waitForTimeout(100);
+      const sel = await pg.evaluate(() => [S.selected.units.length, S.units.filter(u => u.fac === 'player').length]);
+      await pg.ctxn.close();
+      ok(Math.abs(c1[0] - c0[0]) > 40 && c1[2] === 0, 'kamera przesunięta, bez zaznaczania: ' + JSON.stringify([c0, c1])); ok(boxing, 'ramka aktywna po przytrzymaniu'); eq(sel[0], sel[1], 'ramka zaznaczyła wszystkie jednostki gracza');
+    });
+    await test('F11: dwa palce zmieniają zoom (w granicach) i przesuwają kamerę; kółko myszy też', async () => {
+      const pg = await mk(740, 360); await start(pg);
+      const z0 = await pg.evaluate(() => ZOOM);
+      await tp(pg, 'touchStart', [[300, 180], [440, 180]]); for (let i = 1; i <= 8; i++) { await tp(pg, 'touchMove', [[300 - i * 15, 180], [440 + i * 15, 180]]); await pg.waitForTimeout(16); } await tp(pg, 'touchEnd', []);
+      const z1 = await pg.evaluate(() => ZOOM);
+      await tp(pg, 'touchStart', [[300, 180], [440, 180]]); for (let i = 1; i <= 20; i++) { await tp(pg, 'touchMove', [[300 + i * 10, 180], [440 - i * 6, 180]]); await pg.waitForTimeout(8); } await tp(pg, 'touchEnd', []);
+      const z2 = await pg.evaluate(() => { setZoom(99, 300, 180); const hi = ZOOM; setZoom(0.1, 300, 180); return [ZOOM, hi]; });
+      await pg.ctxn.close();
+      ok(z1 > z0 + 0.2, 'rozsunięcie przybliża: ' + z0 + ' -> ' + z1); eq([z2[0], z2[1]], [1.2, 3], 'granice zoomu');
+    });
+    await test('F11: tryb budowy na dotyku: palec celuje, puszczenie stawia budynek; przycisk Anuluj przerywa', async () => {
+      const pg = await mk(740, 360); await start(pg);
+      const r = await pg.evaluate(() => { S.res = { wood: 999, food: 999, gold: 999, guns: 0, horses: 0 }; const w = S.units.find(u => u.fac === 'player' && u.type === 'frontiersman'); S.selected.units = [w]; S.placing = 'house'; return [w.id]; });
+      await pg.waitForTimeout(120);
+      const cancelShown = await pg.evaluate(() => getComputedStyle(document.getElementById('cancelbtn')).display);
+      const spot = await pg.evaluate(() => { const d = CFG.buildings.house; for (let r = 3; r < 8; r++) for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) { const x = 34 + dx, y = 34 + dy; let free = true; for (let j = y; j < y + d.h; j++) for (let i = x; i < x + d.w; i++) if (!inMap(i, j) || isBlocked(i, j)) free = false; if (free) { const [sx, sy] = tileToScreen(x + 0.5, y + 0.5); if (sx * ZOOM > 80 && sx * ZOOM < 660 && sy * ZOOM > 40 && sy * ZOOM < 220) return [x, y, sx * ZOOM, sy * ZOOM]; } } return null; });
+      const [hx, hy] = [spot[2], spot[3]];
+      await tp(pg, 'touchStart', [[hx - 60, hy]]); await tp(pg, 'touchMove', [[hx, hy]]); await tp(pg, 'touchEnd', []); await pg.waitForTimeout(250);
+      const placed = await pg.evaluate(() => [S.buildings.filter(b => b.type === 'house' && b.fac === 'player').length, S.placing]);
+      await pg.evaluate(() => { S.placing = 'house'; }); await pg.waitForTimeout(120); await pg.tap('#cancelbtn'); await pg.waitForTimeout(100);
+      const afterCancel = await pg.evaluate(() => S.placing);
+      await pg.ctxn.close();
+      eq(cancelShown, 'block', 'przycisk Anuluj widoczny'); eq(placed, [1, null], 'dom postawiony po puszczeniu'); eq(afterCancel, null, 'Anuluj zdejmuje tryb');
+    });
+    await test('F11: jakość grafiki Niska zmniejsza warstwę terenu 4×, wyłącza cienie i zapamiętuje wybór', async () => {
+      const r = await page.evaluate(() => {
+        SETTINGS.quality = 1; newGame(3, 'settler'); const hi = S.gch.cv.filter(Boolean)[0].width;
+        SETTINGS.quality = 0; buildGround(); const lo = S.gch.cv.filter(Boolean)[0].width; saveSettings();
+        const stored = JSON.parse(localStorage.getItem(SET_KEY)).quality; SETTINGS.quality = 1; buildGround(); saveSettings();
+        return { hi, lo, stored };
+      });
+      eq([r.hi, r.lo, r.stored], [1056, 528, 0], 'rozmiary kafelków terenu i zapis');
+    });
+  }
   console.log('Smoke');
   for (const race of ['settler', 'sioux']) {
     await test('smoke: 10 minut gry (' + race + ') bez wyjątków, NaN i ujemnych zasobów', async () => {
