@@ -510,7 +510,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await test('C3: armata bije obszarowo (r 1.5), bez friendly fire, a budynki niszczy szybciej niż piechota', async () => {
     const r = await page.evaluate(() => {
       T.fresh();
-      const c = addUnit('armata', 'player', 20.5, 20.5); c.stance = 'norm';
+      const c = addUnit('armata', 'player', 20.5, 20.5); c.stance = 'hold';   // po zabiciu rozkazanego celu armata nie wybiera sama kolejnego: test dotyczy tylko obszaru rażenia
       const a = addUnit('desperado', 'enemy', 20.5, 29.5), b = addUnit('desperado', 'enemy', 21.5, 29.5), far = addUnit('desperado', 'enemy', 25.5, 29.5), own = addUnit('piechota', 'player', 20.5, 30);
       for (const e of [a, b, far]) e.stance = 'hold';
       const hp = [a, b, far, own].map(u => u.hp);
@@ -616,6 +616,60 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     });
     for (const id in r) ok(r[id].blds >= 2 && r[id].army >= 3 && !r[id].bad && r[id].res, id + ': ' + JSON.stringify(r[id]));
   });
+  console.log('Faza 12.1: pole widzenia, promień ataku, patrol');
+  await test('F12.1: dane: promień akcji wojska mieści się w polu widzenia, a Indianie widzą wyraźnie dalej, niż zaczynają atak', async () => {
+    const r = await page.evaluate(() => {
+      const bad = [], sioux = [];
+      for (const [k, d] of Object.entries(CFG.units)) {
+        if (!(d.aggro > 0) || d.kind === 'art') continue;
+        const sight = d.sight || CFG.fogRadius;
+        if (Math.max(d.range, d.aggro) > sight) bad.push(k);
+        if (['wojownik', 'lucznik', 'wodz'].includes(k) && !(sight > Math.max(d.range, d.aggro))) sioux.push(k);
+      }
+      return { bad, sioux, indianSight: CFG.units.wojownik.sight, settlerSight: CFG.units.piechota.sight || CFG.fogRadius };
+    });
+    eq(r.bad, [], 'wojsko z promieniem akcji większym niż pole widzenia'); eq(r.sioux, [], 'Sioux bez przewagi widzenia'); ok(r.indianSight > r.settlerSight, 'Indianie widzą dalej niż Osadnicy');
+  });
+  await test('F12.1: wróg nie atakuje celu, którego nie widzi (Sioux 7 kafli dalej), a gracz go widzi; po zbliżeniu na 5,5 kafla wróg atakuje', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh('sioux');
+      const D = addUnit('desperado', 'enemy', 20.5, 20.5); D.stance = 'aggr';
+      const W = addUnit('wojownik', 'player', 27.5, 20.5); W.stance = 'hold';
+      computeFog(); computeFogEnemy();
+      const out = { playerSeesD: seenBy('player', D), enemySeesW: seenBy('enemy', W) };
+      T.run(5); out.far = [D.state, D.attackTarget ? 1 : 0, W.hp];
+      W.x = 25.7; computeFog(); computeFogEnemy(); out.nearSees = seenBy('enemy', W);
+      T.run(1); out.near = [D.state, D.attackTarget === W];
+      return out;
+    });
+    eq([r.playerSeesD, r.enemySeesW], [true, false], 'asymetria widzenia: Indianin widzi, wróg nie');
+    eq(r.far, ['idle', 0, 55], 'wróg bezczynny, gdy nie widzi'); ok(r.nearSees, 'w polu widzenia wroga'); eq(r.near, ['attack', true], 'atak po wejściu w pole widzenia i promień ataku');
+  });
+  await test('F12.1: patrol A<->B chodzi tam i z powrotem, walczy po drodze i wraca na trasę, zapis w trakcie go zachowuje', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh();
+      const P = addUnit('piechota', 'player', 15.5, 15.5);
+      queueCmd({ action: 'patrol', units: [P], x: 23, y: 15 }); T.run(0.1);
+      const out = { set: !!P.patrol, xs: [] };
+      const D = addUnit('desperado', 'enemy', 19.5, 18.5); D.stance = 'hold'; D.hp = D.maxHp = 30;
+      for (let i = 0; i < 90; i++) { T.run(1); out.xs.push(+P.x.toFixed(1)); if (i === 40) { const save = JSON.stringify(serializeGame()); out.saved = JSON.parse(save).units.find(u => u.id === P.id).patrol; } }
+      out.dDead = !S.units.includes(D); out.min = Math.min(...out.xs); out.max = Math.max(...out.xs); out.state = P.state;
+      return out;
+    });
+    ok(r.set, 'patrol ustawiony'); ok(r.dDead, 'strażnik zabity po drodze'); ok(r.max > 22 && r.min < 17, 'trasa w obie strony: ' + r.min + '..' + r.max); eq(r.state, 'move', 'dalej patroluje'); ok(r.saved && r.saved.pts.length === 2, 'zapis zawiera patrol');
+  });
+  await test('F12.1: rozkaz ruchu i stop kończą patrol; zwykła zbiórka Osadników bez zmian', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh();
+      const P = addUnit('piechota', 'player', 15.5, 15.5);
+      queueCmd({ action: 'patrol', units: [P], x: 23, y: 15 }); T.run(0.1); const a = !!P.patrol;
+      queueCmd({ action: 'order', units: [P], x: 18, y: 16, targetUnit: null, targetHorse: null }); T.run(0.1); const b = !!P.patrol;
+      queueCmd({ action: 'patrol', units: [P], x: 23, y: 15 }); T.run(0.1);
+      queueCmd({ action: 'stop', units: [P] }); T.run(0.1);
+      return [a, b, !!P.patrol, P.state];
+    });
+    eq(r, [true, false, false, 'idle'], 'patrol: ustawiony, zdjęty ruchem, zdjęty stopem');
+  });
   console.log('Faza 11: dotyk i małe ekrany');
   {
     const gameUrl = 'file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html'));
@@ -698,7 +752,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       const [hx, hy] = [spot[2], spot[3]];
       await tp(pg, 'touchStart', [[hx - 60, hy]]); await tp(pg, 'touchMove', [[hx, hy]]); await tp(pg, 'touchEnd', []); await pg.waitForTimeout(250);
       const placed = await pg.evaluate(() => [S.buildings.filter(b => b.type === 'house' && b.fac === 'player').length, S.placing]);
-      await pg.evaluate(() => { S.placing = 'house'; }); await pg.waitForTimeout(120); await pg.tap('#cancelbtn'); await pg.waitForTimeout(100);
+      await pg.evaluate(() => { S.placing = 'house'; }); await pg.waitForFunction(() => getComputedStyle(document.getElementById('cancelbtn')).display === 'block'); await pg.tap('#cancelbtn'); await pg.waitForTimeout(100);
       const afterCancel = await pg.evaluate(() => S.placing);
       await pg.ctxn.close();
       eq(cancelShown, 'block', 'przycisk Anuluj widoczny'); eq(placed, [1, null], 'dom postawiony po puszczeniu'); eq(afterCancel, null, 'Anuluj zdejmuje tryb');

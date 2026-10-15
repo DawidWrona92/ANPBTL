@@ -217,17 +217,18 @@ const CFG = {
     // szeryf: wzrok 10 [Ź fakt, P wartość], aura morale jak przywódca (leader); armata: wolna [Ź], obszar r 1.5, z fabryki (koszt z tabeli jednostek 19.2; wiersz fabryki podaje 50D+100Zł, sprzeczność w dokumentacji)
     szeryf:         { hp: 70, dmg: 15, range: 6, cd: 1.2, speed: 1.0, cost: { food: 60, gold: 40, guns: 1 }, train: 30, aggro: 7, letter: 'Z', color: '#e0b030', kind: 'gun', leader: true, sight: 10 },
     armata:         { hp: 150, dmg: 35, range: 12, cd: 3.0, speed: 0.6, cost: { gold: 150, wood: 100 }, train: 60, aggro: 12, letter: 'A', color: '#555560', kind: 'art', splash: 1.5 },
+    // pole widzenia (sight, w kaflach) jest większe niż promień rozpoczęcia ataku (aggro): zasada z pamięci gracza [Ź], Indianie widzą dalej niż reszta [Ź pamięć gracza, P liczby]; bez 'sight' obowiązuje fogRadius
     // frakcja Sioux, statystyki z 19.2 [Ź]: squaw buduje i farmi, nie rąbie; wojownik rąbie, kopie i poluje; łuk kosztuje drewno, nie broń palną
     squaw:     { hp: 35,  dmg: 2,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 20 }, train: 10, aggro: 0, letter: 'S', color: '#c46a8a', kind: 'melee', builder: true, farmer: true, swim: true, fleesOnHit: true },
-    wojownik:  { hp: 55,  dmg: 7,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 25 }, train: 10, aggro: 5, letter: 'I', color: '#a05a30', kind: 'melee', hunter: true, gather: ['forest', 'gold', 'meat'], swim: true },
-    lucznik:   { hp: 45,  dmg: 9,  range: 7, cd: 1.1, speed: 1.0, cost: { food: 30, wood: 5 }, train: 12, aggro: 6, letter: 'Ł', color: '#7a9a4a', kind: 'bow', swim: true },
-    medicine:  { hp: 50,  dmg: 3,  range: 6, cd: 1.5, speed: 1.0, cost: { food: 50, gold: 30 }, train: 25, aggro: 0, letter: 'M', color: '#4a8a6a', kind: 'bow', swim: true },
-    wodz:      { hp: 100, dmg: 12, range: 1, cd: 1.0, speed: 1.1, cost: { food: 60, gold: 50 }, train: 30, aggro: 5, letter: 'C', color: '#d1a02f', kind: 'melee', limit: 1, leader: true, swim: true },
+    wojownik:  { hp: 55,  dmg: 7,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 25 }, train: 10, aggro: 5, letter: 'I', color: '#a05a30', kind: 'melee', hunter: true, gather: ['forest', 'gold', 'meat'], swim: true, sight: 8 },
+    lucznik:   { hp: 45,  dmg: 9,  range: 7, cd: 1.1, speed: 1.0, cost: { food: 30, wood: 5 }, train: 12, aggro: 6, letter: 'Ł', color: '#7a9a4a', kind: 'bow', swim: true, sight: 8 },
+    medicine:  { hp: 50,  dmg: 3,  range: 6, cd: 1.5, speed: 1.0, cost: { food: 50, gold: 30 }, train: 25, aggro: 0, letter: 'M', color: '#4a8a6a', kind: 'bow', swim: true, sight: 8 },
+    wodz:      { hp: 100, dmg: 12, range: 1, cd: 1.0, speed: 1.1, cost: { food: 60, gold: 50 }, train: 30, aggro: 5, letter: 'C', color: '#d1a02f', kind: 'melee', limit: 1, leader: true, swim: true, sight: 9 },
     piechota:  { hp: 60,  dmg: 12, range: 5, cd: 1.0, speed: 1.0, cost: { food: 40, gold: 10, guns: 1 }, train: 20, aggro: 6, letter: 'P', color: '#2f5d8a', kind: 'gun' },
     desperado: { hp: 50,  dmg: 10, range: 4, cd: 1.2, speed: 1.1, cost: { food: 40, gold: 10 }, train: 15, aggro: 6, letter: 'D', color: '#a12f2f', kind: 'gun', hunter: true },
     bandleader:{ hp: 90,  dmg: 14, range: 5, cd: 1.0, speed: 1.1, cost: { food: 80, gold: 20 }, train: 25, aggro: 6, letter: 'B', color: '#d14a1e', kind: 'gun', leader: true },
     jezdiec:   { hp: 70,  dmg: 12, range: 4, cd: 1.2, speed: 1.8, cost: { food: 40, gold: 10, guns: 1, horses: 1 }, train: 25, aggro: 6, letter: 'J', color: '#6a4a8a', kind: 'gun', cav: true },
-    konnobanda:{ hp: 60,  dmg: 12, range: 1, cd: 0.9, speed: 1.7, cost: { food: 40, gold: 10, horses: 1 }, train: 20, aggro: 7, letter: 'J', color: '#c03a2a', kind: 'melee', cav: true },
+    konnobanda:{ hp: 60,  dmg: 12, range: 1, cd: 0.9, speed: 1.7, cost: { food: 40, gold: 10, horses: 1 }, train: 20, aggro: 7, letter: 'J', color: '#c03a2a', kind: 'melee', cav: true, sight: 8 },
     horse:     { hp: 40,  dmg: 0,  range: 0, cd: 1.0, speed: 0.7, cost: {}, train: 0, aggro: 0, letter: 'K', color: '#8a5a3a' },
     bizon:     { hp: 45,  dmg: 0,  range: 0, cd: 1.0, speed: 0.8, cost: {}, train: 0, aggro: 0, letter: 'B', color: '#5a4030', animal: true, meat: 150 },
     bydlo:     { hp: 25,  dmg: 0,  range: 0, cd: 1.0, speed: 0.5, cost: {}, train: 0, aggro: 0, letter: 'C', color: '#a89a85', animal: true, meat: 100 },
@@ -389,6 +390,7 @@ function newGame(seed, race, opts) {
   S.buildings = []; S.units = [];
   S.explored = new Uint8Array(MAP * MAP);
   S.visible = new Uint8Array(MAP * MAP);
+  S.visibleE = new Uint8Array(MAP * MAP); S.fogET = 0;
   S.selected = { units: [], building: null };
   S.groups = {}; S.lastGroup = 0; S.lastGroupT = 0;
   S.placing = null; S.gameOver = null;
@@ -401,7 +403,7 @@ function newGame(seed, race, opts) {
   S.shots = [];
   S.hits = [];
   S.muted = !!S.muted; // wyciszenie to ustawienie gracza, nie część partii
-  S.lastAlert = null; S.attackMove = false; S.rallyMode = false; S.lastClick = null;
+  S.lastAlert = null; S.attackMove = false; S.rallyMode = false; S.patrolMode = false; S.lastClick = null;
   S.paused = false;
   S.testMode = false;
   S.menuOpen = false;
@@ -432,7 +434,7 @@ function newGame(seed, race, opts) {
   for (let i = 0; i < 2; i++) eWorkers.push(addUnit('worker', 'enemy', esp[3 + i][0], esp[3 + i][1]));
   orderGatherAuto(eWorkers[0], T_FOREST);
   orderGatherAuto(eWorkers[1], T_FOREST);
-  computeFog();
+  computeFog(); computeFogEnemy();
   // startowe rozkazy: 2 drwale, 1 górnik, czwarty wolny (autostart gospodarki); Sioux: wojownicy rąbią, squawy czekają na budowę
   raceOf('player').startOrders.forEach((o, i) => { if (o) orderGatherAuto(pu[i], o === 'gold' ? T_GOLD : T_FOREST); });
   centerCameraOn(hq.cx, hq.cy);
@@ -760,6 +762,7 @@ function processCmds() {
     else if (c.action === 'rally') { if (S.buildings.includes(c.building) && inMap(c.x, c.y)) c.building.rally = [c.x, c.y]; }
     else if (c.action === 'stop') stopUnits(c.units);
     else if (c.action === 'attackmove') executeAttackMove(c);
+    else if (c.action === 'patrol') executePatrol(c);
     else if (c.action === 'resume') {
       if (!S.buildings.includes(c.building)) continue;
       const idle = S.units.filter(u => u.fac === 'player' && unitRole(u, 'builder') && u.state === 'idle');
@@ -774,7 +777,7 @@ function stopUnits(list) {
     if (!S.units.includes(u) || u.state === 'flee') continue;
     releaseFarm(u);
     u.state = 'idle'; u.path = []; u.attackTarget = null; u.ordered = false; u.orderBuilding = null; u.node = null;
-    u.buildTarget = null; u.captureTarget = null; u.waypoints = null; u.amTarget = null;
+    u.buildTarget = null; u.captureTarget = null; u.waypoints = null; u.amTarget = null; u.patrol = null;
   }
 }
 // atak-ruch: marsz do punktu z walką po drodze; po zabiciu celu marsz trwa (resumeAfterInterrupt)
@@ -782,6 +785,13 @@ function executeAttackMove(c) {
   const units = c.units.filter(u => S.units.includes(u) && u.state !== 'flee');
   executeOrder({ units, x: c.x, y: c.y, targetUnit: null, targetHorse: null });
   for (const u of units) if (u.state === 'move' && CFG.units[u.type].aggro > 0) u.amTarget = [c.x, c.y];
+}
+// patrol A<->B: marsz jak atak-ruch (walka po drodze, powrót na trasę po walce), na końcu odcinka jednostka zawraca; A to miejsce wydania rozkazu
+function executePatrol(c) {
+  const units = c.units.filter(u => S.units.includes(u) && u.state !== 'flee' && CFG.units[u.type].aggro > 0);
+  const from = units.map(u => [Math.floor(u.x), Math.floor(u.y)]);
+  executeOrder({ units, x: c.x, y: c.y, targetUnit: null, targetHorse: null });
+  units.forEach((u, i) => { if (u.state === 'move') { u.patrol = { pts: [from[i], [c.x, c.y]], i: 1 }; u.amTarget = [c.x, c.y]; } });
 }
 // anulowanie slotu kolejki: zapłacony koszt wraca
 function cancelQueueSlot(b, i) {
@@ -791,7 +801,7 @@ function cancelQueueSlot(b, i) {
 }
 function executeOrder(c) {
   const units = c.units.filter(u => S.units.includes(u) && u.state !== 'flee');
-  if (!c.queue) for (const u of units) { u.waypoints = null; u.amTarget = null; }
+  if (!c.queue) for (const u of units) { u.waypoints = null; u.amTarget = null; u.patrol = null; }
   if (c.units.some(u => S.units.includes(u) && u.state === 'flee')) uiAlert('Spanikowana jednostka ignoruje rozkazy');
   if (!units.length) return;
   if (!c.silent) sfx('order', c.x, c.y);
@@ -941,6 +951,7 @@ function update(dt) {
   if (S.menuOpen || S.paused) return; // menu startowe i pomoc w grze: symulacja stoi, kamera i render żyją
   S.time += dt;
   processCmds();
+  S.fogET -= dt; if (S.fogET <= 0) { S.fogET = 0.25; computeFogEnemy(); }
   for (const u of S.units) updateUnit(u, dt);
   for (const b of S.buildings) updateBuilding(b, dt);
   updateAbilities(dt);
@@ -1035,7 +1046,7 @@ function updateUnit(u, dt) {
   if (acqR > 0 && !isSwimming(u) && !u.attackTarget && u.state !== 'assault' && u.state !== 'flee') {
     let best = null, bd = acqR * acqR;
     for (const e of S.units) {
-      if (e.fac === u.fac || e.fac === 'neutral' || (e.fac === 'player' && !S.visible[idx(Math.floor(e.x), Math.floor(e.y))])) continue;
+      if (e.fac === u.fac || e.fac === 'neutral' || !seenBy(u.fac, e)) continue;   // atak zaczyna się tylko na cel widziany przez frakcję
       const d = (e.x - u.x) ** 2 + (e.y - u.y) ** 2;
       if (d < bd) { bd = d; best = e; }
     }
@@ -1088,6 +1099,11 @@ function updateUnit(u, dt) {
       if (!u.path.length || followPath(u, dt)) {
         const nw = u.waypoints && u.waypoints.shift();
         if (nw) { u.path = uPath(u, nw[0], nw[1]); u.pathI = 0; if (!u.path.length) u.state = 'idle'; }
+        else if (u.patrol) {
+          u.patrol.i ^= 1; const dest = u.patrol.pts[u.patrol.i];
+          u.path = uPath(u, dest[0], dest[1]); u.pathI = 0; u.amTarget = dest;
+          if (!u.path.length) { u.patrol = null; u.amTarget = null; u.state = 'idle'; }
+        }
         else { u.state = 'idle'; u.amTarget = null; }
       }
       break;
@@ -1208,7 +1224,7 @@ function updateUnit(u, dt) {
       // w pobliżu wroge jednostki? zaatakuj (postawa bramkuje: trzymaj pozycję ignoruje prowokacje)
       if (stanceAcquireR(u, def) > 0 && !isSwimming(u)) {
         for (const e of S.units) {
-          if (e.fac === u.fac || e.fac === 'neutral') continue;
+          if (e.fac === u.fac || e.fac === 'neutral' || !seenBy(u.fac, e)) continue;
           const d = (e.x - u.x) ** 2 + (e.y - u.y) ** 2;
           if (d < def.aggro * def.aggro * 0.25) { u.attackTarget = e; u.ordered = false; u.state = 'attack'; return; }
         }
@@ -1840,28 +1856,30 @@ function updateAI(dt) {
   }
 }
 
+// koło widzenia o promieniu r kafli wokół (cx, cy) wpisane do maski; explored (opcjonalnie) zapamiętuje odkryty teren gracza
+function stampDisc(mask, cx, cy, r, explored) {
+  const ux = Math.floor(cx), uy = Math.floor(cy);
+  for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    if (dx * dx + dy * dy > r * r) continue;
+    const x = ux + dx, y = uy + dy;
+    if (inMap(x, y)) { mask[idx(x, y)] = 1; if (explored) explored[idx(x, y)] = 1; }
+  }
+}
 function computeFog() {
   S.visible.fill(0);
-  for (const u of S.units) {
-    if (u.fac !== 'player') continue;
-    const r = CFG.units[u.type].sight || CFG.fogRadius;
-    const ux = Math.floor(u.x), uy = Math.floor(u.y);
-    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-      if (dx * dx + dy * dy > r * r) continue;
-      const x = ux + dx, y = uy + dy;
-      if (inMap(x, y)) { S.visible[idx(x, y)] = 1; S.explored[idx(x, y)] = 1; }
-    }
-  }
-  for (const b of S.buildings) {
-    if (b.fac !== 'player') continue;
-    const r = CFG.fogHq;
-    const bx = Math.floor(b.cx), by = Math.floor(b.cy);
-    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-      if (dx * dx + dy * dy > r * r) continue;
-      const x = bx + dx, y = by + dy;
-      if (inMap(x, y)) { S.visible[idx(x, y)] = 1; S.explored[idx(x, y)] = 1; }
-    }
-  }
+  for (const u of S.units) if (u.fac === 'player') stampDisc(S.visible, u.x, u.y, CFG.units[u.type].sight || CFG.fogRadius, S.explored);
+  for (const b of S.buildings) if (b.fac === 'player') stampDisc(S.visible, b.cx, b.cy, CFG.fogHq, S.explored);
+}
+// maska widzenia wroga: bez niej wróg "widziałby" wszystko; atak zaczyna się tylko na cel, który frakcja widzi (patrz seenBy), liczona rzadziej niż mgła gracza
+function computeFogEnemy() {
+  const V = S.visibleE; V.fill(0);
+  for (const u of S.units) if (u.fac === 'enemy') stampDisc(V, u.x, u.y, CFG.units[u.type].sight || CFG.fogRadius);
+  for (const b of S.buildings) if (b.fac === 'enemy') stampDisc(V, b.cx, b.cy, CFG.fogHq);
+}
+// czy frakcja fac widzi jednostkę e (maska gracza albo wroga); neutralni nikogo nie wypatrują
+function seenBy(fac, e) {
+  const m = fac === 'enemy' ? S.visibleE : fac === 'player' ? S.visible : null;
+  return !!m && !!m[idx(Math.min(MAP - 1, Math.max(0, Math.floor(e.x))), Math.min(MAP - 1, Math.max(0, Math.floor(e.y))))];
 }
 
 function endGame(result, msg) {
@@ -1948,7 +1966,8 @@ function onCanvasUp(e) {
   const tx = Math.floor(px), ty = Math.floor(py);
   if (S.placing && !right) { queueCmd({ action: 'place', type: S.placing, x: tx, y: ty }); if (!e.shiftKey) S.placing = null; mouse.dragging = false; return; }
   if (S.placing && right) { S.placing = null; return; }
-  if ((S.attackMove || S.rallyMode) && right) { S.attackMove = false; S.rallyMode = false; return; }
+  if ((S.attackMove || S.rallyMode || S.patrolMode) && right) { S.attackMove = false; S.rallyMode = false; S.patrolMode = false; return; }
+  if (S.patrolMode) { queueCmd({ action: 'patrol', units: [...S.selected.units], x: tx, y: ty }); S.patrolMode = false; S.fx = { x: px, y: py, age: 0 }; return; }
   if (S.attackMove) { queueCmd({ action: 'attackmove', units: [...S.selected.units], x: tx, y: ty }); S.attackMove = false; S.fx = { x: px, y: py, age: 0 }; return; }
   if (S.rallyMode) { if (S.selected.building) queueCmd({ action: 'rally', building: S.selected.building, x: tx, y: ty }); S.rallyMode = false; S.fx = { x: px, y: py, age: 0 }; return; }
   if (right) {
@@ -2028,7 +2047,7 @@ function onCanvasUp(e) {
 // celuje (duch budowli podąża), a puszczenie wykonuje akcję.
 const touch = { pts: new Map(), mode: null, timer: null, ox: 0, oy: 0, startT: 0, pinch: null };
 const isTouch = e => e.pointerType === 'touch' || e.pointerType === 'pen';
-const aiming = () => !!(S.placing || S.attackMove || S.rallyMode);
+const aiming = () => !!(S.placing || S.attackMove || S.rallyMode || S.patrolMode);
 function pickOwnAt(offsetX, offsetY) {
   const ex = offsetX / ZOOM, ey = offsetY / ZOOM; let best = null, bd = 400 * (ZOOM >= 2 ? 1 : 2);
   for (const u of S.units) { if (u.fac !== 'player') continue; const [ux, uy] = tileToScreen(u.x, u.y); const d = (ux - ex) ** 2 + (uy - ey) ** 2; if (d < bd) { bd = d; best = u; } }
@@ -2107,12 +2126,13 @@ document.addEventListener('keydown', e => {
   const plain = !e.ctrlKey && !e.altKey && !e.metaKey;
   ensureAudio();
   if (plain && k === 'C' && !e.repeat) { S.muted = !S.muted; if (!S.muted) ensureAudio(); }
-  if (e.key === 'Escape') { S.placing = null; S.attackMove = false; S.rallyMode = false; }
+  if (e.key === 'Escape') { S.placing = null; S.attackMove = false; S.rallyMode = false; S.patrolMode = false; }
   if (plain && !e.repeat) {
     const armedSel = S.selected.units.some(u => u.fac === 'player' && CFG.units[u.type] && CFG.units[u.type].aggro > 0);
     const sb = S.selected.building;
     if (k === 'X' && S.selected.units.length) queueCmd({ action: 'stop', units: [...S.selected.units] });
-    if (k === 'Q' && armedSel) { S.attackMove = true; S.rallyMode = false; S.placing = null; }
+    if (k === 'Q' && armedSel) { S.attackMove = true; S.rallyMode = false; S.patrolMode = false; S.placing = null; }
+    if (k === 'V' && armedSel) { S.patrolMode = true; S.attackMove = false; S.rallyMode = false; S.placing = null; }
     if (k === 'P' && sb && sb.fac === 'player' && sb.built && trainMenuFor(sb, S.playerRace).length) { S.rallyMode = true; S.attackMove = false; S.placing = null; }
   }
   if (e.key === ' ') {
@@ -2227,6 +2247,7 @@ const CMD_ICONS = {
   hold: '<rect x="10" y="10" width="28" height="28" rx="3"/><path d="M19 18v12M29 18v12"/>',
   stop: '<path d="M17 7h14l10 10v14L31 41H17L7 31V17z"/><path d="M16 24h16"/>',
   amove: '<path d="M8 24h26M26 14l10 10-10 10M10 12l8 8M18 12l-8 8"/>',
+  patrol: '<path d="M6 24h36M14 16l-8 8 8 8M34 16l8 8-8 8"/>',
   rally: '<path d="M14 42V8M14 10h22l-6 7 6 7H14"/>',
   toggle: '<path d="M24 8v14M14 14a14 14 0 1 0 20 0"/>',
   rain: '<path d="M14 28a8 8 0 0 1 2-15 10 10 0 0 1 19 4 6 6 0 0 1-1 11zM16 34l-2 6M24 34l-2 6M32 34l-2 6"/>',
@@ -2354,7 +2375,7 @@ function updatePanels() {
         stancebar.appendChild(btn);
         stanceBtns.push({ btn, id: st.id });
       }
-      for (const [ic, label, title, fn] of [['stop', 'Stop [X]', 'Porzuca bieżące zadanie', () => queueCmd({ action: 'stop', units: [...S.selected.units] })], ['amove', 'Atak [Q]', 'Marsz z walką po drodze: kliknij cel', () => { S.attackMove = true; S.rallyMode = false; S.placing = null; }]]) {
+      for (const [ic, label, title, fn] of [['stop', 'Stop [X]', 'Porzuca bieżące zadanie', () => queueCmd({ action: 'stop', units: [...S.selected.units] })], ['amove', 'Atak [Q]', 'Marsz z walką po drodze: kliknij cel', () => { S.attackMove = true; S.rallyMode = false; S.patrolMode = false; S.placing = null; }], ['patrol', 'Patrol [V]', 'Chodzi między tym miejscem a wskazanym, walcząc po drodze', () => { S.patrolMode = true; S.attackMove = false; S.rallyMode = false; S.placing = null; }]]) {
         stancebar.appendChild(cmdBtn({ icon: cmdSvg(ic), label: label.slice(-2, -1), cls: 'slot', title: label + '. ' + title, onclick: fn }));
       }
     }
@@ -2544,10 +2565,10 @@ function cycleDifficulty() {
 }
 // ustawienia gracza zapisywane w przeglądarce (indeksy poziomów); dźwięk to S.muted
 const SET_KEY = 'anpbtl_settings_v1';
-const SET_LEVELS = { quality: [['Niska (oszczędna)', 0], ['Wysoka', 1]], scroll: [['Wolne', 0.6], ['Normalne', 1], ['Szybkie', 1.6]], speed: [['Wolna', 0.75], ['Normalna', 1], ['Szybka', 1.5]], shadow: [['Wyłączone', 0], ['Przezroczyste', 1]] };
+const SET_LEVELS = { quality: [['Niska (oszczędna)', 0], ['Wysoka', 1]], scroll: [['Wolne', 0.6], ['Normalne', 1], ['Szybkie', 1.6]], speed: [['Wolna', 0.75], ['Normalna', 1], ['Szybka', 1.5]], shadow: [['Wyłączone', 0], ['Przezroczyste', 1]], ranges: [['Wyłączone', 0], ['Włączone', 1]] };
 const COARSE = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
 // domyślna jakość: niska na ekranach dotykowych i przy deklarowanej pamięci ≤ 4 GB (warstwa terenu 2× to największy koszt pamięci); zapisany wybór gracza ma pierwszeństwo
-const SETTINGS = { scroll: 1, speed: 1, shadow: 1, quality: (COARSE || (navigator.deviceMemory && navigator.deviceMemory <= 4)) ? 0 : 1, skirmish: { map: 'prairie', biome: 'auto', enemy: 'outlaw' } };
+const SETTINGS = { scroll: 1, speed: 1, shadow: 1, quality: (COARSE || (navigator.deviceMemory && navigator.deviceMemory <= 4)) ? 0 : 1, ranges: 1, skirmish: { map: 'prairie', biome: 'auto', enemy: 'outlaw' } };
 try { const sv = JSON.parse(localStorage.getItem(SET_KEY) || '{}'); Object.assign(SETTINGS, sv); SETTINGS.skirmish = Object.assign({ map: 'prairie', biome: 'auto', enemy: 'outlaw' }, sv.skirmish || {}); } catch (e) { /* brak zapisu */ }
 const settingVal = k => (SET_LEVELS[k][SETTINGS[k]] || SET_LEVELS[k][1])[1];
 function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(SETTINGS)); } catch (e) { /* bez zapisu też działa */ } }
@@ -2639,6 +2660,7 @@ function showSettings(back) {
     ['Szybkość gry', () => SET_LEVELS.speed[SETTINGS.speed][0], () => { SETTINGS.speed = (SETTINGS.speed + 1) % SET_LEVELS.speed.length; }],
     ['Jakość grafiki', () => SET_LEVELS.quality[SETTINGS.quality][0], () => { SETTINGS.quality = SETTINGS.quality ? 0 : 1; resize(); if (S.terrain && S.gch) buildGround(); }],
     ['Cienie', () => SET_LEVELS.shadow[SETTINGS.shadow][0], () => { SETTINGS.shadow = (SETTINGS.shadow + 1) % SET_LEVELS.shadow.length; }],
+    ['Zasięgi wojska', () => SET_LEVELS.ranges[SETTINGS.ranges][0], () => { SETTINGS.ranges = SETTINGS.ranges ? 0 : 1; }],
     ['Trudność wroga', () => diffOf().label, cycleDifficulty],
   ];
   for (const [label, get, step] of defs) {
@@ -2725,7 +2747,7 @@ function restoreGame(d) {
   S.time = d.time; S.nextId = d.nextId; S.res = d.res; S.resE = d.resE; S.techs = d.techs; S.ai = d.ai; S.rainT = d.rainT || {}; S.storms = d.storms || [];
   S.moraleT = d.moraleT || 0; S.woodAlertT = d.woodAlertT || 0;
   S.terrain = fromB64(d.terrain, Uint8Array); S.amt = fromB64(d.amt, Float32Array); S.explored = fromB64(d.explored, Uint8Array);
-  S.visible = new Uint8Array(MAP * MAP); computeCliffLevels();
+  S.visible = new Uint8Array(MAP * MAP); S.visibleE = new Uint8Array(MAP * MAP); S.fogET = 0; computeCliffLevels();
   S.units = d.units; S.buildings = d.buildings;
   const byId = new Map(); for (const e of [...S.units, ...S.buildings]) byId.set(e.id, e);
   for (const e of byId.values()) for (const k in e) { const v = e[k]; if (v && typeof v === 'object' && !Array.isArray(v) && '__r' in v) e[k] = byId.get(v.__r) || null; }
@@ -2733,9 +2755,9 @@ function restoreGame(d) {
   rng = mulberry32(0); rng.setState(d.rng); rngCombat = mulberry32(0); rngCombat.setState(d.rngCombat);
   // chwilowe: zaznaczenie, efekty, polecenia w kolejce, alerty
   S.selected = { units: [], building: null }; S.placing = null; S.gameOver = null; S.pending = []; S.shots = []; S.hits = []; S.fx = null;
-  S.alertCooldown = {}; S.lastAlert = null; S.attackMove = false; S.rallyMode = false; S.lastClick = null; S.lastGroup = 0; S.lastGroupT = 0;
+  S.alertCooldown = {}; S.lastAlert = null; S.attackMove = false; S.rallyMode = false; S.patrolMode = false; S.lastClick = null; S.lastGroup = 0; S.lastGroupT = 0;
   S.paused = false; S.menuOpen = false;
-  buildGround(); computeFog();
+  buildGround(); computeFog(); computeFogEnemy();
   const phq = S.buildings.find(b => b.fac === 'player' && b.type === 'hq');
   if (phq) centerCameraOn(phq.cx, phq.cy + 4);
   overlay.style.display = 'none';
@@ -3231,6 +3253,18 @@ function render() {
     ctx.strokeStyle = '#7fff7f'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.ellipse(sx, sy + 3, 13, 6, 0, 0, 7); ctx.stroke();
   }
+  // okręgi pola widzenia (niebieski) i promienia rozpoczęcia ataku (czerwony) zaznaczonego wojska: okrąg w kaflach to w rzucie izometrycznym elipsa 2:1
+  if (SETTINGS.ranges) {
+    ctx.save(); ctx.setLineDash([5, 4]); ctx.lineWidth = 1;
+    for (const u of S.selected.units.slice(0, 8)) {
+      const d = CFG.units[u.type]; if (!d || !(d.aggro > 0)) continue;
+      const [sx, sy] = tileToScreen(u.x, u.y), k = Math.SQRT2 * CFG.tileH / 2;
+      const sr = d.sight || CFG.fogRadius, ar = stanceAcquireR(u, d);
+      ctx.strokeStyle = 'rgba(130,190,255,0.55)'; ctx.beginPath(); ctx.ellipse(sx, sy, sr * k * 2, sr * k, 0, 0, 7); ctx.stroke();
+      if (ar > 0) { ctx.strokeStyle = 'rgba(255,110,90,0.65)'; ctx.beginPath(); ctx.ellipse(sx, sy, ar * k * 2, ar * k, 0, 0, 7); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
   if (S.selected.building) {
     const b = S.selected.building;
     // obrys rombu podstawy (izometria) zamiast prostokąta AABB; wierzchołki = rogi footprintu
@@ -3306,9 +3340,9 @@ function render() {
     ctx.lineWidth = 1;
     ctx.strokeRect(Math.min(mouse.sx, mouse.x) + 0.5, Math.min(mouse.sy, mouse.y) + 0.5, Math.abs(mouse.x - mouse.sx), Math.abs(mouse.y - mouse.sy));
   }
-  if (S.attackMove || S.rallyMode) {
+  if (S.attackMove || S.rallyMode || S.patrolMode) {
     ctx.fillStyle = '#ffd97a'; ctx.font = '14px Georgia'; ctx.textAlign = 'center';
-    ctx.fillText(S.attackMove ? 'Atak-ruch: kliknij cel (PPM lub Esc anuluje)' : 'Punkt zbiórki: kliknij miejsce (PPM lub Esc anuluje)', canvasW / 2, 92);
+    ctx.fillText(S.attackMove ? 'Atak-ruch: kliknij cel (PPM lub Esc anuluje)' : S.patrolMode ? 'Patrol: kliknij drugi koniec trasy (PPM lub Esc anuluje)' : 'Punkt zbiórki: kliknij miejsce (PPM lub Esc anuluje)', canvasW / 2, 92);
   }
   renderMinimap();
 }
@@ -3512,7 +3546,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) prev
 applyUiScale(); initGroupRow(); resize();
 document.getElementById('hudtoggle').onclick = () => { const on = document.documentElement.classList.toggle('hudmin'); document.getElementById('hudtoggle').textContent = on ? '▴' : '▾'; };
 const cancelBtn = document.getElementById('cancelbtn');
-cancelBtn.onclick = () => { S.placing = null; S.attackMove = false; S.rallyMode = false; };
+cancelBtn.onclick = () => { S.placing = null; S.attackMove = false; S.rallyMode = false; S.patrolMode = false; };
 overlay.style.display = 'flex'; overlay.innerHTML = '<div class="box"><h2>Ładowanie…</h2></div>';
 loadAssets().then(ok => {
   if (!ok) { overlay.innerHTML = '<div class="box"><h2>Brak zasobów graficznych</h2><p>Nie załadowano katalogu <code>assets/</code> (obok index.html). Uruchom grę z całego repozytorium.</p></div>'; return; }
