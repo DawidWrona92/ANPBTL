@@ -715,6 +715,55 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     ok(r.cancelled, 'ponowne polecenie przerywa pakowanie'); eq(r.blocked, 'idle', 'rozkład na lesie odrzucony'); eq([r.saved[0], r.saved[1]], ['toUnpack', 'tepee'], 'zapis w czasie jazdy'); ok(r.built, 'po wczytaniu travois dojeżdża i rozkłada');
     eq(r.interrupted, ['move', null], 'rozkaz ruchu zrywa rozkładanie'); ok(r.noBuild, 'nic nie rozłożone po przerwaniu');
   });
+  console.log('Faza 12.3: szkielet misji');
+  await page.evaluate(() => {
+    MISSIONS.t1 = { title: 'Test', race: 'sioux', enemy: 'outlaw', map: 'prairie', rules: { ai: false, hqWin: false },
+      start: { clear: { playerUnits: true, enemyUnits: true }, clearAreas: [[20, 20, 7]], units: [{ type: 'wojownik', x: 15, y: 20, tag: 'scout' }] },
+      failIf: [{ type: 'dead', tag: 'scout', text: 'Zwiadowca zginął' }],
+      stages: [
+        { id: 'a', title: 'Dojdź', objectives: [{ id: 'reach', text: 'Dojdź do strażnicy', type: 'reach', tag: 'scout', x: 20, y: 20, r: 2 }],
+          onComplete: [{ type: 'spawn', units: [{ type: 'desperado', fac: 'enemy', x: 26, y: 20, tag: 'guard', stance: 'hold' }] }, { type: 'setFlag', name: 'spotted' }] },
+        { id: 'b', title: 'Zniszcz strażnika', objectives: [{ id: 'kill', text: 'Zniszcz strażnika', type: 'destroy', tag: 'guard' }, { id: 'bonus', text: 'Zdobądź 20 drewna', type: 'have', res: 'wood', n: 20, optional: true }] },
+      ] };
+    MISSIONS.t3 = { title: 'Liczenie', race: 'settler', enemy: 'outlaw', map: 'prairie', rules: { ai: false },
+      start: { clear: { enemyUnits: true }, clearAreas: [[20, 20, 6]], units: [{ type: 'desperado', fac: 'enemy', x: 20, y: 20 }, { type: 'desperado', fac: 'enemy', x: 21, y: 20 }] },
+      stages: [{ id: 'a', title: 'Liczenie', objectives: [{ id: 'k', text: 'Zabij dwóch', type: 'kill', unit: 'desperado', n: 2 }, { id: 's', text: 'Przetrwaj 3 s', type: 'survive', t: 3 }] }] };
+  });
+  await test('F12.3: misja w dwóch etapach: cel reach uruchamia akcje (spawn, flaga), cel destroy kończy misję zwycięstwem; panel celów pokazuje etap i znaczniki', async () => {
+    const r = await page.evaluate(() => {
+      ok1 = newMission('t1', 5); T.run(1); updateTopbar();
+      const out = { ok1, stage0: S.mission.stage, panel0: document.getElementById('objpanel').innerText, guard0: taggedAll('guard').length, ai: missionRule('ai', true) };
+      const sc = S.units.find(u => u.tag === 'scout'); queueCmd({ action: 'order', units: [sc], x: 20, y: 20, targetUnit: null, targetHorse: null }); T.run(12); updateTopbar();
+      out.stage1 = S.mission.stage; out.flag = S.mission.flags.spotted; out.guard1 = taggedAll('guard').length; out.panel1 = document.getElementById('objpanel').innerText; out.over1 = S.gameOver;
+      killUnit(taggedAll('guard')[0]); T.run(1); out.over2 = S.gameOver;
+      return out;
+    });
+    eq([r.ok1, r.stage0, r.guard0, r.ai], [true, 0, 0, false], 'start misji'); ok(r.panel0.includes('Dojdź do strażnicy') && r.panel0.includes('etap 1/2'), 'panel: ' + r.panel0);
+    eq([r.stage1, r.flag, r.guard1, r.over1], [1, true, 1, null], 'po celu reach: etap 2, flaga, strażnik'); ok(r.panel1.includes('Zniszcz strażnika') && r.panel1.includes('etap 2/2'), 'panel etapu 2'); eq(r.over2, 'win', 'koniec ostatniego etapu = zwycięstwo');
+  });
+  await test('F12.3: śmierć oznaczonej jednostki kończy misję porażką, reguły misji wyłączają wygraną z obozu, a skirmish działa po staremu', async () => {
+    const r = await page.evaluate(() => {
+      newMission('t1', 5); T.run(1); killUnit(taggedAll('scout')[0]); T.run(1); const lost = S.gameOver;
+      newMission('t1', 5); T.run(1); const ehq = S.buildings.find(b => b.fac === 'enemy' && b.type === 'hq'); destroyBuilding(ehq); const noWin = S.gameOver;
+      newGame(7, 'settler'); const none = S.mission; destroyBuilding(S.buildings.find(b => b.fac === 'enemy' && b.type === 'hq'));
+      return { lost, noWin, none, skirmish: S.gameOver };
+    });
+    eq([r.lost, r.noWin, r.none, r.skirmish], ['lose', null, null, 'win'], 'porażka z failIf, brak wygranej z obozu w misji, skirmish bez zmian');
+  });
+  await test('F12.3: zapis w środku misji zachowuje etap, flagi i znaczniki; cele kill i survive liczą od startu etapu', async () => {
+    const r = await page.evaluate(() => {
+      newMission('t1', 5); T.run(1);
+      const sc = S.units.find(u => u.tag === 'scout'); queueCmd({ action: 'order', units: [sc], x: 20, y: 20, targetUnit: null, targetHorse: null }); T.run(12);
+      const copy = JSON.parse(JSON.stringify(serializeGame())); restoreGame(copy);
+      const out = { stage: S.mission.stage, flag: S.mission.flags.spotted, id: S.mission.id, guard: taggedAll('guard').length, tags: !!S.mission.tags.guard };
+      killUnit(taggedAll('guard')[0]); T.run(1); out.win = S.gameOver;
+      newMission('t3', 5); T.run(1); const e = S.units.filter(u => u.fac === 'enemy'); out.n = e.length;
+      killUnit(e[0]); killUnit(e[1]); T.run(1); out.early = S.gameOver; T.run(3); out.t3 = S.gameOver;
+      return out;
+    });
+    eq([r.stage, r.flag, r.id, r.guard, r.tags], [1, true, 't1', 1, true], 'stan misji po wczytaniu'); eq(r.win, 'win', 'misja da się dokończyć po wczytaniu');
+    eq([r.n, r.early, r.t3], [2, null, 'win'], 'kill + survive: wygrana dopiero po obu celach');
+  });
   console.log('Faza 11: dotyk i małe ekrany');
   {
     const gameUrl = 'file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html'));

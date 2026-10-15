@@ -112,6 +112,11 @@
   .set-rows .scr-pill { text-align: left; }
   #overlay .set-rows button { margin: 0; background: linear-gradient(#2a160b, #150a05); color: #ffd97a; }
   /* faza 11: dotyk i małe ekrany. Tryb zwarty (html.compact) włącza się na telefonach/tabletach i niskich oknach; przyciski mają min. 44 px, panel można zwinąć */
+  #objpanel { display: none; position: absolute; top: calc(var(--u) * 34px); left: calc(8px + env(safe-area-inset-left, 0px)); max-width: calc(var(--u) * 300px); z-index: 5; background: rgba(24, 14, 8, 0.86); border: 1px solid #5a3a1c; border-radius: 6px; color: var(--cream); font: calc(var(--u) * 13px) var(--font-ui); padding: calc(var(--u) * 6px) calc(var(--u) * 10px); }
+  #objpanel .ob-h { font-weight: bold; color: var(--gold); cursor: pointer; min-height: 22px; }
+  #objpanel .ob-t { opacity: 0.85; margin: 2px 0 4px; }
+  #objpanel .ob-i { padding: 1px 0; } #objpanel .ob-i.done { opacity: 0.6; text-decoration: line-through; } #objpanel .ob-i.opt { font-style: italic; }
+  html.compact #objpanel { font-size: 11px; max-width: 230px; top: 28px; }
   #cancelbtn { min-width: 88px; min-height: 44px; position: absolute; top: calc(var(--u) * 34px); left: 50%; transform: translateX(-50%); z-index: 7; display: none; background: linear-gradient(#5a1a10, #2a0a05); color: #ffd9a0; border: 2px solid #a8442a; border-radius: 20px; padding: calc(var(--u) * 8px) calc(var(--u) * 22px); font: bold calc(var(--u) * 15px) Georgia, serif; box-shadow: 0 3px 8px #000; cursor: pointer; }
   #hudtoggle { display: none; position: absolute; top: 2px; right: 10px; z-index: 5; min-width: 44px; min-height: 30px; background: linear-gradient(#2a160b, #150a05); color: #f2c35c; border: 2px solid #5a3a1c; border-radius: 15px; font: bold 14px Georgia, serif; cursor: pointer; }
   #hud, #miniframe { padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -164,6 +169,7 @@
 </svg>
 <canvas id="game"></canvas>
 <div id="topbar"></div>
+<div id="objpanel"></div>
 <button id="cancelbtn">Anuluj</button>
 <div id="rotate">Obróć telefon do poziomu,<br>żeby zagrać.</div>
 <div id="alerts"></div>
@@ -413,6 +419,7 @@ function newGame(seed, race, opts) {
   // gospodarka bandytów: własne zasoby i kontroler AI (fale zastąpione realną produkcją)
   S.resE = { ...CFG.ai.startRes };
   S.ai = newAIState();
+  S.mission = null;
 
   if (def.rows) genLayoutMap(def); else genMap();
   computeCliffLevels();
@@ -1029,9 +1036,10 @@ function update(dt) {
   }
   // AI bandytów: myśli zamiast sztucznych fal (gospodarka, trening, wyprawy łupieżcze)
   updateAI(dt);
+  updateMission(dt);
   // kapitulacja gracza (reguła z patcha 1.02: brak obozu, przywódcy i robotników)
   const pUnits = S.units.filter(u => u.fac === 'player');
-  if (!pUnits.some(u => u.type === 'worker') && pUnits.length === 0 && S.res.food < 30) endGame('lose', 'Twoja osada zniknęła z mapy. Dzikie czasy.');
+  if (missionRule('surrender', true) && !pUnits.some(u => u.type === 'worker') && pUnits.length === 0 && S.res.food < 30) endGame('lose', 'Twoja osada zniknęła z mapy. Dzikie czasy.');
   if (S.fx) { S.fx.age += dt; if (S.fx.age > 1) S.fx = null; }
   for (const sh of S.shots) sh.age += dt;
   S.shots = S.shots.filter(sh => sh.age < 0.25);
@@ -1547,6 +1555,7 @@ function startFlee(u) {
 }
 function killUnit(u) {
   u.dead = true;
+  if (S.mission) { const k = S.mission.kills; k[u.type] = (k[u.type] || 0) + 1; k['fac:' + u.fac] = (k['fac:' + u.fac] || 0) + 1; }
   sfx('death', u.x, u.y);
   addHitFx(u.x, u.y, { death: true });
   // wstrząs morale sojuszników w promieniu śmierci
@@ -1653,8 +1662,8 @@ function destroyBuilding(b) {
     if (u.buildTarget === b) { u.buildTarget = null; u.state = 'idle'; }
     if (u.orderBuilding === b) { u.orderBuilding = null; u.state = 'idle'; }
   }
-  if (b.type === 'hq' && b.fac === 'enemy') endGame('win', 'Obóz bandytów zniszczony. Zachód znów na chwilę bezpieczny.');
-  if (b.type === 'hq' && b.fac === 'player') endGame('lose', 'Twój obóz spłonął. Dziki Zachód nie wybacza.');
+  if (b.type === 'hq' && b.fac === 'enemy' && missionRule('hqWin', true)) endGame('win', 'Obóz bandytów zniszczony. Zachód znów na chwilę bezpieczny.');
+  if (b.type === 'hq' && b.fac === 'player' && missionRule('hqLose', true)) endGame('lose', 'Twój obóz spłonął. Dziki Zachód nie wybacza.');
 }
 function updateBuilding(b, dt) {
   if (!b.built) {
@@ -1731,6 +1740,154 @@ function updateBuilding(b, dt) {
     }
   }
   // farma bez robotnika: nic; upkeep liczony przy robotniku
+}
+
+// ============================== MISJE (12.3) ==============================
+// Misja to dane: etapy z celami (warunki), akcje przy starcie i zakończeniu etapu, warunki porażki; bez eval. Skirmish ma S.mission == null i działa jak dotąd.
+// Definicje leżą w MISSIONS[id] (faza 13 dodaje prawdziwe misje); w stanie gry (i w zapisie) jest tylko { id, stage, flags, tags, done, kills, base, t0 }.
+// Definicja: { title, race, enemy, map, biome, difficulty, rules: { ai, hqWin, hqLose, surrender (domyślnie true; false wyłącza regułę skirmishu) },
+//   start: { clear: {playerUnits, enemyUnits, enemyBuildings, playerBuildings, neutral}, clearAreas: [[x, y, r]], res, camera: [x, y], units: [...], buildings: [...] },
+//   failIf: [warunek + text], stages: [{ id, title, objectives: [{ id, text, optional, ...warunek }], onStart: [akcje], onComplete: [akcje], failIf }] }
+// Warunki: reach {tag|unit, x, y, r, n}, destroy {tag|fac|unit}, kill {unit|fac, n} (liczy śmierci od startu etapu), have {res|building|unit, n}, survive {t}, flag {name}, dead {tag}, time {t}.
+// Akcje: message {text}, spawn {units, buildings}, setFlag {name, value}, setRes {res}, reveal {x, y, r}, order {tag, order}, win {text}, lose {text}.
+const MISSIONS = {};
+const missionDef = () => S.mission ? MISSIONS[S.mission.id] : null;
+function missionRule(name, dflt) { const d = missionDef(); return d && d.rules && name in d.rules ? d.rules[name] : dflt; }
+function taggedAll(tag) {
+  const out = [];
+  for (const u of S.units) if (u.tag === tag) out.push(u);
+  for (const b of S.buildings) if (b.tag === tag) out.push(b);
+  return out;
+}
+function missionOrder(u, od) {
+  if (!od) return;
+  const c = { units: [u], x: od.x, y: od.y, targetUnit: null, targetHorse: null, silent: true };
+  if (od.kind === 'patrol') executePatrol(c); else if (od.kind === 'attackmove') executeAttackMove(c); else executeOrder(c);
+}
+function spawnMissionUnit(o) {
+  const u = addUnit(o.type, o.fac || 'player', Math.floor(o.x), Math.floor(o.y));
+  u.x += 0.5; u.y += 0.5;
+  if (o.tag) u.tag = o.tag;
+  if (o.stance) u.stance = o.stance;
+  if (o.hp) { u.hp = o.hp; u.maxHp = Math.max(u.maxHp, o.hp); }
+  missionOrder(u, o.order);
+  return u;
+}
+function spawnMissionBuilding(o) {
+  const b = addBuilding(o.type, o.x, o.y, o.fac || 'player');
+  if (o.built !== false) { b.built = true; b.progress = 1; }
+  if (o.tag) b.tag = o.tag;
+  if (o.loot) b.loot = { ...o.loot };
+  return b;
+}
+function newMission(id, seed) {
+  const d = MISSIONS[id]; if (!d) return false;
+  if (d.difficulty && CFG.difficulty[d.difficulty]) S.difficulty = d.difficulty;
+  newGame(seed == null ? Date.now() : seed, d.race, { map: d.map, biome: d.biome, enemy: d.enemy });
+  S.mission = { id, stage: -1, flags: {}, tags: {}, done: {}, kills: {}, base: {}, t0: 0, acc: 0.5 };
+  const st = d.start || {}, c = st.clear || {};
+  if (c.playerUnits) S.units = S.units.filter(u => u.fac !== 'player');
+  if (c.enemyUnits) S.units = S.units.filter(u => u.fac !== 'enemy');
+  if (c.neutral) S.units = S.units.filter(u => u.fac !== 'neutral');
+  if (c.enemyBuildings) S.buildings = S.buildings.filter(b => b.fac !== 'enemy');
+  if (c.playerBuildings) S.buildings = S.buildings.filter(b => b.fac !== 'player');
+  // pola pod ręcznie ustawione jednostki i budynki: las, gęstwina i złoto w kole zamieniają się w trawę
+  for (const [cx, cy, r] of st.clearAreas || []) for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++) {
+    if (!inMap(x, y) || (x - cx) ** 2 + (y - cy) ** 2 > r * r) continue;
+    const t = S.terrain[idx(x, y)];
+    if (t === T_FOREST || t === T_THICK || t === T_GOLD || t === T_MEAT) { S.terrain[idx(x, y)] = T_GRASS; S.amt[idx(x, y)] = 0; }
+  }
+  if (st.res) Object.assign(S.res, st.res);
+  for (const o of st.buildings || []) spawnMissionBuilding(o);
+  for (const o of st.units || []) spawnMissionUnit(o);
+  computeFog(); computeFogEnemy();
+  if (st.camera) centerCameraOn(st.camera[0], st.camera[1]);
+  return true;
+}
+function condMet(c) {
+  const m = S.mission;
+  switch (c.type) {
+    case 'reach': {
+      const fac = c.fac || 'player';
+      return S.units.filter(u => u.fac === fac && (c.tag ? u.tag === c.tag : (!c.unit || u.type === c.unit)) && Math.hypot(u.x - c.x - 0.5, u.y - c.y - 0.5) <= (c.r || 1.5)).length >= (c.n || 1);
+    }
+    case 'destroy': {
+      if (c.tag) return !!m.tags[c.tag] && taggedAll(c.tag).length === 0;
+      const match = e => (!c.fac || e.fac === c.fac) && (!c.unit || e.type === c.unit);
+      return !S.units.some(match) && !S.buildings.some(match);
+    }
+    case 'kill': { const key = c.unit || ('fac:' + c.fac); return (m.kills[key] || 0) - (m.base[key] || 0) >= (c.n || 1); }
+    case 'have': {
+      if (c.res) return S.res[c.res] >= c.n;
+      if (c.building) return S.buildings.filter(b => b.fac === 'player' && b.type === c.building && b.built).length >= (c.n || 1);
+      return S.units.filter(u => u.fac === 'player' && u.type === c.unit).length >= (c.n || 1);
+    }
+    case 'survive': return S.time - m.t0 >= c.t;
+    case 'flag': return !!m.flags[c.name];
+    case 'dead': return !!m.tags[c.tag] && taggedAll(c.tag).length === 0;
+    case 'time': return S.time - m.t0 >= c.t;
+  }
+  return false;
+}
+function runAction(a) {
+  const m = S.mission;
+  switch (a.type) {
+    case 'message': uiAlert(a.text); break;
+    case 'spawn': for (const o of a.buildings || []) spawnMissionBuilding(o); for (const o of a.units || []) spawnMissionUnit(o); break;
+    case 'setFlag': m.flags[a.name] = a.value === undefined ? true : a.value; break;
+    case 'setRes': for (const k in a.res) addRes(k, a.res[k]); break;
+    case 'reveal': stampDisc(S.visible, a.x, a.y, a.r, S.explored); break;
+    case 'order': for (const e of taggedAll(a.tag)) if (S.units.includes(e)) missionOrder(e, a.order); break;
+    case 'win': endGame('win', a.text || 'Misja ukończona.'); break;
+    case 'lose': endGame('lose', a.text || 'Misja nieudana.'); break;
+  }
+}
+function startStage(i) {
+  const m = S.mission, sg = missionDef().stages[i];
+  m.stage = i; m.t0 = S.time; m.base = { ...m.kills };
+  uiAlert('Etap ' + (i + 1) + ': ' + sg.title);
+  for (const a of sg.onStart || []) runAction(a);
+}
+function updateMission(dt) {
+  const m = S.mission, d = missionDef();
+  if (!m || !d || S.gameOver) return;
+  m.acc += dt; if (m.acc < 0.5) return; m.acc = 0;
+  for (const u of S.units) if (u.tag) m.tags[u.tag] = true;
+  for (const b of S.buildings) if (b.tag) m.tags[b.tag] = true;
+  if (m.stage < 0) startStage(0);
+  const sg = d.stages[m.stage];
+  for (const f of [...(d.failIf || []), ...(sg.failIf || [])]) if (condMet(f)) { endGame('lose', f.text || 'Misja nieudana.'); return; }
+  let all = true;
+  for (const o of sg.objectives) {
+    const key = sg.id + ':' + o.id;
+    if (!m.done[key] && condMet(o)) { m.done[key] = true; if (!o.optional && o.text) uiAlert('Cel wykonany: ' + o.text); }
+    if (!o.optional && !m.done[key]) all = false;
+  }
+  if (!all) return;
+  for (const a of sg.onComplete || []) { runAction(a); if (S.gameOver) return; }
+  if (m.stage + 1 < d.stages.length) startStage(m.stage + 1); else endGame('win', d.winText || 'Misja ukończona.');
+}
+// panel celów: pokazuje bieżący etap i jego cele; nagłówek zwija i rozwija panel
+let objSig = '';
+function updateObjPanel() {
+  const el = document.getElementById('objpanel'), m = S.mission, d = missionDef();
+  if (!m || !d || m.stage < 0) { if (objSig !== '') { objSig = ''; el.style.display = 'none'; } return; }
+  const sg = d.stages[m.stage];
+  const sig = m.id + '|' + m.stage + '|' + sg.objectives.map(o => (m.done[sg.id + ':' + o.id] ? 1 : 0)).join('') + '|' + el.classList.contains('min');
+  if (sig === objSig) return;
+  objSig = sig; el.style.display = 'block';
+  el.innerHTML = '';
+  const h = document.createElement('div'); h.className = 'ob-h'; h.textContent = (el.classList.contains('min') ? '▸ ' : '▾ ') + 'Cele';
+  h.onclick = () => { el.classList.toggle('min'); objSig = ''; updateObjPanel(); };
+  el.appendChild(h);
+  if (el.classList.contains('min')) return;
+  const t = document.createElement('div'); t.className = 'ob-t'; t.textContent = d.title + ' | etap ' + (m.stage + 1) + '/' + d.stages.length + ': ' + sg.title; el.appendChild(t);
+  for (const o of sg.objectives) {
+    const li = document.createElement('div'), done = m.done[sg.id + ':' + o.id];
+    li.className = 'ob-i' + (done ? ' done' : '') + (o.optional ? ' opt' : '');
+    li.textContent = (done ? '✓ ' : '○ ') + (o.text || o.id) + (o.optional ? ' (dodatkowy)' : '');
+    el.appendChild(li);
+  }
 }
 
 // ============================== AI BANDYTÓW ==============================
@@ -1830,7 +1987,7 @@ function aiAttack(target, hitsBuildings = true) {
   return sent;
 }
 function updateAI(dt) {
-  if (S.testMode) return; // tryb testowy: kontroler strategiczny milczy, zostaje tylko auto-aggro jednostek
+  if (S.testMode || missionRule('ai', true) === false) return; // tryb testowy i misje bez AI: kontroler strategiczny milczy, zostaje tylko auto-aggro jednostek
   const A = CFG.ai, D = diffOf(), st = S.ai;
   st.thinkT -= dt;
   st.attackCd -= dt;
@@ -1946,10 +2103,11 @@ function seenBy(fac, e) {
 
 function endGame(result, msg) {
   S.gameOver = result;
+  const mid = S.mission && S.mission.id;   // powtórka misji zaczyna tę samą misję, nie potyczkę
   showOverlay({
     title: result === 'win' ? 'Zwycięstwo!' : 'Porażka', body: msg,
     buttons: [
-      { label: 'Jeszcze raz', cb: () => { newGame(Date.now()); updatePanels(); } },
+      { label: 'Jeszcze raz', cb: () => { if (mid) newMission(mid, Date.now()); else newGame(Date.now()); updatePanels(); } },
       // świeża partia pod menu: setupTest działa na bieżącym stanie, a ten ma jeszcze gameOver
       { label: 'Menu', cb: () => { newGame(Date.now()); updatePanels(); showMenu(); } },
     ],
@@ -2553,6 +2711,7 @@ function initTopbar() {
 }
 function updateTopbar() {
   if (!topbar.firstChild) initTopbar();
+  updateObjPanel();
   const mm = Math.floor(S.time / 60), ss = Math.floor(S.time % 60);
   // bandyci widziani przez gracza (zwiad w czasie rzeczywistym, nie wskaźnik AI)
   let seen = 0;
@@ -2806,7 +2965,7 @@ function serializeGame() {
     version: SAVE_VERSION,
     playerRace: S.playerRace, enemyRace: S.enemyRace, difficulty: S.difficulty, biome: S.biome, biomeChoice: S.biomeChoice, mapId: S.mapId, mapSize: MAP, mapSeed: S.mapSeed, testMode: S.testMode,
     time: S.time, nextId: S.nextId, res: S.res, resE: S.resE, techs: S.techs, ai: S.ai, rainT: S.rainT, storms: S.storms,
-    moraleT: S.moraleT, woodAlertT: S.woodAlertT, groups,
+    moraleT: S.moraleT, woodAlertT: S.woodAlertT, groups, mission: S.mission,
     terrain: b64Of(S.terrain), amt: b64Of(S.amt), explored: b64Of(S.explored),
     units: S.units.map(ser), buildings: S.buildings.map(ser),
     rng: rng.getState(), rngCombat: rngCombat.getState(),
@@ -2816,7 +2975,7 @@ function restoreGame(d) {
   if (!d || d.version !== SAVE_VERSION) return false;
   S.playerRace = d.playerRace; S.enemyRace = d.enemyRace; S.difficulty = d.difficulty; S.mapId = d.mapId || 'prairie'; MAP = d.mapSize || 40; S.fogC = null; S.gch = null; S.biomeChoice = d.biomeChoice || 'auto'; S.biome = BIOMES[d.biome] ? d.biome : 'prairie'; S.mapSeed = d.mapSeed || 0; S.testMode = !!d.testMode;
   S.time = d.time; S.nextId = d.nextId; S.res = d.res; S.resE = d.resE; S.techs = d.techs; S.ai = d.ai; S.rainT = d.rainT || {}; S.storms = d.storms || [];
-  S.moraleT = d.moraleT || 0; S.woodAlertT = d.woodAlertT || 0;
+  S.moraleT = d.moraleT || 0; S.woodAlertT = d.woodAlertT || 0; S.mission = d.mission || null;
   S.terrain = fromB64(d.terrain, Uint8Array); S.amt = fromB64(d.amt, Float32Array); S.explored = fromB64(d.explored, Uint8Array);
   S.visible = new Uint8Array(MAP * MAP); S.visibleE = new Uint8Array(MAP * MAP); S.fogET = 0; computeCliffLevels();
   S.units = d.units; S.buildings = d.buildings;
