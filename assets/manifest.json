@@ -1195,5 +1195,34 @@
   "phases": 1,
   "file_p": "assets/units/travois_p.png",
   "file_e": "assets/units/travois_e.png"
+ },
+ "wagon": {
+  "bb": [
+   17,
+   2,
+   178,
+   106
+  ],
+  "shadow": "assets/units/wagon_shadow.png",
+  "fw": 180,
+  "fh": 124,
+  "cols": 1,
+  "rows": 8,
+  "pad": 1,
+  "ax": 98,
+  "ay": 77,
+  "dirs": [
+   0,
+   45,
+   90,
+   135,
+   180,
+   225,
+   270,
+   315
+  ],
+  "phases": 1,
+  "file_p": "assets/units/wagon_p.png",
+  "file_e": "assets/units/wagon_e.png"
  }
 }

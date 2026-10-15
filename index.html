@@ -238,6 +238,8 @@ const CFG = {
     konnobanda:{ hp: 60,  dmg: 12, range: 1, cd: 0.9, speed: 1.7, cost: { food: 40, gold: 10, horses: 1 }, train: 20, aggro: 7, letter: 'J', color: '#c03a2a', kind: 'melee', cav: true, sight: 8 },
     // wóz-travois: spakowane tepee [Ź: tepee można pakować i przenosić]; wolny, bez walki, nie zajmuje populacji [P], HP przejęte z tepee
     travois:   { hp: 120, dmg: 0, range: 0, cd: 1.0, speed: 0.6, cost: {}, train: 0, aggro: 0, letter: 'V', color: '#9a6a3a', kind: 'cart', noPop: true },
+    // wóz kryty (eskorta, USA 1) [P liczby]: wolniejszy od pieszych, bez walki, poza populacją; sterowany przez gracza, ginie od ognia wroga jak każda jednostka
+    wagon:     { hp: 120, dmg: 0, range: 0, cd: 1.0, speed: 0.7, cost: {}, train: 0, aggro: 0, letter: 'Y', color: '#d8cfae', kind: 'cart', noPop: true },
     horse:     { hp: 40,  dmg: 0,  range: 0, cd: 1.0, speed: 0.7, cost: {}, train: 0, aggro: 0, letter: 'K', color: '#8a5a3a' },
     bizon:     { hp: 45,  dmg: 0,  range: 0, cd: 1.0, speed: 0.8, cost: {}, train: 0, aggro: 0, letter: 'B', color: '#5a4030', animal: true, meat: 150 },
     bydlo:     { hp: 25,  dmg: 0,  range: 0, cd: 1.0, speed: 0.5, cost: {}, train: 0, aggro: 0, letter: 'C', color: '#a89a85', animal: true, meat: 100 },
@@ -1662,6 +1664,12 @@ function destroyBuilding(b) {
     if (u.buildTarget === b) { u.buildTarget = null; u.state = 'idle'; }
     if (u.orderBuilding === b) { u.orderBuilding = null; u.state = 'idle'; }
   }
+  // łup: budynek z polem loot (dane misji) oddaje zasoby przeciwnikowi po zniszczeniu; nadwyżka ponad limit przepada jak każda inna
+  if (b.loot) {
+    const to = b.fac === 'enemy' ? 'player' : 'enemy', m = S.mission;
+    for (const k in b.loot) { addRes(k, b.loot[k], to); if (m && to === 'player') { m.loot = m.loot || {}; m.loot[k] = (m.loot[k] || 0) + b.loot[k]; } }
+    if (to === 'player') uiAlert('Łup: ' + costText(b.loot), [b.cx, b.cy]);
+  }
   if (b.type === 'hq' && b.fac === 'enemy' && missionRule('hqWin', true)) endGame('win', 'Obóz bandytów zniszczony. Zachód znów na chwilę bezpieczny.');
   if (b.type === 'hq' && b.fac === 'player' && missionRule('hqLose', true)) endGame('lose', 'Twój obóz spłonął. Dziki Zachód nie wybacza.');
 }
@@ -1748,7 +1756,7 @@ function updateBuilding(b, dt) {
 // Definicja: { title, race, enemy, map, biome, difficulty, rules: { ai, hqWin, hqLose, surrender (domyślnie true; false wyłącza regułę skirmishu) },
 //   start: { clear: {playerUnits, enemyUnits, enemyBuildings, playerBuildings, neutral}, clearAreas: [[x, y, r]], res, camera: [x, y], units: [...], buildings: [...] },
 //   failIf: [warunek + text], stages: [{ id, title, objectives: [{ id, text, optional, ...warunek }], onStart: [akcje], onComplete: [akcje], failIf }] }
-// Warunki: reach {tag|unit, x, y, r, n}, destroy {tag|fac|unit}, kill {unit|fac, n} (liczy śmierci od startu etapu), have {res|building|unit, n}, survive {t}, flag {name}, dead {tag}, time {t}.
+// Warunki: reach {tag|unit, x, y, r, n}, destroy {tag|fac|unit}, kill {unit|fac, n} (liczy śmierci od startu etapu), have {res|building|unit, n}, loot {res, n}, survive {t}, flag {name}, dead {tag}, time {t}.
 // Akcje: message {text}, spawn {units, buildings}, setFlag {name, value}, setRes {res}, reveal {x, y, r}, order {tag, order}, win {text}, lose {text}.
 const MISSIONS = {};
 const missionDef = () => S.mission ? MISSIONS[S.mission.id] : null;
@@ -1784,7 +1792,7 @@ function newMission(id, seed) {
   const d = MISSIONS[id]; if (!d) return false;
   if (d.difficulty && CFG.difficulty[d.difficulty]) S.difficulty = d.difficulty;
   newGame(seed == null ? Date.now() : seed, d.race, { map: d.map, biome: d.biome, enemy: d.enemy });
-  S.mission = { id, stage: -1, flags: {}, tags: {}, done: {}, kills: {}, base: {}, t0: 0, acc: 0.5 };
+  S.mission = { id, stage: -1, flags: {}, tags: {}, done: {}, kills: {}, loot: {}, base: {}, t0: 0, acc: 0.5 };
   const st = d.start || {}, c = st.clear || {};
   if (c.playerUnits) S.units = S.units.filter(u => u.fac !== 'player');
   if (c.enemyUnits) S.units = S.units.filter(u => u.fac !== 'enemy');
@@ -1822,6 +1830,7 @@ function condMet(c) {
       if (c.building) return S.buildings.filter(b => b.fac === 'player' && b.type === c.building && b.built).length >= (c.n || 1);
       return S.units.filter(u => u.fac === 'player' && u.type === c.unit).length >= (c.n || 1);
     }
+    case 'loot': return ((m.loot || {})[c.res] || 0) >= c.n;   // łączny łup z całej misji (także ponad limit magazynu)
     case 'survive': return S.time - m.t0 >= c.t;
     case 'flag': return !!m.flags[c.name];
     case 'dead': return !!m.tags[c.tag] && taggedAll(c.tag).length === 0;
@@ -2504,7 +2513,7 @@ function cmdBtn(o) {
 // na dotyku skróty klawiszowe w etykietach ([P], [X]) tylko zabierają miejsce
 function setLbl(b, html) { if (document.documentElement.classList.contains('compact')) html = html.replace(/\s*\[[A-Za-z0-9]\]/g, ''); const l = b.querySelector('.lbl'); if (l && l.innerHTML !== html) l.innerHTML = html; }
 
-const UNIT_NAMES = { worker: 'Robotnik', frontiersman: 'Frontiersman', frontierswoman: 'Frontierswoman', szeryf: 'Szeryf', armata: 'Armata', piechota: 'Piechota', jezdiec: 'Jeździec', squaw: 'Squaw', wojownik: 'Wojownik', wodz: 'Wódz', lucznik: 'Łucznik', medicine: 'Medicine man', desperado: 'Desperado', bandleader: 'Bandleader', konnobanda: 'Konna banda', horse: 'Dziki koń', bizon: 'Bizon', bydlo: 'Bydło', travois: 'Wóz-travois' };
+const UNIT_NAMES = { worker: 'Robotnik', frontiersman: 'Frontiersman', frontierswoman: 'Frontierswoman', szeryf: 'Szeryf', armata: 'Armata', piechota: 'Piechota', jezdiec: 'Jeździec', squaw: 'Squaw', wojownik: 'Wojownik', wodz: 'Wódz', lucznik: 'Łucznik', medicine: 'Medicine man', desperado: 'Desperado', bandleader: 'Bandleader', konnobanda: 'Konna banda', horse: 'Dziki koń', bizon: 'Bizon', bydlo: 'Bydło', travois: 'Wóz-travois', wagon: 'Wóz kryty' };
 const buildBtns = [];
 let buildBarRace = null;
 let bpanelBuilding = null, bpanelBuilt = null, bpanelSlotSig = null;

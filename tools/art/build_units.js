@@ -75,10 +75,27 @@ function travois() {
   m.box('team', [-0.08, 0, 0.8], [0.06, 0.5, 0.16]);
   return m;
 }
+// wóz kryty (eskorta, USA 1): drewniana skrzynia na czterech kołach, płócienna budka na łukach, dyszel z przodu (+x), pasek koloru drużyny na płótnie
+function wagon() {
+  const m = model(null);
+  m.material('canvas', { color: [0.88, 0.84, 0.72] });
+  for (const sd of [-1, 1]) for (const x of [-0.5, 0.55]) rt.wheel(m, [x, sd * 0.5, 0.36], { radius: x > 0 ? 0.3 : 0.38, thickness: 0.08 });
+  m.box('timber', [0.03, 0, 0.46], [1.7, 0.86, 0.12]);
+  for (const sd of [-1, 1]) m.box('timber', [0.03, sd * 0.42, 0.62], [1.7, 0.05, 0.2]);
+  m.cylinder('canvas', [-0.82, 0, 0.84], [0.82, 0, 0.84], 0.44, 0.44, 16);
+  for (const x of [-0.82, 0.82]) m.blob('canvas', [x, 0, 0.84], [0.05, 0.43, 0.43], { seed: 2, roughness: 0.02, subdivisions: 2 });
+  for (const x of [-0.4, 0.4]) m.box('timber', [x, 0, 0.84], [0.04, 0.9, 0.9]);
+  m.box('team', [0, 0, 1.27], [0.9, 0.26, 0.06]);
+  m.beam('timber', [0.85, 0, 0.42], [1.6, 0, 0.3], 0.07, 0.07, [0, 1, 0]);
+  return m;
+}
 function extras(lap) {
   const frames = DIRS.map(d => rt.renderSprite(travois(), cam(2.8, [0, 0, 0.5], 0.6), { groundTexture: TX.ochre, trim: false, viewAngleDeg: d.yaw }));
   L.saveSheet('travois', frames, 'units', { columns: 1, dirs: DIRS.map(d => d.yaw), phases: 1, team: true, packer: rt });
   lap('travois');
+  const wf = DIRS.map(d => rt.renderSprite(wagon(), cam(3.0, [0, 0, 0.6], 0.55), { groundTexture: TX.ochre, trim: false, viewAngleDeg: d.yaw }));
+  L.saveSheet('wagon', wf, 'units', { columns: 1, dirs: DIRS.map(d => d.yaw), phases: 1, team: true, packer: rt });
+  lap('wagon');
 }
 function animals(lap) {
   const cam2 = () => cam(2.6, [0, 0, 0.55], 0.6);
@@ -108,6 +125,7 @@ function preview(file) {
     DIRS.forEach((d, col) => {
       const look = LOOK[key]; let res;
       if (look) { const P = pt.sprite(look.kind === 'foot' ? FH : FR); if (look.kind === 'foot') pt.humanoid(P, Object.assign({ yaw: d.yaw, phase: 0, moving: true }, HUMAN, look.o)); else pt.horse(P, Object.assign({ yaw: d.yaw, phase: 0, moving: true, scale: 0.78 }, look.o)); res = P.render(); }
+      else if (key === 'wagon') res = rt.renderSprite(wagon(), cam(3.0, [0, 0, 0.6], 0.55), { groundTexture: TX.ochre, trim: true, viewAngleDeg: d.yaw });
       else if (key === 'travois') res = rt.renderSprite(travois(), cam(2.8, [0, 0, 0.5], 0.6), { groundTexture: TX.ochre, trim: true, viewAngleDeg: d.yaw });
       else if (key === 'armata') res = rt.renderSprite(cannon(), cam(2.6, [0, 0, 0.55], 0.6), { groundTexture: TX.ochre, trim: true, viewAngleDeg: d.yaw });
       else res = rt.renderSprite(quadruped(key), cam(2.2, [0, 0, 0.5], 0.62), { groundTexture: TX.ochre, trim: true, viewAngleDeg: d.yaw });

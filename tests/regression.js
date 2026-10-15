@@ -764,6 +764,36 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     eq([r.stage, r.flag, r.id, r.guard, r.tags], [1, true, 't1', 1, true], 'stan misji po wczytaniu'); eq(r.win, 'win', 'misja da się dokończyć po wczytaniu');
     eq([r.n, r.early, r.t3], [2, null, 'win'], 'kill + survive: wygrana dopiero po obu celach');
   });
+  console.log('Faza 12.4: wóz kryty, eskorta, łup');
+  await page.evaluate(() => {
+    const base = { race: 'settler', enemy: 'outlaw', map: 'prairie', rules: { ai: false, hqWin: false, surrender: false } };
+    const escort = hostile => ({ title: 'Eskorta', ...base,
+      start: { clear: { playerUnits: true, enemyUnits: true }, clearAreas: [[20, 20, 9]], units: [{ type: 'wagon', x: 14, y: 20, tag: 'wagon' }].concat(hostile ? [{ type: 'desperado', fac: 'enemy', x: 16, y: 21, stance: 'aggr' }] : [{ type: 'piechota', x: 13, y: 20 }]) },   // bez eskorty wóz ginie, z piechotą jedzie bezpiecznie
+      failIf: [{ type: 'dead', tag: 'wagon', text: 'Wóz zniszczony' }],
+      stages: [{ id: 'a', title: 'Dowieź wóz', objectives: [{ id: 'r', text: 'Wóz dojeżdża na miejsce', type: 'reach', tag: 'wagon', x: 25, y: 20, r: 2 }] }] });
+    MISSIONS.t4 = escort(false); MISSIONS.t5 = escort(true);
+    MISSIONS.t6 = { title: 'Rabunek', ...base,
+      start: { clear: { enemyUnits: true }, clearAreas: [[20, 20, 6]], buildings: [{ type: 'storehouse', fac: 'enemy', x: 20, y: 20, tag: 'camp', loot: { gold: 50, wood: 30 } }] },
+      stages: [{ id: 'a', title: 'Złupić obóz', objectives: [{ id: 'd', text: 'Zniszcz obóz', type: 'destroy', tag: 'camp' }, { id: 'l', text: 'Zdobądź 50 złota łupem', type: 'loot', res: 'gold', n: 50 }] }] };
+  });
+  await test('F12.4: wóz kryty jest sterowany i nie zajmuje populacji; eskorta kończy się zwycięstwem po dojechaniu, a zniszczony wóz = porażka', async () => {
+    const r = await page.evaluate(() => {
+      newMission('t4', 5); T.run(1);
+      const w = taggedAll('wagon')[0], out = { pop: popUsed(), units: S.units.filter(u => u.fac === 'player').length, hp: w.hp };
+      queueCmd({ action: 'order', units: [w], x: 25, y: 20, targetUnit: null, targetHorse: null }); T.run(30); out.win = S.gameOver; out.speed = +(w.x - 14.5).toFixed(1);
+      newMission('t5', 5); T.run(90); out.lose = S.gameOver; out.alive = taggedAll('wagon').length;
+      return out;
+    });
+    eq([r.pop, r.units], [1, 2], 'populacja bez wozu'); eq(r.win, 'win', 'wóz dojechał'); ok(r.speed >= 8.5, 'wóz jedzie: ' + r.speed); eq([r.lose, r.alive], ['lose', 0], 'wrogi desperado niszczy wóz');
+  });
+  await test('F12.4: łup ze zniszczonego budynku wroga trafia do zasobów gracza (z limitem magazynu), liczy się do celu loot i kończy misję', async () => {
+    const r = await page.evaluate(() => {
+      newMission('t6', 5); T.run(1); S.res.gold = 1990; S.res.wood = 100;
+      const camp = taggedAll('camp')[0]; destroyBuilding(camp); T.run(1);
+      return { gold: S.res.gold, wood: S.res.wood, loot: S.mission.loot, over: S.gameOver };
+    });
+    eq([r.gold, r.wood], [2000, 130], 'zasoby po łupie (złoto przy limicie 2000)'); eq(r.loot, { gold: 50, wood: 30 }, 'licznik łupu'); eq(r.over, 'win', 'cel loot + destroy = zwycięstwo');
+  });
   console.log('Faza 11: dotyk i małe ekrany');
   {
     const gameUrl = 'file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html'));

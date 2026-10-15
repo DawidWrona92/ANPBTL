@@ -91,3 +91,16 @@ Nie zrobione: kapitulacja AI na „bardzo łatwym", zwiadowca przed falą, mikro
 | Limit populacji | 200 | `[Ź]` |
 
 Jednostka `worker` zostaje jako ogólny robotnik Desperado (AI) do fazy 11.
+
+## Faza 12: widzenie, tepee, wozy `[P]` (do korekty z pamięci gracza)
+| Parametr | Wartość | Status |
+|---|---|---|
+| Pole widzenia `sight` (kafle): wojownik, łucznik, medicine man Sioux | 8 | `[P]`, zasada `[Ź: pamięć gracza]`: Indianie widzą dalej, niż zaczynają atak |
+| `sight` wódz Sioux | 9 | `[P]` |
+| `sight` szeryf | 10 | `[Ź fakt, P wartość]` |
+| `sight` konnobanda | 8 (jej `aggro` 7) | `[P]` |
+| `sight` pozostałe | 6 (`CFG.fogRadius`) | `[P]` |
+| Maska widzenia wroga | odświeżana co 0,25 s, budynki wroga 8 (`CFG.fogHq`) | `[P]` |
+| Pakowanie i rozkładanie tepee | 5 s (`CFG.packTime`) | `[P]` |
+| Travois | HP z tepee, prędkość 0,6, poza populacją | `[P]` |
+| Wóz kryty | HP 120, prędkość 0,7, poza populacją | `[P]` |
