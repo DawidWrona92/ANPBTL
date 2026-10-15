@@ -112,7 +112,7 @@
   .set-rows .scr-pill { text-align: left; }
   #overlay .set-rows button { margin: 0; background: linear-gradient(#2a160b, #150a05); color: #ffd97a; }
   /* faza 11: dotyk i małe ekrany. Tryb zwarty (html.compact) włącza się na telefonach/tabletach i niskich oknach; przyciski mają min. 44 px, panel można zwinąć */
-  #cancelbtn { position: absolute; top: calc(var(--u) * 34px); left: 50%; transform: translateX(-50%); z-index: 7; display: none; background: linear-gradient(#5a1a10, #2a0a05); color: #ffd9a0; border: 2px solid #a8442a; border-radius: 20px; padding: calc(var(--u) * 8px) calc(var(--u) * 22px); font: bold calc(var(--u) * 15px) Georgia, serif; box-shadow: 0 3px 8px #000; cursor: pointer; }
+  #cancelbtn { min-width: 88px; min-height: 44px; position: absolute; top: calc(var(--u) * 34px); left: 50%; transform: translateX(-50%); z-index: 7; display: none; background: linear-gradient(#5a1a10, #2a0a05); color: #ffd9a0; border: 2px solid #a8442a; border-radius: 20px; padding: calc(var(--u) * 8px) calc(var(--u) * 22px); font: bold calc(var(--u) * 15px) Georgia, serif; box-shadow: 0 3px 8px #000; cursor: pointer; }
   #hudtoggle { display: none; position: absolute; top: 2px; right: 10px; z-index: 5; min-width: 44px; min-height: 30px; background: linear-gradient(#2a160b, #150a05); color: #f2c35c; border: 2px solid #5a3a1c; border-radius: 15px; font: bold 14px Georgia, serif; cursor: pointer; }
   #hud, #miniframe { padding-bottom: env(safe-area-inset-bottom, 0px); }
   #hud { padding-left: env(safe-area-inset-left, 0px); }
@@ -189,6 +189,7 @@ const CFG = {
   popMax: 200,   // twardy limit populacji [Ź 19.1]
   carry: 10, chop: 2.5, mine: 1.5, butcher: 3,
   fogRadius: 6, fogHq: 8,
+  packTime: 5,   // sekundy pakowania i rozkładania tepee [P]
   morale: { tick: 1.0, deathR: 6, deathPenalty: 2, hitPenalty: 1, regen: 0.2, restR: 10, restRegen: 1.0, hqAuraR: 8, hqAura: 0.5, leaderAuraR: 6, leaderAura: 0.5, fleeAt: 30, fleeTime: 5, fleeBreak: 30, fleeDist: 4, wodzDeath: 30 },
   // zdolności medicine mana [Ź 19.4]: deszcz +100% plonów na wszystkich polach 60 s, burza r3 10 obr./s 5 s + morale wrogów -20
   abilities: { rain: { dur: 60, cd: 180 }, storm: { dur: 5, cd: 120, r: 3, dps: 10, morale: 20 } },
@@ -229,6 +230,8 @@ const CFG = {
     bandleader:{ hp: 90,  dmg: 14, range: 5, cd: 1.0, speed: 1.1, cost: { food: 80, gold: 20 }, train: 25, aggro: 6, letter: 'B', color: '#d14a1e', kind: 'gun', leader: true },
     jezdiec:   { hp: 70,  dmg: 12, range: 4, cd: 1.2, speed: 1.8, cost: { food: 40, gold: 10, guns: 1, horses: 1 }, train: 25, aggro: 6, letter: 'J', color: '#6a4a8a', kind: 'gun', cav: true },
     konnobanda:{ hp: 60,  dmg: 12, range: 1, cd: 0.9, speed: 1.7, cost: { food: 40, gold: 10, horses: 1 }, train: 20, aggro: 7, letter: 'J', color: '#c03a2a', kind: 'melee', cav: true, sight: 8 },
+    // wóz-travois: spakowane tepee [Ź: tepee można pakować i przenosić]; wolny, bez walki, nie zajmuje populacji [P], HP przejęte z tepee
+    travois:   { hp: 120, dmg: 0, range: 0, cd: 1.0, speed: 0.6, cost: {}, train: 0, aggro: 0, letter: 'V', color: '#9a6a3a', kind: 'cart', noPop: true },
     horse:     { hp: 40,  dmg: 0,  range: 0, cd: 1.0, speed: 0.7, cost: {}, train: 0, aggro: 0, letter: 'K', color: '#8a5a3a' },
     bizon:     { hp: 45,  dmg: 0,  range: 0, cd: 1.0, speed: 0.8, cost: {}, train: 0, aggro: 0, letter: 'B', color: '#5a4030', animal: true, meat: 150 },
     bydlo:     { hp: 25,  dmg: 0,  range: 0, cd: 1.0, speed: 0.5, cost: {}, train: 0, aggro: 0, letter: 'C', color: '#a89a85', animal: true, meat: 100 },
@@ -241,7 +244,7 @@ const CFG = {
     barracks:   { w: 2, h: 2, hp: 300, cost: { wood: 100, gold: 40 }, build: 40, label: 'KOSZARY', color: '#5a4a6a' },
     factory:    { w: 2, h: 2, hp: 300, cost: { wood: 120, gold: 80 }, build: 45, gunTime: 15, gunCost: { wood: 5, gold: 10 }, label: 'FABRYKA', color: '#4a4a5a' },
     zagroda:    { w: 2, h: 2, hp: 220, cost: { wood: 70, gold: 40 }, build: 30, horseTime: 30, horseCost: { food: 20, gold: 10 }, label: 'ZAGRODA', color: '#8a6a4a' },
-    tepee:      { w: 2, h: 2, hp: 120, cost: { wood: 30 }, build: 10, pop: 5, label: 'TEPEE', color: '#9a6a3a' },
+    tepee:      { w: 2, h: 2, hp: 120, cost: { wood: 30 }, build: 10, pop: 5, packable: true, label: 'TEPEE', color: '#9a6a3a' },
     // Osadnicy [P 19.2/19.3]: ranczo podnosi limit żywności o 150; bank (limit 5 sprawdzany przy STARCIE budowy, poprawka błędu oryginału) daje 1 złoto/s i limit złota +500
     ranch:      { w: 2, h: 2, hp: 250, cost: { wood: 80, gold: 50 }, build: 35, capBonus: { food: 150 }, label: 'RANCZO', color: '#8a6a3a' },
     bank:       { w: 2, h: 2, hp: 350, cost: { wood: 150, gold: 100 }, build: 50, limit: 5, income: { gold: 1 }, capBonus: { gold: 500 }, label: 'BANK', color: '#6a5a3a' },
@@ -686,7 +689,7 @@ function popCap(fac) {
   for (const b of S.buildings) if (b.fac === (fac || 'player') && b.built) p += CFG.buildings[b.type].pop || 0;
   return Math.min(CFG.popMax, p);
 }
-function popUsed(fac) { return S.units.filter(u => u.fac === (fac || 'player')).length; }
+function popUsed(fac) { return S.units.filter(u => u.fac === (fac || 'player') && !CFG.units[u.type].noPop).length; }
 // jednostki w kolejkach WSZYSTKICH budynków frakcji: miejsce rezerwuje się przy zamówieniu, nie przy wyjściu z budynku
 function queuedCount(fac) {
   let n = 0;
@@ -763,6 +766,8 @@ function processCmds() {
     else if (c.action === 'stop') stopUnits(c.units);
     else if (c.action === 'attackmove') executeAttackMove(c);
     else if (c.action === 'patrol') executePatrol(c);
+    else if (c.action === 'pack') startPack(c.building);
+    else if (c.action === 'unpack') startUnpack(c.unit, c.x, c.y);
     else if (c.action === 'resume') {
       if (!S.buildings.includes(c.building)) continue;
       const idle = S.units.filter(u => u.fac === 'player' && unitRole(u, 'builder') && u.state === 'idle');
@@ -777,7 +782,7 @@ function stopUnits(list) {
     if (!S.units.includes(u) || u.state === 'flee') continue;
     releaseFarm(u);
     u.state = 'idle'; u.path = []; u.attackTarget = null; u.ordered = false; u.orderBuilding = null; u.node = null;
-    u.buildTarget = null; u.captureTarget = null; u.waypoints = null; u.amTarget = null; u.patrol = null;
+    u.buildTarget = null; u.captureTarget = null; u.waypoints = null; u.amTarget = null; u.patrol = null; u.unpackAt = null;
   }
 }
 // atak-ruch: marsz do punktu z walką po drodze; po zabiciu celu marsz trwa (resumeAfterInterrupt)
@@ -785,6 +790,52 @@ function executeAttackMove(c) {
   const units = c.units.filter(u => S.units.includes(u) && u.state !== 'flee');
   executeOrder({ units, x: c.x, y: c.y, targetUnit: null, targetHorse: null });
   for (const u of units) if (u.state === 'move' && CFG.units[u.type].aggro > 0) u.amTarget = [c.x, c.y];
+}
+// pakowanie tepee [P liczby]: budynek stoi do końca odliczania (pop liczy się do tego czasu), potem znika, a w jego miejscu pojawia się travois z jego HP; drugie polecenie przerywa
+function startPack(b) {
+  if (!S.buildings.includes(b) || !b.built || !CFG.buildings[b.type].packable) return;
+  b.packing = b.packing ? null : { t: CFG.packTime };
+}
+function finishPack(b) {
+  const spot = spawnSpotNear(b, CFG.units.travois);
+  if (!spot) { b.packing = null; if (b.fac === 'player') uiAlert('Brak miejsca przy tepee: nie da się go spakować'); return; }
+  // usunięcie bez destroyBuilding: bez wybuchu i bez warunków końca gry
+  S.buildings = S.buildings.filter(x => x !== b);
+  for (const u of S.units) {
+    if (u.farm === b) { u.farm = null; u.state = 'idle'; }
+    if (u.buildTarget === b) { u.buildTarget = null; u.state = 'idle'; }
+    if (u.orderBuilding === b) { u.orderBuilding = null; u.state = 'idle'; }
+  }
+  const u = addUnit('travois', b.fac, spot[0] + 0.5, spot[1] + 0.5);
+  u.hp = b.hp; u.maxHp = b.maxHp; u.packed = { type: b.type, hp: b.hp, maxHp: b.maxHp };
+  if (S.selected.building === b) { S.selected.building = null; S.selected.units = [u]; }
+  if (b.fac === 'player') { sfx('ok'); updatePanels(); }
+}
+// pole zabudowy wolne (bez kosztu): jak w tryPlace, ale z listy budynków już zapłaconych
+function footprintFree(def, tx, ty, needExplored) {
+  for (let y = ty; y < ty + def.h; y++) for (let x = tx; x < tx + def.w; x++)
+    if (!inMap(x, y) || isBlocked(x, y) || (needExplored && !S.explored[idx(x, y)])) return false;
+  return true;
+}
+function startUnpack(u, tx, ty) {
+  if (!S.units.includes(u) || !u.packed || u.state === 'flee') return;
+  const def = CFG.buildings[u.packed.type];
+  if (!footprintFree(def, tx, ty, u.fac === 'player')) { if (u.fac === 'player') uiAlert('Nie można tu rozłożyć'); return; }
+  u.node = null; releaseFarm(u); u.buildTarget = null; u.attackTarget = null; u.orderBuilding = null; u.waypoints = null; u.amTarget = null; u.patrol = null;
+  u.unpackAt = [tx, ty]; u.path = uPath(u, tx, ty); u.pathI = 0; u.state = 'toUnpack';
+}
+function finishUnpack(u) {
+  const [tx, ty] = u.unpackAt, pk = u.packed, def = CFG.buildings[pk.type];
+  if (!footprintFree(def, tx, ty, false)) { u.state = 'idle'; u.unpackAt = null; if (u.fac === 'player') uiAlert('Miejsce zajęte: nie można rozłożyć'); return; }
+  S.units = S.units.filter(x => x !== u);
+  const wasSel = S.selected.units.includes(u);
+  S.selected.units = S.selected.units.filter(x => x !== u);
+  for (const g in S.groups) S.groups[g] = S.groups[g].filter(x => x !== u);
+  const b = addBuilding(pk.type, tx, ty, u.fac);
+  b.built = true; b.progress = 1; b.hp = pk.hp; b.maxHp = pk.maxHp;
+  ejectUnitsFrom(b);
+  if (wasSel) S.selected.building = b;
+  if (u.fac === 'player') { sfx('place', b.cx, b.cy); updatePanels(); }
 }
 // patrol A<->B: marsz jak atak-ruch (walka po drodze, powrót na trasę po walce), na końcu odcinka jednostka zawraca; A to miejsce wydania rozkazu
 function executePatrol(c) {
@@ -801,7 +852,7 @@ function cancelQueueSlot(b, i) {
 }
 function executeOrder(c) {
   const units = c.units.filter(u => S.units.includes(u) && u.state !== 'flee');
-  if (!c.queue) for (const u of units) { u.waypoints = null; u.amTarget = null; u.patrol = null; }
+  if (!c.queue) for (const u of units) { u.waypoints = null; u.amTarget = null; u.patrol = null; u.unpackAt = null; }
   if (c.units.some(u => S.units.includes(u) && u.state === 'flee')) uiAlert('Spanikowana jednostka ignoruje rozkazy');
   if (!units.length) return;
   if (!c.silent) sfx('order', c.x, c.y);
@@ -1094,6 +1145,16 @@ function updateUnit(u, dt) {
       }
       break;
     }
+    case 'toUnpack': {
+      const pd = CFG.buildings[u.packed.type], [ux, uy] = u.unpackAt, near = () => Math.hypot(ux + pd.w / 2 - u.x, uy + pd.h / 2 - u.y) <= 2.3;   // BFS staje w promieniu 1 kafla od celu
+      if (near()) { u.state = 'unpacking'; u.unpackT = CFG.packTime; u.path = []; break; }
+      if (!u.path.length || followPath(u, dt)) {
+        if (near()) { u.state = 'unpacking'; u.unpackT = CFG.packTime; u.path = []; }
+        else { u.state = 'idle'; u.unpackAt = null; if (u.fac === 'player') uiAlert('Nie można dojechać na wskazane miejsce'); }
+      }
+      break;
+    }
+    case 'unpacking': u.unpackT -= dt; if (u.unpackT <= 0) finishUnpack(u); break;
     case 'idle': break;
     case 'move':
       if (!u.path.length || followPath(u, dt)) {
@@ -1610,6 +1671,7 @@ function updateBuilding(b, dt) {
     }
     return;
   }
+  if (b.packing) { b.packing.t -= dt; if (b.packing.t <= 0) finishPack(b); return; }
   // badanie technologii (jeden projekt na budynek naraz)
   if (b.research) {
     b.research.remaining -= dt;
@@ -1964,7 +2026,7 @@ function onCanvasUp(e) {
   const ex = e.offsetX / ZOOM, ey = e.offsetY / ZOOM;
   const [px, py] = screenToTile(e.offsetX, e.offsetY);
   const tx = Math.floor(px), ty = Math.floor(py);
-  if (S.placing && !right) { queueCmd({ action: 'place', type: S.placing, x: tx, y: ty }); if (!e.shiftKey) S.placing = null; mouse.dragging = false; return; }
+  if (S.placing && !right) { queueCmd(S.unpackBy ? { action: 'unpack', unit: S.unpackBy, x: tx, y: ty } : { action: 'place', type: S.placing, x: tx, y: ty }); if (!e.shiftKey || S.unpackBy) S.placing = null; mouse.dragging = false; return; }
   if (S.placing && right) { S.placing = null; return; }
   if ((S.attackMove || S.rallyMode || S.patrolMode) && right) { S.attackMove = false; S.rallyMode = false; S.patrolMode = false; return; }
   if (S.patrolMode) { queueCmd({ action: 'patrol', units: [...S.selected.units], x: tx, y: ty }); S.patrolMode = false; S.fx = { x: px, y: py, age: 0 }; return; }
@@ -2142,7 +2204,7 @@ document.addEventListener('keydown', e => {
     if (S.lastAlert) { centerCameraOn(S.lastAlert.x, S.lastAlert.y); clampCam(); }
   }
   const item = plain && buildMenuFor(S.playerRace).find(m => m.key === k);
-  if (item && S.selected.units.some(u => unitRole(u, 'builder'))) S.placing = item.type;
+  if (item && S.selected.units.some(u => unitRole(u, 'builder'))) { S.placing = item.type; S.unpackBy = null; }
   // zdolności medicine mana: R deszcz, B burza; B nie koliduje, bo fabrykę (B) stawiają tylko Osadnicy, a medicine man jest jednostką Sioux
   if (!e.ctrlKey && !e.altKey && !e.repeat && (k === 'R' || k === 'B')) {
     const m = S.selected.units.find(u => u.fac === 'player' && u.type === 'medicine');
@@ -2253,6 +2315,7 @@ const CMD_ICONS = {
   rain: '<path d="M14 28a8 8 0 0 1 2-15 10 10 0 0 1 19 4 6 6 0 0 1-1 11zM16 34l-2 6M24 34l-2 6M32 34l-2 6"/>',
   storm: '<path d="M14 26a8 8 0 0 1 2-14 10 10 0 0 1 19 4 6 6 0 0 1-1 10zM26 26l-6 8h6l-4 9"/>',
   resume: '<path d="M10 38L28 20M24 10l14 14-6 4-12-12z"/>',
+  pack: '<path d="M8 40L24 8l16 32zM24 8v32M15 40l9-16 9 16"/>',
   tech: '<path d="M12 10h24v26a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4zM18 18h12M18 24h12M18 30h8"/>',
   farm: '<path d="M6 36h36M10 36c0-10 4-16 14-22 10 6 14 12 14 22M24 14v22"/>',
 };
@@ -2283,7 +2346,7 @@ function cmdBtn(o) {
 // na dotyku skróty klawiszowe w etykietach ([P], [X]) tylko zabierają miejsce
 function setLbl(b, html) { if (document.documentElement.classList.contains('compact')) html = html.replace(/\s*\[[A-Za-z0-9]\]/g, ''); const l = b.querySelector('.lbl'); if (l && l.innerHTML !== html) l.innerHTML = html; }
 
-const UNIT_NAMES = { worker: 'Robotnik', frontiersman: 'Frontiersman', frontierswoman: 'Frontierswoman', szeryf: 'Szeryf', armata: 'Armata', piechota: 'Piechota', jezdiec: 'Jeździec', squaw: 'Squaw', wojownik: 'Wojownik', wodz: 'Wódz', lucznik: 'Łucznik', medicine: 'Medicine man', desperado: 'Desperado', bandleader: 'Bandleader', konnobanda: 'Konna banda', horse: 'Dziki koń', bizon: 'Bizon', bydlo: 'Bydło' };
+const UNIT_NAMES = { worker: 'Robotnik', frontiersman: 'Frontiersman', frontierswoman: 'Frontierswoman', szeryf: 'Szeryf', armata: 'Armata', piechota: 'Piechota', jezdiec: 'Jeździec', squaw: 'Squaw', wojownik: 'Wojownik', wodz: 'Wódz', lucznik: 'Łucznik', medicine: 'Medicine man', desperado: 'Desperado', bandleader: 'Bandleader', konnobanda: 'Konna banda', horse: 'Dziki koń', bizon: 'Bizon', bydlo: 'Bydło', travois: 'Wóz-travois' };
 const buildBtns = [];
 let buildBarRace = null;
 let bpanelBuilding = null, bpanelBuilt = null, bpanelSlotSig = null;
@@ -2352,7 +2415,7 @@ function updatePanels() {
     while (buildbar.firstChild) buildbar.removeChild(buildbar.firstChild);
     for (const m of buildMenuFor(S.playerRace)) {
       const def = CFG.buildings[m.type];
-      const btn = cmdBtn({ icon: bldThumb(m.type, 44), hk: m.key, label: costHtml(def.cost), title: m.name + ' [' + m.key + ']: ' + costText(def.cost) + '. HP ' + def.hp + ', budowa ' + def.build + ' s', onclick: () => { S.placing = m.type; } });
+      const btn = cmdBtn({ icon: bldThumb(m.type, 44), hk: m.key, label: costHtml(def.cost), title: m.name + ' [' + m.key + ']: ' + costText(def.cost) + '. HP ' + def.hp + ', budowa ' + def.build + ' s', onclick: () => { S.placing = m.type; S.unpackBy = null; } });
       buildbar.appendChild(btn);
       buildBtns.push({ btn, type: m.type });
     }
@@ -2384,17 +2447,22 @@ function updatePanels() {
   }
   // pasek zdolności: medicine man gracza (deszcz R, burza B), cooldown na przycisku, odświeżany z updatePanels
   const medics = S.selected.units.filter(u => u.fac === 'player' && u.type === 'medicine');
-  abilitybar.style.display = medics.length ? 'flex' : 'none';
-  if (medics.length) {
-    if (!abilityBtns.length) {
-      for (const ab of ABILITY_MENU) {
-        const btn = cmdBtn({ icon: cmdSvg(ab.id), cls: 'slot', title: ab.name + ' [' + ab.key + ']. ' + ab.desc, onclick: () => { const m = S.selected.units.find(u => u.fac === 'player' && u.type === 'medicine'); if (m) ab.id === 'rain' ? castRain(m) : castStorm(m); } });
-        abilitybar.appendChild(btn);
-        abilityBtns.push({ btn, id: ab.id });
-      }
+  const carts = S.selected.units.filter(u => u.fac === 'player' && u.packed);
+  abilitybar.style.display = medics.length || carts.length ? 'flex' : 'none';
+  if (!abilityBtns.length) {
+    for (const ab of ABILITY_MENU) {
+      const btn = cmdBtn({ icon: cmdSvg(ab.id), cls: 'slot', title: ab.name + ' [' + ab.key + ']. ' + ab.desc, onclick: () => { const m = S.selected.units.find(u => u.fac === 'player' && u.type === 'medicine'); if (m) ab.id === 'rain' ? castRain(m) : castStorm(m); } });
+      abilitybar.appendChild(btn);
+      abilityBtns.push({ btn, id: ab.id });
     }
+    const ub = cmdBtn({ icon: cmdSvg('pack'), label: 'Rozłóż', role: 'unpack', title: 'Rozkłada tepee we wskazanym miejscu (' + CFG.packTime + ' s)', onclick: () => { const c = S.selected.units.find(u => u.fac === 'player' && u.packed); if (c) { S.placing = c.packed.type; S.unpackBy = c; S.attackMove = false; S.rallyMode = false; S.patrolMode = false; } } });
+    abilitybar.appendChild(ub); abilityBtns.push({ btn: ub, id: 'unpack' });
+  }
+  for (const ab of abilityBtns) ab.btn.style.display = (ab.id === 'unpack' ? carts.length : medics.length) ? '' : 'none';
+  if (medics.length) {
     const m = medics[0];
     for (const ab of abilityBtns) {
+      if (ab.id === 'unpack') continue;
       const cd = ab.id === 'rain' ? (m.rainCd || 0) : (m.stormCd || 0);
       setLbl(ab.btn, cd > 0 ? Math.ceil(cd) + 's' : (ab.id === 'rain' ? 'R' : 'B'));
       ab.btn.disabled = cd > 0;
@@ -2417,6 +2485,7 @@ function updatePanels() {
       row.appendChild(cmdBtn({ icon: cmdSvg('rally'), role: 'rally', title: 'Nowe jednostki idą w to miejsce (albo PPM na mapie przy zaznaczonym budynku)', onclick: () => { S.rallyMode = true; S.attackMove = false; S.placing = null; } }));
     }
     if (b.built && (b.type === 'factory' || b.type === 'zagroda')) row.appendChild(cmdBtn({ icon: cmdSvg('toggle'), role: 'toggle', onclick: () => queueCmd({ action: 'toggle', building: b }) }));
+    if (b.built && CFG.buildings[b.type].packable) row.appendChild(cmdBtn({ icon: cmdSvg('pack'), label: 'Spakuj', role: 'pack', title: 'Zwija tepee w wóz-travois (' + CFG.packTime + ' s); ponowne kliknięcie przerywa', onclick: () => queueCmd({ action: 'pack', building: b }) }));
     if (b.type === 'farm') { const st = cmdBtn({ icon: cmdSvg('farm'), role: 'farm' }); st.disabled = true; row.appendChild(st); }
     if (b.built && b.fac === 'player') {
       for (const tid in CFG.techs) {
@@ -2449,6 +2518,8 @@ function updatePanels() {
       sb.title = (UNIT_NAMES[q.type] || q.type) + '. Kliknij, aby anulować' + (q.paid ? ' (zwrot kosztu)' : ' (nic jeszcze nie zapłacono)') + (i === 0 && !q.paid ? '; czeka na surowce lub miejsce' : '');
     });
   }
+  const pkbtn = bpanel.querySelector('[data-role="pack"]');
+  if (pkbtn) { setLbl(pkbtn, b.packing ? 'Pakuję ' + Math.ceil(b.packing.t) + ' s' : 'Spakuj'); pkbtn.classList.toggle('active', !!b.packing); }
   const rbtn = bpanel.querySelector('[data-role="rally"]');
   if (rbtn) { setLbl(rbtn, 'Zbiórka [P]' + (b.rally ? ' ✓' : '')); rbtn.classList.toggle('active', !!b.rally); }
   for (const ut of trainMenuFor(b, S.playerRace)) {
@@ -2542,7 +2613,7 @@ function showHelp() {
       'Morale: rany i straty w pobliżu zbijają morale. Poniżej 30 jednostka panikuje i ucieka, nie przyjmuje rozkazów. Odpoczynek z dala od walki i aura obozu odbudowują odwagę. Niskie morale zwalnia też pracę: zbieranie, budowę i farmę.',
       'Doświadczenie: jednostki zdobywają XP nie tylko w walce, także z czasu pracy (zbieranie, budowa, farma). Awans podnosi trafienie i obrażenia w walce.',
       'Postawy: G Agresywna (goni bez ograniczeń), N Neutralna (atakuje w zasięgu broni, goni do promienia agresji), O Obronna (nie rusza się z miejsca), T Trzymaj (ignoruje prowokacje, walczy tylko z rozkazanymi celami). Rozkaz wydany ręcznie zawsze goni.',
-      'Rozkazy: Shift+PPM dodaje punkty trasy, X stop, Q atak-ruch (kliknij cel), podwójny klik zaznacza wszystkie jednostki tego typu na ekranie, spacja przenosi kamerę na ostatni alert.',
+      'Rozkazy: Shift+PPM dodaje punkty trasy, X stop, Q atak-ruch (kliknij cel), V patrol (kliknij drugi koniec trasy), Spakuj/Rozłóż zwija tepee w wóz-travois i ustawia je gdzie indziej, podwójny klik zaznacza wszystkie jednostki tego typu na ekranie, spacja przenosi kamerę na ostatni alert.',
       'Punkt zbiórki: zaznacz Obóz lub Koszary i naciśnij P (albo kliknij PPM na mapie): nowe jednostki idą tam same, a na surowcu zaczynają pracę. Kolejka: kliknięcie slotu anuluje go ze zwrotem kosztu; brak surowców wstrzymuje slot.',
       'Grupy: Ctrl+1-9 przypisuje zaznaczenie, cyfra wybiera grupę, podwójne wciśnięcie tej samej cyfry centruje na niej kamerę.',
       'Dzikie konie wędrują po mapie. PPM na koniu: jednostka podchodzi i chwyta go przez 5 s. Jeździec w koszarach wymaga żywności, złota, broni i konia; strzela z konia (karabinek, zasięg 4). Zabity jeździec zostawia konia na mapie, każda strona może go schwycić. Konne bandy bandytów atakują wręcz.',
@@ -3293,11 +3364,12 @@ function render() {
     ctx.setLineDash([]);
   }
   // duch budynku
+  if (!S.placing) S.unpackBy = null;   // tryb rozkładania travois kończy się razem z trybem stawiania
   if (S.placing) {
     const [px, py] = screenToTile(mouse.x, mouse.y);
     const tx = Math.floor(px), ty = Math.floor(py);
     const def = CFG.buildings[S.placing];
-    let ok = canAfford(def.cost);
+    let ok = S.unpackBy ? true : canAfford(def.cost);   // rozkładanie travois nic nie kosztuje
     for (let y = ty; y < ty + def.h && ok; y++) for (let x = tx; x < tx + def.w; x++)
       if (!inMap(x, y) || isBlocked(x, y)) { ok = false; break; }
     // cały footprint jako romb izometryczny, wypełniony półprzezroczyście; rogi jak w zaznaczeniu budynku
@@ -3415,6 +3487,7 @@ function drawBuilding(b) {
   ctx.font = '11px Georgia'; ctx.textAlign = 'center';
   ctx.fillText(def.label, sx, sy + b.h * CFG.tileH / 2 - 6);
   if (b.hp < b.maxHp) drawHpBar(sx, sy + b.h * CFG.tileH / 2 + 6, w, b.hp / b.maxHp, b.fac === 'enemy');
+  if (b.packing) drawProgBar(sx, sy + b.h * CFG.tileH / 2 - 30, 40, 1 - b.packing.t / CFG.packTime);
   if (b.queue.length) {
     ctx.fillStyle = '#ffd97a'; ctx.font = '11px Georgia';
     ctx.fillText('⏳' + Math.ceil(b.queue[0].remaining) + 's', sx, sy + b.h * CFG.tileH / 2 - 18);
@@ -3458,6 +3531,7 @@ function drawUnit(u) {
     ctx.fillRect(sx + 6, sy - 14, 6, 6);
   }
   if (u.hp < u.maxHp) drawHpBar(sx, topY - 2, 18, u.hp / u.maxHp, u.fac === 'enemy');
+  if (u.state === 'unpacking') drawProgBar(sx, topY - 10, 30, 1 - u.unpackT / CFG.packTime);
   if (u.state === 'flee') {
     ctx.fillStyle = '#ff4a4a'; ctx.font = 'bold 13px Georgia'; ctx.textAlign = 'center';
     ctx.fillText('!', sx, topY - 6);
@@ -3478,6 +3552,11 @@ function drawUnit(u) {
       ctx.fillText('✦' + u.lvl, sx + 12, topY - 5);
     }
   }
+}
+// pasek postępu czynności (pakowanie i rozkładanie tepee): złoty na ciemnym tle
+function drawProgBar(cx, y, w, frac) {
+  ctx.fillStyle = '#000'; ctx.fillRect(cx - w / 2, y, w, 5);
+  ctx.fillStyle = '#ffd97a'; ctx.fillRect(cx - w / 2 + 1, y + 1, (w - 2) * Math.max(0, Math.min(1, frac)), 3);
 }
 function drawHpBar(sx, sy, w, frac, enemy) {
   ctx.fillStyle = '#000'; ctx.fillRect(sx - w / 2 - 1, sy - 1, w + 2, 5);
@@ -3546,7 +3625,9 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) prev
 applyUiScale(); initGroupRow(); resize();
 document.getElementById('hudtoggle').onclick = () => { const on = document.documentElement.classList.toggle('hudmin'); document.getElementById('hudtoggle').textContent = on ? '▴' : '▾'; };
 const cancelBtn = document.getElementById('cancelbtn');
-cancelBtn.onclick = () => { S.placing = null; S.attackMove = false; S.rallyMode = false; S.patrolMode = false; };
+// pointerdown zamiast samego click: po przeciągnięciu palcem przeglądarka potrafi na chwilę zgubić dotknięcie jako click, a Anuluj musi działać zawsze
+const cancelAim = () => { S.placing = null; S.attackMove = false; S.rallyMode = false; S.patrolMode = false; };
+cancelBtn.onclick = cancelAim; cancelBtn.addEventListener('pointerdown', cancelAim);
 overlay.style.display = 'flex'; overlay.innerHTML = '<div class="box"><h2>Ładowanie…</h2></div>';
 loadAssets().then(ok => {
   if (!ok) { overlay.innerHTML = '<div class="box"><h2>Brak zasobów graficznych</h2><p>Nie załadowano katalogu <code>assets/</code> (obok index.html). Uruchom grę z całego repozytorium.</p></div>'; return; }

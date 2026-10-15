@@ -6,5 +6,6 @@ const lap = L.timer();
 if (only.includes('nature')) { const N = require('./build_nature'); N.terrain(lap); N.trees(lap); N.props(lap); N.resources(lap); N.cliffs(lap); }
 if (only.includes('buildings')) require('./build_buildings').all(lap);
 if (only.includes('units')) require('./build_units').all(lap);
+if (only.includes('extras')) require('./build_units').extras(lap);   // tylko wozy (travois, wóz kryty), bez przeliczania reszty jednostek
 const all = L.writeManifest();
 console.log('manifest:', Object.keys(all).length, 'wpisów');

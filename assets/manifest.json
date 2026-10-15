@@ -1166,5 +1166,34 @@
   "file": "assets/props/cliff_face_grass.png",
   "w": 256,
   "h": 256
+ },
+ "travois": {
+  "bb": [
+   49,
+   2,
+   165,
+   106
+  ],
+  "shadow": "assets/units/travois_shadow.png",
+  "fw": 167,
+  "fh": 123,
+  "cols": 1,
+  "rows": 8,
+  "pad": 1,
+  "ax": 107,
+  "ay": 80,
+  "dirs": [
+   0,
+   45,
+   90,
+   135,
+   180,
+   225,
+   270,
+   315
+  ],
+  "phases": 1,
+  "file_p": "assets/units/travois_p.png",
+  "file_e": "assets/units/travois_e.png"
  }
 }

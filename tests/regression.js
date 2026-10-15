@@ -670,6 +670,51 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     });
     eq(r, [true, false, false, 'idle'], 'patrol: ustawiony, zdjęty ruchem, zdjęty stopem');
   });
+  console.log('Faza 12.2: tepee w wóz-travois');
+  await test('F12.2: tepee pakuje się w travois z tym samym HP (pop cap spada, populacja bez travois), rozkłada gdzie indziej z zachowanym HP; kafle zwalniają się i zajmują', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh('sioux');
+      const b = addBuilding('tepee', 20, 20, 'player'); b.built = true; b.hp = 60;
+      addUnit('squaw', 'player', 24.5, 24.5);
+      const out = { cap0: popCap(), used0: popUsed() };
+      queueCmd({ action: 'pack', building: b }); T.run(1);
+      out.packing = !!b.packing; out.capDuring = popCap();
+      T.run(5);
+      const t = S.units.find(u => u.type === 'travois');
+      out.gone = !S.buildings.includes(b); out.tile = isBlocked(20, 20); out.t = t && [t.hp, t.packed.type, t.packed.hp]; out.cap1 = popCap(); out.used1 = popUsed();
+      queueCmd({ action: 'unpack', unit: t, x: 27, y: 20 }); T.run(30);
+      const nb = S.buildings.find(x => x.type === 'tepee');
+      out.after = nb && [nb.tx, nb.ty, nb.built, nb.hp, nb.maxHp]; out.travoisLeft = S.units.filter(u => u.type === 'travois').length; out.cap2 = popCap();
+      return out;
+    });
+    eq([r.cap0, r.used0], [15, 1], 'start'); ok(r.packing && r.capDuring === 15, 'w trakcie pakowania budynek jeszcze stoi');
+    ok(r.gone && !r.tile, 'budynek znika, kafle wolne'); eq(r.t, [60, 'tepee', 60], 'travois niesie HP tepee'); eq([r.cap1, r.used1], [10, 1], 'spakowane nie daje limitu, travois nie zajmuje populacji');
+    eq(r.after, [27, 20, true, 60, 120], 'rozłożone w nowym miejscu z zachowanym HP'); eq([r.travoisLeft, r.cap2], [0, 15], 'travois znika, limit wraca');
+  });
+  await test('F12.2: pakowanie można przerwać, nie wolno rozłożyć na zajętym polu, a rozkaz ruchu zrywa rozkładanie; zapis w czasie jazdy działa', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh('sioux');
+      const b = addBuilding('tepee', 20, 20, 'player'); b.built = true;
+      queueCmd({ action: 'pack', building: b }); T.run(2); queueCmd({ action: 'pack', building: b }); T.run(6);
+      const out = { cancelled: S.buildings.includes(b) && !b.packing };
+      queueCmd({ action: 'pack', building: b }); T.run(6);
+      const t = S.units.find(u => u.type === 'travois');
+      S.terrain[idx(27, 20)] = T_FOREST; S.amt[idx(27, 20)] = 50;
+      queueCmd({ action: 'unpack', unit: t, x: 27, y: 20 }); T.run(0.2); out.blocked = t.state;
+      queueCmd({ action: 'unpack', unit: t, x: 25, y: 20 }); T.run(4);
+      const copy = JSON.parse(JSON.stringify(serializeGame()));
+      restoreGame(copy);
+      const t2 = S.units.find(u => u.type === 'travois'); out.saved = [t2.state, t2.packed.type, t2.unpackAt];
+      T.run(25); out.built = !!S.buildings.find(x => x.type === 'tepee' && x.tx === 25);
+      queueCmd({ action: 'pack', building: S.buildings.find(x => x.type === 'tepee') }); T.run(6);
+      const t3 = S.units.find(u => u.type === 'travois');
+      queueCmd({ action: 'unpack', unit: t3, x: 24, y: 24 }); T.run(1); queueCmd({ action: 'order', units: [t3], x: 22, y: 22, targetUnit: null, targetHorse: null }); T.run(0.2);
+      out.interrupted = [t3.state, t3.unpackAt]; T.run(20); out.noBuild = !S.buildings.some(x => x.type === 'tepee');
+      return out;
+    });
+    ok(r.cancelled, 'ponowne polecenie przerywa pakowanie'); eq(r.blocked, 'idle', 'rozkład na lesie odrzucony'); eq([r.saved[0], r.saved[1]], ['toUnpack', 'tepee'], 'zapis w czasie jazdy'); ok(r.built, 'po wczytaniu travois dojeżdża i rozkłada');
+    eq(r.interrupted, ['move', null], 'rozkaz ruchu zrywa rozkładanie'); ok(r.noBuild, 'nic nie rozłożone po przerwaniu');
+  });
   console.log('Faza 11: dotyk i małe ekrany');
   {
     const gameUrl = 'file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html'));
@@ -752,7 +797,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       const [hx, hy] = [spot[2], spot[3]];
       await tp(pg, 'touchStart', [[hx - 60, hy]]); await tp(pg, 'touchMove', [[hx, hy]]); await tp(pg, 'touchEnd', []); await pg.waitForTimeout(250);
       const placed = await pg.evaluate(() => [S.buildings.filter(b => b.type === 'house' && b.fac === 'player').length, S.placing]);
-      await pg.evaluate(() => { S.placing = 'house'; }); await pg.waitForFunction(() => getComputedStyle(document.getElementById('cancelbtn')).display === 'block'); await pg.tap('#cancelbtn'); await pg.waitForTimeout(100);
+      await pg.evaluate(() => { S.placing = 'house'; }); await pg.waitForFunction(() => getComputedStyle(document.getElementById('cancelbtn')).display === 'block'); await pg.tap('#cancelbtn'); await pg.waitForFunction(() => S.placing === null, null, { timeout: 2000 }).catch(() => {});
       const afterCancel = await pg.evaluate(() => S.placing);
       await pg.ctxn.close();
       eq(cancelShown, 'block', 'przycisk Anuluj widoczny'); eq(placed, [1, null], 'dom postawiony po puszczeniu'); eq(afterCancel, null, 'Anuluj zdejmuje tryb');
