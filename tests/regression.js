@@ -591,11 +591,11 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     });
     eq([r.id, r.size, r.biome, r.chunks, r.same], ['plateau', 56, 'arid', true, true], 'odczyt mapy');
   });
-  await test('F10: wszystkie motywy i mapy rysują się bez błędów, klify mają sprite\'y dla każdego motywu', async () => {
+  await test('F10: wszystkie motywy i mapy rysują się bez błędów, klify mają teksturę ściany i wierzchu dla każdego motywu', async () => {
     const p2 = await browser.newPage({ viewport: { width: 1280, height: 720 } }), errs = []; p2.on('pageerror', e => errs.push(String(e).slice(0, 200)));
     await p2.goto('file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html'))); await p2.waitForFunction(() => window.GAME_READY, null, { timeout: 20000 });
     const r = await p2.evaluate(() => {
-      const miss = []; for (const b in BIOMES) for (let v = 0; v < 4; v++) if (!window.ASSETS['cliff_' + BIOMES[b].cliff + '_' + v]) miss.push(b + v);
+      const miss = []; for (const b in BIOMES) for (const k of ['cliff_face_', 'ground_cliff_']) if (!window.ASSETS[k + BIOMES[b].cliff]) miss.push(b + k);
       let n = 0;
       for (const m of MAP_LIST()) for (const b of ['arid', 'prairie', 'grass', 'auto']) { newGame(2, 'sioux', { map: m.id, biome: b }); S.menuOpen = false; S.explored.fill(1); S.visible.fill(1); for (let i = 0; i < 30; i++) update(1 / 60); render(); n++; }
       return { miss, n, auto: (newGame(2, 'sioux', { map: 'prairie', biome: 'auto' }), S.biome) };

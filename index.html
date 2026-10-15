@@ -312,6 +312,26 @@ function genLayoutMap(def) {
     }
   }
 }
+function smoothNoise(u, v, seed) {
+  const x0 = Math.floor(u), y0 = Math.floor(v), fx = u - x0, fy = v - y0, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  const a = sprNoise(x0, y0, seed), b = sprNoise(x0 + 1, y0, seed), c = sprNoise(x0, y0 + 1, seed), d = sprNoise(x0 + 1, y0 + 1, seed);
+  return (a + (b - a) * sx) * (1 - sy) + (c + (d - c) * sx) * sy;
+}
+// klify jako bryły (10.7): poziom wysokości kafla z odległości od krawędzi masy (BFS po klifach) i szumu; brzegi niskie, środek wysoki, więc grube mury tworzą tarasy
+const CLIFF_H = [0, 26, 46, 66];   // wysokości poziomów w px świata
+function computeCliffLevels() {
+  const n = MAP * MAP, lv = S.cliffH = new Uint8Array(n), dist = new Int16Array(n).fill(-1), q = [];
+  for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
+    if (S.terrain[idx(x, y)] !== T_CLIFF) continue;
+    if (N4.some(([dx, dy]) => inMap(x + dx, y + dy) && S.terrain[idx(x + dx, y + dy)] !== T_CLIFF)) { dist[idx(x, y)] = 1; q.push(idx(x, y)); }
+  }
+  for (let h = 0; h < q.length; h++) { const c = q[h], cx = c % MAP, cy = (c - cx) / MAP; for (const [dx, dy] of N4) { const nx = cx + dx, ny = cy + dy; if (inMap(nx, ny) && S.terrain[idx(nx, ny)] === T_CLIFF && dist[idx(nx, ny)] < 0) { dist[idx(nx, ny)] = dist[c] + 1; q.push(idx(nx, ny)); } } }
+  for (let i = 0; i < n; i++) {
+    if (S.terrain[i] !== T_CLIFF) continue;
+    const x = i % MAP, y = (i - x) / MAP, d = dist[i] < 0 ? 9 : dist[i], r = smoothNoise(x / 4, y / 4, 41);   // niska częstotliwość: duże, spójne tarasy
+    lv[i] = d >= 3 ? 3 : d === 2 ? (r < 0.4 ? 3 : 2) : (r < 0.5 ? 2 : 1);
+  }
+}
 function newGame(seed, race, opts) {
   opts = opts || {};
   const sk = SETTINGS.skirmish;
@@ -353,6 +373,7 @@ function newGame(seed, race, opts) {
   S.ai = newAIState();
 
   if (def.rows) genLayoutMap(def); else genMap();
+  computeCliffLevels();
   S.biome = resolveBiome();
   buildGround();
   const hq = addBuilding('hq', def.p[0], def.p[1], 'player');
@@ -2591,7 +2612,7 @@ function restoreGame(d) {
   S.time = d.time; S.nextId = d.nextId; S.res = d.res; S.resE = d.resE; S.techs = d.techs; S.ai = d.ai; S.rainT = d.rainT || {}; S.storms = d.storms || [];
   S.moraleT = d.moraleT || 0; S.woodAlertT = d.woodAlertT || 0;
   S.terrain = fromB64(d.terrain, Uint8Array); S.amt = fromB64(d.amt, Float32Array); S.explored = fromB64(d.explored, Uint8Array);
-  S.visible = new Uint8Array(MAP * MAP);
+  S.visible = new Uint8Array(MAP * MAP); computeCliffLevels();
   S.units = d.units; S.buildings = d.buildings;
   const byId = new Map(); for (const e of [...S.units, ...S.buildings]) byId.set(e.id, e);
   for (const e of byId.values()) for (const k in e) { const v = e[k]; if (v && typeof v === 'object' && !Array.isArray(v) && '__r' in v) e[k] = byId.get(v.__r) || null; }
@@ -2972,7 +2993,7 @@ function render() {
     if (t === T_WATER) {
       drawShoreReeds(x, y, sx, sy + CFG.tileH / 2);
     } else if (t === T_CLIFF) {
-      items.push({ d: x + y + 0.02, kind: 'cliff', sx, sy: sy + CFG.tileH / 2, v: Math.floor(sprNoise(x, y, 31) * 4) });
+      items.push({ d: x + y + 0.02, kind: 'cliff', x, y, sx, sy });
     } else if (t === T_GOLD) {
       drawDirt(x, y, sx, sy);
       items.push({ d: x + y, kind: 'gold', sx, sy: sy + CFG.tileH / 2 });
@@ -3026,7 +3047,7 @@ function render() {
   items.sort((a, b) => a.d - b.d);
   for (const it of items) {
     if (it.kind === 'tree') drawTree(it.sx, it.sy, it.v || 0);
-    else if (it.kind === 'cliff') drawStatic('cliff_' + biomeDef().cliff + '_' + it.v, it.sx, it.sy);
+    else if (it.kind === 'cliff') drawCliff(it.x, it.y, it.sx, it.sy);
     else if (it.kind === 'gold') drawStatic('gold_vein' + (sprNoise(Math.round(it.sx), Math.round(it.sy), 3) < 0.5 ? 0 : 1), it.sx, it.sy);
     else if (it.kind === 'meat') drawCarcass(it.sx, it.sy);
     else if (it.kind === 'storm') drawStorm(it.o, it.sx, it.sy);
@@ -3175,6 +3196,34 @@ function render() {
     ctx.fillText(S.attackMove ? 'Atak-ruch: kliknij cel (PPM lub Esc anuluje)' : 'Punkt zbiórki: kliknij miejsce (PPM lub Esc anuluje)', canvasW / 2, 92);
   }
   renderMinimap();
+}
+// klif: wierzch z atlasu (ciągła, spękana powierzchnia mesy) podniesiony o wysokość kafla, ściany zwrócone do widza (sąsiedzi +x i +y) jako ścięta tekstura z poziomymi półkami,
+// przyciemnienie ścian w lewo-dół i u podstawy, jasna krawędź wierzchu, odłamki przy stopie. (sx, sy) = górny wierzchołek kafla na ziemi.
+function drawCliff(x, y, sx, sy) {
+  const A = window.ASSETS, bio = biomeDef().cliff, face = A['cliff_face_' + bio], lv = S.cliffH[idx(x, y)], H = CLIFF_H[lv];
+  if (!face || !A['ground_cliff_' + bio]) return;
+  if (!face._dark) {   // ciemniejszy wariant ściany (zwrócona w lewo-dół) i pasek cienia u stopy: tworzone raz, bez odczytu pikseli
+    const d = document.createElement('canvas'); d.width = d.height = 256; const g = d.getContext('2d'); g.drawImage(face._img, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(20,10,4,0.4)'; g.fillRect(0, 0, 256, 256); face._dark = d;
+    const f = document.createElement('canvas'); f.width = 4; f.height = 18; const h = f.getContext('2d'), gr = h.createLinearGradient(0, 0, 0, 18); gr.addColorStop(0, 'rgba(10,5,2,0.4)'); gr.addColorStop(1, 'rgba(10,5,2,0)'); h.fillStyle = gr; h.fillRect(0, 0, 4, 18); face._foot = f;
+  }
+  const cx = sx, cy = sy + CFG.tileH / 2;
+  ctx.imageSmoothingEnabled = true;
+  drawGroundTile(ctx, 'cliff_' + bio, x, y, cx, cy - H);
+  const levelAt = (nx, ny) => inMap(nx, ny) ? (S.terrain[idx(nx, ny)] === T_CLIFF ? CLIFF_H[S.cliffH[idx(nx, ny)]] : 0) : H;   // poza mapą: bez ściany
+  const R0 = sx + CFG.tileW / 2, R1 = sy + CFG.tileH / 2, B0 = sx, B1 = sy + CFG.tileH, L0 = sx - CFG.tileW / 2, L1 = sy + CFG.tileH / 2;
+  for (let k = 0; k < 2; k++) {
+    const p0x = k ? B0 : R0, p0y = k ? B1 : R1, p1x = k ? L0 : B0, p1y = k ? L1 : B1, hn = k ? levelAt(x, y + 1) : levelAt(x + 1, y), fh = H - hn;
+    if (fh <= 0) continue;
+    const Wl = 36, ex = p1x - p0x, ey = p1y - p0y, sw = 72, sh = Math.min(256, fh * 2), srcX = Math.floor(sprNoise(x, y, 51 + k) * (256 - sw)), srcY = Math.floor(sprNoise(x, y, 61 + k) * (256 - sh));
+    ctx.save();
+    ctx.transform(ex / Wl, ey / Wl, 0, 1, p0x, p0y - H);
+    ctx.drawImage(k ? face._dark : face._img, srcX, srcY, sw, sh, 0, 0, Wl, fh);
+    if (hn === 0) ctx.drawImage(face._foot, 0, 0, 4, 18, 0, fh, Wl, 9);   // cień u stopy na gruncie
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,238,200,0.5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p0x, p0y - H); ctx.lineTo(p1x, p1y - H); ctx.stroke();   // jasna krawędź wierzchu
+    if (hn === 0 && sprNoise(x, y, 81 + k) < 0.42) drawStatic('prop_rock' + (sprNoise(x, y, 91 + k) < 0.5 ? 0 : 1), (p0x + p1x) / 2 + (sprNoise(x, y, 92 + k) - 0.5) * 14, (p0y + p1y) / 2 + 7);
+  }
+  if (sprNoise(x, y, 101) < 0.05) drawStatic('prop_rock' + Math.floor(sprNoise(x, y, 102) * 3), cx + (sprNoise(x, y, 103) - 0.5) * 20, cy - H + (sprNoise(x, y, 104) - 0.5) * 8);
 }
 function drawTree(sx, sy, v) {
   drawStatic(['tree_oak0', 'tree_pine', 'tree_dead', 'tree_oak1'][v || 0], sx, sy);

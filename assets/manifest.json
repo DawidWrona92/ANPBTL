@@ -1120,174 +1120,6 @@
   "rows": 6,
   "period": 6
  },
- "cliff_arid_0": {
-  "file": "assets/props/cliff_arid_0.png",
-  "shadow": "assets/props/cliff_arid_0_shadow.png",
-  "w": 227,
-  "h": 168,
-  "ax": 144,
-  "ay": 114,
-  "bb": [
-   78,
-   3,
-   210,
-   147
-  ]
- },
- "cliff_arid_1": {
-  "file": "assets/props/cliff_arid_1.png",
-  "shadow": "assets/props/cliff_arid_1_shadow.png",
-  "w": 238,
-  "h": 183,
-  "ax": 155,
-  "ay": 126,
-  "bb": [
-   89,
-   3,
-   221,
-   159
-  ]
- },
- "cliff_arid_2": {
-  "file": "assets/props/cliff_arid_2.png",
-  "shadow": "assets/props/cliff_arid_2_shadow.png",
-  "w": 250,
-  "h": 198,
-  "ax": 167,
-  "ay": 138,
-  "bb": [
-   101,
-   3,
-   233,
-   171
-  ]
- },
- "cliff_arid_3": {
-  "file": "assets/props/cliff_arid_3.png",
-  "shadow": "assets/props/cliff_arid_3_shadow.png",
-  "w": 263,
-  "h": 212,
-  "ax": 178,
-  "ay": 149,
-  "bb": [
-   112,
-   3,
-   244,
-   182
-  ]
- },
- "cliff_prairie_0": {
-  "file": "assets/props/cliff_prairie_0.png",
-  "shadow": "assets/props/cliff_prairie_0_shadow.png",
-  "w": 222,
-  "h": 168,
-  "ax": 144,
-  "ay": 114,
-  "bb": [
-   78,
-   3,
-   210,
-   147
-  ]
- },
- "cliff_prairie_1": {
-  "file": "assets/props/cliff_prairie_1.png",
-  "shadow": "assets/props/cliff_prairie_1_shadow.png",
-  "w": 235,
-  "h": 183,
-  "ax": 155,
-  "ay": 126,
-  "bb": [
-   89,
-   3,
-   221,
-   159
-  ]
- },
- "cliff_prairie_2": {
-  "file": "assets/props/cliff_prairie_2.png",
-  "shadow": "assets/props/cliff_prairie_2_shadow.png",
-  "w": 248,
-  "h": 198,
-  "ax": 167,
-  "ay": 138,
-  "bb": [
-   101,
-   3,
-   233,
-   171
-  ]
- },
- "cliff_prairie_3": {
-  "file": "assets/props/cliff_prairie_3.png",
-  "shadow": "assets/props/cliff_prairie_3_shadow.png",
-  "w": 261,
-  "h": 212,
-  "ax": 178,
-  "ay": 149,
-  "bb": [
-   112,
-   3,
-   244,
-   182
-  ]
- },
- "cliff_grass_0": {
-  "file": "assets/props/cliff_grass_0.png",
-  "shadow": "assets/props/cliff_grass_0_shadow.png",
-  "w": 226,
-  "h": 168,
-  "ax": 144,
-  "ay": 114,
-  "bb": [
-   78,
-   3,
-   210,
-   147
-  ]
- },
- "cliff_grass_1": {
-  "file": "assets/props/cliff_grass_1.png",
-  "shadow": "assets/props/cliff_grass_1_shadow.png",
-  "w": 237,
-  "h": 183,
-  "ax": 155,
-  "ay": 126,
-  "bb": [
-   89,
-   3,
-   221,
-   159
-  ]
- },
- "cliff_grass_2": {
-  "file": "assets/props/cliff_grass_2.png",
-  "shadow": "assets/props/cliff_grass_2_shadow.png",
-  "w": 249,
-  "h": 198,
-  "ax": 167,
-  "ay": 138,
-  "bb": [
-   101,
-   3,
-   233,
-   171
-  ]
- },
- "cliff_grass_3": {
-  "file": "assets/props/cliff_grass_3.png",
-  "shadow": "assets/props/cliff_grass_3_shadow.png",
-  "w": 262,
-  "h": 212,
-  "ax": 178,
-  "ay": 149,
-  "bb": [
-   112,
-   3,
-   244,
-   182
-  ]
- },
  "ground_meadow": {
   "file": "assets/terrain/ground_meadow.png",
   "tw": 128,
@@ -1295,5 +1127,44 @@
   "cols": 6,
   "rows": 6,
   "period": 6
+ },
+ "ground_cliff_arid": {
+  "file": "assets/terrain/ground_cliff_arid.png",
+  "tw": 128,
+  "th": 64,
+  "cols": 6,
+  "rows": 6,
+  "period": 6
+ },
+ "ground_cliff_prairie": {
+  "file": "assets/terrain/ground_cliff_prairie.png",
+  "tw": 128,
+  "th": 64,
+  "cols": 6,
+  "rows": 6,
+  "period": 6
+ },
+ "ground_cliff_grass": {
+  "file": "assets/terrain/ground_cliff_grass.png",
+  "tw": 128,
+  "th": 64,
+  "cols": 6,
+  "rows": 6,
+  "period": 6
+ },
+ "cliff_face_arid": {
+  "file": "assets/props/cliff_face_arid.png",
+  "w": 256,
+  "h": 256
+ },
+ "cliff_face_prairie": {
+  "file": "assets/props/cliff_face_prairie.png",
+  "w": 256,
+  "h": 256
+ },
+ "cliff_face_grass": {
+  "file": "assets/props/cliff_face_grass.png",
+  "w": 256,
+  "h": 256
  }
 }

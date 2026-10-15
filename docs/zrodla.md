@@ -87,3 +87,5 @@ Wyniki mojego własnego wyszukiwania (potwierdzają tytuły rozdziałów, cztery
 - W oryginale była **nieprzekraczalna elewacja terenu** (klify, kaniony) służąca do **tunelowania**, czyli kształtowania korytarzy i przełęczy na mapie. W prototypie to typ `T_CLIFF`: nieprzekraczalny dla każdej jednostki (także pływających), bez zabudowy i zasobów.
 - `[P]` Wzrok przez klif przechodzi (w oryginale elewacja mogła zasłaniać widok, do potwierdzenia).
 - Motywy terenu w oryginale (pamięć gracza): **arid** (oryginalny wygląd, ochrowa wypalona ziemia), preria i trawiasta; prototyp ma trzy motywy i opcję „auto” (Sioux: trawiasta, pozostali: preria).
+
+- **Wygląd klifów w oryginale (zrzut od właściciela, 2026-10-15):** jedna ciągła płaska mesa z jasnym, spękanym, piaskowym wierzchem; ściany nierówne, ciemniejsze (brązowo-rdzawe), z pionowymi żłobieniami od erozji i poziomymi półkami, o różnych wysokościach tworzących tarasy; kontur schodkowy, u podstawy odłamki skalne. Prototyp (10.7): wierzch to okresowy atlas rysowany ciągłą powierzchnią, ściany to ścięta tekstura (żłobienia, półki), wysokość kafla z odległości od krawędzi masy i niskoczęstotliwościowego szumu `[P]`.

@@ -8,8 +8,8 @@ const TS = 0.7;      // drzewa mniejsze niż model: oryginał ma korony ok. 1,5 
 const PERIOD = 6;   // okres tekstury gruntu w kaflach: 6x6 różnych kafli daje ciągłą powierzchnię bez szwów
 
 function terrain(lap) {
-  for (const [name, tex] of [['ochre', L.TX.ochre], ['olive', L.TX.olive], ['dirt', L.TX.dirt], ['grass', L.TX.grass], ['sand', L.TX.sand], ['meadow', L.TX.meadow], ['gravel', L.TX.gravel], ['water', L.TX.water]]) {
-    const gain = rt.groundGain(new rt.Camera({ tilePx: TILE, halfExtent: 3.6 }), { groundTexture: tex });
+  for (const [name, tex] of [['ochre', L.TX.ochre], ['olive', L.TX.olive], ['dirt', L.TX.dirt], ['grass', L.TX.grass], ['sand', L.TX.sand], ['meadow', L.TX.meadow], ['gravel', L.TX.gravel], ['water', L.TX.water], ['cliff_arid', L.TX.cliffTopArid], ['cliff_prairie', L.TX.cliffTopPrairie], ['cliff_grass', L.TX.cliffTopGrass]]) {
+    const gain = name.startsWith('cliff_') ? [1.14, 1.12, 1.1] : rt.groundGain(new rt.Camera({ tilePx: TILE, halfExtent: 3.6 }), { groundTexture: tex });   // wierzchy klifów: bez korekty barwy gruntu, żeby zostały kremowe
     const atlas = rt.makeImage(PERIOD * TILE, PERIOD * TILE / 2, 4), W = atlas.width;
     for (let j = 0; j < PERIOD; j++) for (let i = 0; i < PERIOD; i++) {
       const img = pt.groundTile(tex, i, j, { tilePx: TILE, tileWorld: PERIOD });
@@ -73,19 +73,14 @@ function reeds() {
     saveStatic(key, rt.renderSprite(m, cam(1.2, [0, 0, 0.5], 0.7), { groundTexture: TX.dirt }), 'props');
   }
 }
-// klify (faza 10): blok 1x1 kafla z warstwową ścianą, jasnym wierzchem i luźnymi odłamkami; cztery wysokości na motyw terenu. Sąsiednie bloki tworzą mur.
+// klify (faza 10.7): ściany jako obrazy 256x256 (gra ścina je na krawędzie kafli); wierzchy to atlasy okresowe 'ground_cliff_<motyw>' z terrain()
 function cliffs(lap) {
-  for (const [biome, texKey] of [['arid', 'cliffArid'], ['prairie', 'cliffPrairie'], ['grass', 'cliffGrass']]) {
-    [0.95, 1.1, 1.25, 1.4].forEach((h, v) => {
-      const m = model(null), r = rt.makeRng(500 + v * 7 + biome.length);
-      m.material('cliff', { texture: TX[texKey], worldSize: 1.4 }); m.material('cliffTop', { texture: TX[texKey], worldSize: 0.9 });
-      m.box('cliff', [0, 0, h / 2], [1.02, 1.02, h]);
-      m.box('cliffTop', [0, 0, h + 0.03], [0.98, 0.98, 0.07]);
-      for (let i = 0; i < v; i++) m.blob("cliffTop", [r.uniform(-0.3, 0.3), r.uniform(-0.3, 0.3), h + 0.08], [r.uniform(0.12, 0.22), r.uniform(0.12, 0.22), r.uniform(0.07, 0.14)], { seed: 40 + i + v, roughness: 0.5, subdivisions: 1 });
-      saveStatic('cliff_' + biome + '_' + v, rt.renderSprite(m, cam(2.2, [0, 0, 0.7], 1), { groundTexture: TX.ochre }), 'props');
-    });
+  for (const [biome, key] of [['arid', 'cliffFaceArid'], ['prairie', 'cliffFacePrairie'], ['grass', 'cliffFaceGrass']]) {
+    const tex = L.TX[key], img = rt.makeImage(256, 256, 4);
+    for (let i = 0; i < 256 * 256; i++) { for (let c = 0; c < 3; c++) img.data[i * 4 + c] = Math.round(clamp(tex.data[i * 3 + c]) * 255); img.data[i * 4 + 3] = 255; }
+    L.entries['cliff_face_' + biome] = { file: L.writePng('props/cliff_face_' + biome + '.png', img), w: 256, h: 256 };
   }
-  lap('klify');
+  lap('ściany klifów');
 }
 function resources(lap) {
   for (const [key, seed] of [['gold_vein0', 3], ['gold_vein1', 11]]) {
