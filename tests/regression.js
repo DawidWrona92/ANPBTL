@@ -49,7 +49,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   console.log('Start');
   await test('gra startuje bez błędów, menu ma przyciski frakcji, trudności i testów', async () => {
     eq(pageErrors, [], 'błędy strony');
-    eq(await page.$$eval('#overlay button', b => b.map(x => x.textContent)), ['Nowa gra', 'Ustawienia', 'Pomoc i sterowanie'], 'przyciski menu głównego');
+    eq(await page.$$eval('#overlay button', b => b.map(x => x.textContent)), ['Nowa gra', 'Kampanie', 'Ustawienia', 'Pomoc i sterowanie'], 'przyciski menu głównego');
     await page.click('text=Nowa gra');
     eq(await page.$$eval('#overlay .circ', c => c.map(x => x.className.includes('off') ? 'off' : 'on')), ['on', 'on', 'off', 'off'], 'koła ludów: Osadnicy i Sioux grywalni, reszta wkrótce');
     eq(await page.$$eval('#overlay button', b => b.map(x => x.textContent)), ['Wstecz', 'Trudność: Normalny', 'Osadnicy', 'Sioux', 'Wczytaj'], 'przyciski ekranu wyboru ludu');
@@ -917,6 +917,29 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       return { h1, h2, far: far.hp };
     });
     ok(r.h1 > 8 && r.h1 < 12, 'leczenie ok. 2 HP/s: ' + r.h1); ok(r.h2 > r.h1 * 1.4, 'Energia leczenia: ' + r.h2); ok(r.far < 12 || r.far >= 10, 'daleka jednostka');
+  });
+  console.log('Faza 14: kampanie');
+  await test('F14: menu Kampanie wymienia 4 misje; każda startuje bez błędów, ma cele i działa 30 s', async () => {
+    const r = await page.evaluate(() => {
+      const out = {};
+      for (const id of ['usa1', 'usa2', 'sx1', 'sx2']) { newMission(id, 3); T.run(30); updateTopbar(); out[id] = [S.mission.stage, S.units.filter(u => u.fac === 'player').length > 0, !S.gameOver, document.getElementById('objpanel').innerText.length > 20]; }
+      return out;
+    });
+    for (const id in r) eq(r[id], [0, true, true, true], 'misja ' + id);
+    await page.evaluate(() => { showMenu(); }); await page.click('text=Kampanie');
+    eq(await page.$$eval('[data-mission]', b => b.map(x => x.dataset.mission)), ['usa1', 'usa2', 'sx1', 'sx2'], 'lista misji'); await page.click('text=Wstecz');
+    await page.evaluate(() => { newGame(7, 'settler'); leaveScreens(); });
+  });
+  await test('F14: USA 1: karawana w miejscu obozu zakłada obóz i wywołuje milicję; utrata wozu = porażka; SX2: łup z dwóch składów wygrywa', async () => {
+    const r = await page.evaluate(() => {
+      newMission('usa1', 3); T.run(1);
+      for (const u of S.units.filter(u => u.fac === 'player' && u.tag)) { u.x = 7.5; u.y = 7.5; u.path = []; }
+      T.run(2); const out = { stage: S.mission.stage, hq: S.buildings.some(b => b.type === 'hq' && b.fac === 'player'), enemies: S.units.filter(u => u.fac === 'enemy').length };
+      newMission('usa1', 3); T.run(1); killUnit(taggedAll('wagon')[0]); T.run(1); out.lost = S.gameOver;
+      newMission('sx2', 3); T.run(1); for (const d of taggedAll('depot')) destroyBuilding(d); T.run(1); out.raid = S.gameOver;
+      return out;
+    });
+    eq([r.stage, r.hq, r.lost, r.raid], [1, true, 'lose', 'win'], 'przebieg misji'); ok(r.enemies >= 4, 'milicja: ' + r.enemies);
   });
   console.log('Faza 11: dotyk i małe ekrany');
   {

@@ -2019,9 +2019,54 @@ function updateBuilding(b, dt) {
 // Definicja: { title, race, enemy, map, biome, difficulty, rules: { ai, hqWin, hqLose, surrender (domyślnie true; false wyłącza regułę skirmishu) },
 //   start: { clear: {playerUnits, enemyUnits, enemyBuildings, playerBuildings, neutral}, clearAreas: [[x, y, r]], res, camera: [x, y], units: [...], buildings: [...] },
 //   failIf: [warunek + text], stages: [{ id, title, objectives: [{ id, text, optional, ...warunek }], onStart: [akcje], onComplete: [akcje], failIf }] }
-// Warunki: reach {tag|unit, x, y, r, n}, destroy {tag|fac|unit}, kill {unit|fac, n} (liczy śmierci od startu etapu), have {res|building|unit, n}, loot {res, n}, survive {t}, flag {name}, dead {tag}, time {t}.
+// Warunki: fewer {tag|unit, n}, reach {tag|unit, x, y, r, n}, destroy {tag|fac|unit}, kill {unit|fac, n} (liczy śmierci od startu etapu), have {res|building|unit, n}, loot {res, n}, survive {t}, flag {name}, dead {tag}, time {t}.
 // Akcje: message {text}, spawn {units, buildings}, setFlag {name, value}, setRes {res}, reveal {x, y, r}, order {tag, order}, win {text}, lose {text}.
 const MISSIONS = {};
+// ---- kampanie, misje 1-2 (faza 14). Tytuły [Ź], cele [P] tam, gdzie źródła milczą (docs/zrodla.md); meksykańska milicja i bandyci grają jako Desperado do czasu frakcji Meksykan ----
+const CAMPAIGNS = [
+  { race: 'settler', title: 'Osadnicy', ids: ['usa1', 'usa2'] },
+  { race: 'sioux', title: 'Sioux', ids: ['sx1', 'sx2'] },
+];
+const NO_AI = { ai: false, hqWin: false, surrender: false };
+MISSIONS.usa1 = { title: 'The Trek West', race: 'settler', enemy: 'outlaw', map: 'prairie', rules: NO_AI,
+  desc: 'Karawana osadników rusza na zachód, do Teksasu. Doprowadź co najmniej dwa wozy, osadnika i osadniczkę do miejsca obozu, a potem rozbij meksykańską milicję [Ź Gameswelt; trasa i liczebność P].',
+  start: { clear: { playerUnits: true, playerBuildings: true, enemyUnits: true, enemyBuildings: true, neutral: true }, camera: [28, 28],
+    clearAreas: [[30, 30, 5], [24, 24, 4], [18, 18, 4], [12, 12, 4], [7, 7, 5]], res: { wood: 300, food: 200, gold: 0, guns: 0, horses: 0 },
+    units: [{ type: 'coveredWagon', x: 30, y: 31, tag: 'wagon' }, { type: 'coveredWagon', x: 31, y: 31, tag: 'wagon' }, { type: 'frontiersman', x: 29, y: 31, tag: 'man' }, { type: 'frontierswoman', x: 29, y: 32, tag: 'woman' },
+      { type: 'cowboy', x: 30, y: 29 }, { type: 'cowboy', x: 31, y: 29 }, { type: 'cowboy', x: 32, y: 29 }, { type: 'trapper', x: 28, y: 30 }, { type: 'commanderH', x: 29, y: 29 },
+      { type: 'desperado', fac: 'enemy', x: 21, y: 21, stance: 'norm' }, { type: 'desperado', fac: 'enemy', x: 22, y: 21, stance: 'norm' }, { type: 'desperado', fac: 'enemy', x: 14, y: 15, order: { kind: 'patrol', x: 14, y: 11 } }] },
+  failIf: [{ type: 'fewer', tag: 'wagon', n: 2, text: 'Karawana straciła wóz: do celu muszą dotrzeć co najmniej dwa wozy.' }, { type: 'dead', tag: 'man', text: 'Zginął osadnik.' }, { type: 'dead', tag: 'woman', text: 'Zginęła osadniczka.' }],
+  stages: [
+    { id: 'trek', title: 'Eskortuj karawanę na zachód', objectives: [
+      { id: 'w', text: 'Dwa wozy w miejscu obozu', type: 'reach', tag: 'wagon', x: 7, y: 7, r: 5, n: 2 }, { id: 'm', text: 'Osadnik w miejscu obozu', type: 'reach', tag: 'man', x: 7, y: 7, r: 5 }, { id: 'f', text: 'Osadniczka w miejscu obozu', type: 'reach', tag: 'woman', x: 7, y: 7, r: 5 }],
+      onComplete: [{ type: 'message', text: 'Obóz założony. Nadciąga meksykańska milicja!' }, { type: 'spawn', buildings: [{ type: 'hq', x: 6, y: 6 }], units: [
+        { type: 'desperado', fac: 'enemy', x: 16, y: 16, order: { kind: 'attackmove', x: 7, y: 7 } }, { type: 'desperado', fac: 'enemy', x: 17, y: 16, order: { kind: 'attackmove', x: 7, y: 7 } }, { type: 'desperado', fac: 'enemy', x: 16, y: 17, order: { kind: 'attackmove', x: 7, y: 7 } },
+        { type: 'bandleader', fac: 'enemy', x: 17, y: 17, order: { kind: 'attackmove', x: 7, y: 7 } }] }, { type: 'setRes', res: { wood: 300, food: 200 } }] },
+    { id: 'militia', title: 'Zniszcz meksykańską milicję', objectives: [{ id: 'k', text: 'Zniszcz wszystkich wrogów', type: 'destroy', fac: 'enemy' }] }] };
+MISSIONS.usa2 = { title: 'Remember the Alamo', race: 'settler', enemy: 'outlaw', map: 'plateau', rules: NO_AI,
+  desc: 'Obrona fortu przed liczniejszym wrogiem [Ź tytuł i Fort Alamo 1836; przebieg P: nie wiadomo, czy obrona, czy odbicie].',
+  start: { clear: { playerUnits: true, enemyUnits: true, enemyBuildings: true, neutral: true }, res: { wood: 400, food: 300, gold: 300, guns: 10, horses: 0 },
+    units: [{ type: 'commander', x: 44, y: 41, tag: 'cmd' }, { type: 'infantryman', x: 42, y: 40 }, { type: 'infantryman', x: 43, y: 40 }, { type: 'infantryman', x: 44, y: 40 }, { type: 'cowboy', x: 45, y: 40 }, { type: 'cowboy', x: 46, y: 41 }, { type: 'cannon', x: 42, y: 42 }, { type: 'frontiersman', x: 41, y: 43 }] },
+  stages: [{ id: 'hold', title: 'Utrzymaj obóz', objectives: [{ id: 's', text: 'Przetrwaj 6 minut', type: 'survive', t: 360 }],
+    onStart: [{ type: 'spawn', units: [10, 11, 12, 13].map(i => ({ type: 'desperado', fac: 'enemy', x: i, y: 9, order: { kind: 'attackmove', x: 44, y: 44 } })) }, { type: 'message', text: 'Wrogowie szturmują z północnego zachodu.' }],
+    failIf: [] }],
+  failIf: [{ type: 'dead', tag: 'cmd', text: 'Dowódca poległ.' }] };
+MISSIONS.sx1 = { title: 'The Santee Sioux Uprising', race: 'sioux', enemy: 'outlaw', map: 'prairie', rules: NO_AI,
+  desc: 'Powstanie Santee Sioux 1862: mały oddział przekrada się przez patrole traperów, którzy wykrywają kamuflaż. Zna się trasę albo ginie [Ź tytuł i charakter; cele P].',
+  start: { clear: { playerUnits: true, playerBuildings: true, enemyUnits: true, enemyBuildings: true, neutral: true }, camera: [30, 30], techs: { player: ['camouflage'] },
+    clearAreas: [[30, 30, 5], [24, 24, 4], [18, 18, 4], [12, 12, 4], [7, 7, 5]], res: { wood: 0, food: 0, gold: 0, guns: 0, horses: 0 },
+    units: [{ type: 'chief', x: 30, y: 30, tag: 'chief' }, { type: 'arrowShooter', x: 31, y: 30 }, { type: 'arrowShooter', x: 31, y: 31 }, { type: 'arrowShooter', x: 30, y: 31 }, { type: 'rifleman', x: 29, y: 30 },
+      { type: 'trapper', fac: 'enemy', x: 24, y: 22, order: { kind: 'patrol', x: 24, y: 27 } }, { type: 'trapper', fac: 'enemy', x: 16, y: 20, order: { kind: 'patrol', x: 21, y: 15 } }, { type: 'trapper', fac: 'enemy', x: 10, y: 14, order: { kind: 'patrol', x: 14, y: 9 } }] },
+  failIf: [{ type: 'dead', tag: 'chief', text: 'Wódz zginął.' }],
+  stages: [{ id: 'sneak', title: 'Przedrzyj się na zachód', objectives: [{ id: 'r', text: 'Wódz dociera do osady (zachód)', type: 'reach', tag: 'chief', x: 7, y: 7, r: 4 }] }] };
+MISSIONS.sx2 = { title: 'Battle of North Platte River', race: 'sioux', enemy: 'outlaw', map: 'ford', rules: NO_AI,
+  desc: 'Napad na zaopatrzenie wroga, nie klasyczna bitwa bazowa [Ź tytuł i charakter z komentarzy; cele P].',
+  start: { clear: { playerUnits: true, playerBuildings: true, enemyUnits: true, enemyBuildings: true, neutral: true }, techs: { player: ['swim'] }, res: { wood: 100, food: 100, gold: 0, guns: 0, horses: 0 },
+    units: [{ type: 'chief', x: 33, y: 33, tag: 'chief' }, { type: 'arrowShooter', x: 32, y: 33 }, { type: 'arrowShooter', x: 33, y: 32 }, { type: 'arrowShooter', x: 34, y: 33 }, { type: 'spearFighter', x: 32, y: 34 }, { type: 'spearFighter', x: 34, y: 34 }, { type: 'knifeThrower', x: 33, y: 34 },
+      { type: 'desperado', fac: 'enemy', x: 8, y: 8, stance: 'norm' }, { type: 'desperado', fac: 'enemy', x: 9, y: 7, stance: 'norm' }],
+    buildings: [{ type: 'dStorehouse', fac: 'enemy', x: 6, y: 6, tag: 'depot', loot: { gold: 300 } }, { type: 'dStorehouse', fac: 'enemy', x: 12, y: 4, tag: 'depot', loot: { gold: 200 } }] },
+  failIf: [{ type: 'dead', tag: 'chief', text: 'Wódz zginął.' }, { type: 'time', t: 900, text: 'Czas minął: zaopatrzenie wroga odjechało.' }],
+  stages: [{ id: 'raid', title: 'Złup składy wroga', objectives: [{ id: 'l', text: 'Zdobądź 500 złota łupem', type: 'loot', res: 'gold', n: 500 }] }] };
 const missionDef = () => S.mission ? MISSIONS[S.mission.id] : null;
 function missionRule(name, dflt) { const d = missionDef(); return d && d.rules && name in d.rules ? d.rules[name] : dflt; }
 function taggedAll(tag) {
@@ -2069,6 +2114,8 @@ function newMission(id, seed) {
     if (t === T_FOREST || t === T_THICK || t === T_GOLD || t === T_MEAT) { S.terrain[idx(x, y)] = T_GRASS; S.amt[idx(x, y)] = 0; }
   }
   if (st.res) Object.assign(S.res, st.res);
+  for (const fac in st.techs || {}) for (const t of st.techs[fac]) S.techs[fac][t] = true;
+  applySwim();
   for (const o of st.buildings || []) spawnMissionBuilding(o);
   for (const o of st.units || []) spawnMissionUnit(o);
   computeFog(); computeFogEnemy();
@@ -2094,6 +2141,7 @@ function condMet(c) {
       return S.units.filter(u => u.fac === 'player' && u.type === c.unit).length >= (c.n || 1);
     }
     case 'loot': return ((m.loot || {})[c.res] || 0) >= c.n;   // łączny łup z całej misji (także ponad limit magazynu)
+    case 'fewer': return !!(c.tag ? m.tags[c.tag] : true) && (c.tag ? taggedAll(c.tag) : S.units.filter(u => u.fac === (c.fac || 'player') && u.type === c.unit)).length < c.n;   // porażka: żywych jednostek mniej niż n
     case 'survive': return S.time - m.t0 >= c.t;
     case 'flag': return !!m.flags[c.name];
     case 'dead': return !!m.tags[c.tag] && taggedAll(c.tag).length === 0;
@@ -3120,10 +3168,25 @@ function showMenu() {
   const menu = el('div', 'mm-menu');
   const item = (label, fn) => { const b = el('button', '', label); b.onclick = fn; menu.appendChild(b); };
   item('Nowa gra', showFactionScreen);
+  item('Kampanie', showCampaignScreen);
   if (hasSave()) item('Wczytaj zapis', () => { leaveScreens(); if (!loadGame()) showMenu(); });
   item('Ustawienia', () => showSettings(showMenu));
   item('Pomoc i sterowanie', showHelp);
   o.append(menu, el('div', 'mm-foot', 'Prototyp fanowskiej rekonstrukcji gry z 2001 roku'));
+}
+// kampanie: lista misji 1-2 każdej grywalnej frakcji; opis i start w jednym kliknięciu
+function showCampaignScreen() {
+  S.menuOpen = true;
+  const o = screen('scr-wood');
+  o.append(el('div', 'scr-title', 'AMERICA'), el('div', 'scr-sub', 'Kampanie'));
+  const rows = el('div', 'set-rows');
+  for (const c of CAMPAIGNS) for (const id of c.ids) {
+    const d = MISSIONS[id], b = el('button', '', d.title); b.title = d.desc; b.dataset.mission = id;
+    b.onclick = () => { leaveScreens(); newMission(id, Date.now()); S.menuOpen = false; updatePanels(); uiAlert(d.desc); };
+    rows.append(el('div', 'scr-pill', c.title), b);
+  }
+  const foot = el('div', 'scr-foot'), back = el('button', '', 'Wstecz'); back.style.margin = '0 auto'; back.onclick = showMenu; foot.appendChild(back);
+  o.append(rows, foot);
 }
 // wybór ludu: deski i cztery koła z postaciami (grywalne klikamy, reszta czeka na swoje fazy)
 function showFactionScreen() {
