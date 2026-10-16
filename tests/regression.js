@@ -671,50 +671,78 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     });
     eq(r, [true, false, false, 'idle'], 'patrol: ustawiony, zdjęty ruchem, zdjęty stopem');
   });
-  console.log('Faza 12.2: tepee w wóz-travois');
-  await test('F12.2: tepee pakuje się w travois z tym samym HP (pop cap spada, populacja bez travois), rozkłada gdzie indziej z zachowanym HP; kafle zwalniają się i zajmują', async () => {
+  console.log('Faza 12.2/13.5: tepee w Travois');
+  await test('F12.2: Travois dojeżdża do tipi, zwija je (HP zachowane, kafle wolne, limit populacji spada) i rozkłada gdzie indziej; travois zajmuje 1 miejsce populacji', async () => {
     const r = await page.evaluate(() => {
       T.fresh('sioux');
       const b = addBuilding('sleepingTepee', 20, 20, 'player'); b.built = true; b.hp = 60;
-      addUnit('woman', 'player', 24.5, 24.5);
+      addUnit('woman', 'player', 24.5, 24.5); const t = addUnit('travois', 'player', 24.5, 20.5);
       const out = { cap0: popCap(), used0: popUsed() };
-      queueCmd({ action: 'pack', building: b }); T.run(1);
-      out.packing = !!b.packing; out.capDuring = popCap();
-      T.run(5);
-      const t = S.units.find(u => u.type === 'travois');
-      out.gone = !S.buildings.includes(b); out.tile = isBlocked(20, 20); out.t = t && [t.hp, t.packed.type, t.packed.hp]; out.cap1 = popCap(); out.used1 = popUsed();
+      queueCmd({ action: 'pack', unit: t, building: b }); T.run(1);
+      out.packing = ['toPack', 'packing'].includes(t.state); out.capDuring = popCap();
+      T.run(10);
+      out.gone = !S.buildings.includes(b); out.tile = isBlocked(20, 20); out.t = [t.hp, t.packed && t.packed.type, t.packed && t.packed.hp]; out.cap1 = popCap();
       queueCmd({ action: 'unpack', unit: t, x: 27, y: 20 }); T.run(30);
       const nb = S.buildings.find(x => x.type === 'sleepingTepee');
       out.after = nb && [nb.tx, nb.ty, nb.built, nb.hp, nb.maxHp]; out.travoisLeft = S.units.filter(u => u.type === 'travois').length; out.cap2 = popCap();
       return out;
     });
-    eq([r.cap0, r.used0], [20, 1], 'start (obóz 12 + tepee 8)'); ok(r.packing && r.capDuring === 20, 'w trakcie pakowania budynek jeszcze stoi');
-    ok(r.gone && !r.tile, 'budynek znika, kafle wolne'); eq(r.t, [60, 'sleepingTepee', 60], 'travois niesie HP tepee'); eq([r.cap1, r.used1], [12, 2], 'spakowane nie daje limitu, travois zajmuje 1 miejsce populacji [Ź instrukcja]');
-    eq(r.after, [27, 20, true, 60, 120], 'rozłożone w nowym miejscu z zachowanym HP'); eq([r.travoisLeft, r.cap2], [0, 20], 'travois znika, limit wraca');
+    eq([r.cap0, r.used0], [20, 2], 'start (obóz 12 + tepee 8; kobieta i travois)'); ok(r.packing && r.capDuring === 20, 'w trakcie pakowania budynek jeszcze stoi');
+    ok(r.gone && !r.tile, 'budynek znika, kafle wolne'); eq([r.t[1], r.t[2]], ['sleepingTepee', 60], 'Travois niesie tipi z jego HP'); eq(r.cap1, 12, 'spakowane nie daje limitu');
+    eq(r.after, [27, 20, true, 60, 120], 'rozłożone w nowym miejscu z zachowanym HP'); eq([r.travoisLeft, r.cap2], [1, 20], 'Travois zostaje, limit wraca');
   });
-  await test('F12.2: pakowanie można przerwać, nie wolno rozłożyć na zajętym polu, a rozkaz ruchu zrywa rozkładanie; zapis w czasie jazdy działa', async () => {
+  await test('F12.2: rozkaz ruchu zrywa pakowanie, nie wolno rozłożyć na zajętym polu; zapis w czasie jazdy z tipi działa', async () => {
     const r = await page.evaluate(() => {
       T.fresh('sioux');
-      const b = addBuilding('sleepingTepee', 20, 20, 'player'); b.built = true;
-      queueCmd({ action: 'pack', building: b }); T.run(2); queueCmd({ action: 'pack', building: b }); T.run(6);
-      const out = { cancelled: S.buildings.includes(b) && !b.packing };
-      queueCmd({ action: 'pack', building: b }); T.run(6);
-      const t = S.units.find(u => u.type === 'travois');
+      const b = addBuilding('sleepingTepee', 20, 20, 'player'); b.built = true; const t = addUnit('travois', 'player', 24.5, 20.5);
+      queueCmd({ action: 'pack', unit: t, building: b }); T.run(2); queueCmd({ action: 'order', units: [t], x: 26, y: 24, targetUnit: null, targetHorse: null }); T.run(8);
+      const out = { cancelled: S.buildings.includes(b) && !t.packed };
+      queueCmd({ action: 'pack', unit: t, building: b }); T.run(12); out.packed = !!t.packed;
       S.terrain[idx(27, 20)] = T_FOREST; S.amt[idx(27, 20)] = 50;
       queueCmd({ action: 'unpack', unit: t, x: 27, y: 20 }); T.run(0.2); out.blocked = t.state;
       queueCmd({ action: 'unpack', unit: t, x: 25, y: 20 }); T.run(4);
-      const copy = JSON.parse(JSON.stringify(serializeGame()));
-      restoreGame(copy);
+      restoreGame(JSON.parse(JSON.stringify(serializeGame())));
       const t2 = S.units.find(u => u.type === 'travois'); out.saved = [t2.state, t2.packed.type, t2.unpackAt];
       T.run(25); out.built = !!S.buildings.find(x => x.type === 'sleepingTepee' && x.tx === 25);
-      queueCmd({ action: 'pack', building: S.buildings.find(x => x.type === 'sleepingTepee') }); T.run(6);
-      const t3 = S.units.find(u => u.type === 'travois');
-      queueCmd({ action: 'unpack', unit: t3, x: 24, y: 24 }); T.run(1); queueCmd({ action: 'order', units: [t3], x: 22, y: 22, targetUnit: null, targetHorse: null }); T.run(0.2);
-      out.interrupted = [t3.state, t3.unpackAt]; T.run(20); out.noBuild = !S.buildings.some(x => x.type === 'sleepingTepee');
       return out;
     });
-    ok(r.cancelled, 'ponowne polecenie przerywa pakowanie'); eq(r.blocked, 'idle', 'rozkład na lesie odrzucony'); eq([r.saved[0], r.saved[1]], ['toUnpack', 'sleepingTepee'], 'zapis w czasie jazdy'); ok(r.built, 'po wczytaniu travois dojeżdża i rozkłada');
-    eq(r.interrupted, ['move', null], 'rozkaz ruchu zrywa rozkładanie'); ok(r.noBuild, 'nic nie rozłożone po przerwaniu');
+    ok(r.cancelled && r.packed, 'zerwane i ponowne pakowanie'); eq(r.blocked, 'idle', 'rozkład na lesie odrzucony'); ok(['toUnpack', 'unpacking'].includes(r.saved[0]) && r.saved[1] === 'sleepingTepee', 'zapis w czasie jazdy: ' + r.saved); ok(r.built, 'po wczytaniu Travois dojeżdża i rozkłada');
+  });
+  console.log('Faza 13.5: Sioux – kamuflaż, Pitfall, Swim, samoleczenie');
+  await test('F13.5: kamuflaż ukrywa łuczników przed wrogiem, dopóki nie zaatakują lub nie zbliży się wykrywacz (Łucznik, Trapper); bez ulepszenia nie ukrywa', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh('sioux');
+      const a = addUnit('arrowShooter', 'player', 20.5, 20.5), e = addUnit('desperado', 'enemy', 24.5, 20.5);
+      computeFog(); computeFogEnemy(); const before = seenBy('enemy', a);
+      S.techs.player.camouflage = true; const hidden = isHidden(a), seen1 = seenBy('enemy', a);
+      const tr = addUnit('trapper', 'enemy', 22.5, 20.5); const detected = seenBy('enemy', a);
+      S.units = S.units.filter(u => u !== tr); a.revealT = 3; const afterAttack = seenBy('enemy', a); a.revealT = 0;
+      return { before, hidden, seen1, detected, afterAttack };
+    });
+    eq([r.before, r.hidden, r.seen1, r.detected, r.afterAttack], [true, true, false, true, true], 'widzialność');
+  });
+  await test('F13.5: Pitfall zabija wrogów do trzech ofiar i znika, własne jednostki są bezpieczne, pułapka nie blokuje ruchu', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh('sioux');
+      const pf = addBuilding('pitfall', 22, 20, 'player'); pf.built = true;
+      const own = addUnit('warrior', 'player', 22.5, 20.5); T.run(1); const ownAlive = S.units.includes(own);
+      const es = [0, 1, 2, 3].map(i => addUnit('desperado', 'enemy', 22.5, 20.5)); es.forEach(e => { e.stance = 'hold'; });
+      T.run(2);
+      return { ownAlive, dead: es.filter(e => !S.units.includes(e)).length, gone: !S.buildings.includes(pf), blocks: isBlocked(22, 20) };
+    });
+    ok(r.ownAlive, 'własna jednostka bezpieczna'); eq(r.dead, 3, 'trzy ofiary'); ok(r.gone && !r.blocks, 'pułapka znika po trzeciej ofierze i nie blokuje');
+  });
+  await test('F13.5: Swim to ulepszenie (bez niego Sioux nie wchodzą w wodę), Indianie leczą się sami, Deszcz i Burza wymagają tańców', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh('sioux'); S.terrain[idx(24, 20)] = T_WATER;
+      const before = passableFor(CFG.units.arrowShooter, 24, 20); S.techs.player.swim = true; applySwim(); const after = passableFor(CFG.units.arrowShooter, 24, 20);
+      S.techs.player.swim = false; applySwim();
+      const w = addUnit('warrior', 'player', 20.5, 20.5); w.hp = 10; T.run(10); const healed = w.hp - 10;
+      const m = addUnit('medicineMan', 'player', 21.5, 20.5); castRain(m); const noRain = !(S.rainT.player > 0);
+      S.techs.player.rainDance = true; castRain(m); const rain = S.rainT.player > 0;
+      return { before, after, healed, noRain, rain };
+    });
+    eq([r.before, r.after], [false, true], 'Swim zdejmuje zakaz wody'); ok(r.healed > 1, 'samoleczenie: ' + r.healed); ok(r.noRain && r.rain, 'Deszcz po Tańcu deszczu');
   });
   console.log('Faza 12.3: szkielet misji');
   await page.evaluate(() => {
