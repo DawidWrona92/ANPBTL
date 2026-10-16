@@ -65,7 +65,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     eq(st, [2, 0, 2], 'ustawienia');
     await page.evaluate(() => { SETTINGS.scroll = 1; SETTINGS.shadow = 1; saveSettings(); }); await page.click('text=OK');
     const r = await page.evaluate(() => {
-      T.fresh(); const w = addUnit('frontiersman', 'player', 20.5, 20.5), sh = addUnit('szeryf', 'player', 21.5, 20.5);
+      T.fresh(); const w = addUnit('frontiersman', 'player', 20.5, 20.5), sh = addUnit('sheriff', 'player', 21.5, 20.5);
       S.selected.units = [w]; updatePanels();
       const a = { build: getComputedStyle(buildbar).display !== 'none', stance: getComputedStyle(stancebar).display !== 'none', btns: buildbar.querySelectorAll('.cmd').length };
       S.selected.units = [sh]; updatePanels();
@@ -77,7 +77,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       return { a, b, c, d };
     });
     eq(r.a, { build: true, stance: false, btns: 8 }, 'robotnik: budowa bez postaw'); eq(r.b, { build: false, stance: true, info: true }, 'szeryf: postawy bez budowy, info o jednostce');
-    eq(r.c, { grid: 2 }, 'zaznaczenie wielu jednostek: siatka miniatur'); eq(r.d, { train: 2, top: 6 }, 'obóz: dwie jednostki do produkcji; pasek zasobów ma 6 pól');
+    eq(r.c, { grid: 2 }, 'zaznaczenie wielu jednostek: siatka miniatur'); eq(r.d, { train: 4, top: 6 }, 'obóz: cztery pozycje produkcji (dowódca i konny dowódca, osadnik, osadniczka); pasek zasobów ma 6 pól');
   });
   await test('F1: ścieżki jednostek nie zapętlają się', async () => {
     const r = await page.evaluate(() => { T.fresh(); const u = addUnit('worker', 'player', 20.5, 20.5); return [uPath(u, 25, 20).length, pathToBuildingU(u, S.buildings[0]).length >= 0]; });
@@ -93,7 +93,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       startRace('settler'); document.getElementById('overlay').style.display = 'none'; S.menuOpen = false; S.explored.fill(1);
       for (let i = 0; i < 300; i++) update(1 / 60); render();
       const man = window.ASSETS, broken = Object.keys(man).filter(k => man[k]._img && !(man[k]._img.complete && man[k]._img.naturalWidth > 0));
-      const missU = Object.keys(CFG.units).filter(t => !man[t]), missB = [];
+      const missU = Object.keys(CFG.units).filter(t => !man[artOf(t)]), missB = [];
       for (const t of Object.keys(CFG.buildings)) for (const n of t === 'tepee' ? ['sx'] : (t === 'bank' || t === 'ranch') ? ['us'] : ['us', 'ban']) if (!man['bld_' + t + '_' + n]) missB.push(t + '_' + n);
       return { layer: !!(S.gch && S.gch.cv.some(Boolean)), assets: Object.keys(man).length, broken, missU, missB };
     });
@@ -126,7 +126,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   });
   await test('R1: zabity w tym samym ticku nie zadaje już obrażeń', async () => {
     const lost = await page.evaluate(() => {
-      T.fresh(); const A = addUnit('desperado', 'enemy', 20.5, 20.5), V = addUnit('piechota', 'player', 22.5, 20.5);
+      T.fresh(); const A = addUnit('desperado', 'enemy', 20.5, 20.5), V = addUnit('infantryman', 'player', 22.5, 20.5);
       V.hp = 1; A.attackTarget = V; A.state = 'attack'; A.ordered = true; V.attackTarget = A; V.state = 'attack'; V.ordered = true;
       const old = hitChance; hitChance = () => 1; const hp0 = A.hp; update(1 / 60); hitChance = old; return hp0 - A.hp;
     });
@@ -134,21 +134,21 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   });
   await test('R2: ten sam seed i rozkazy dają ten sam przebieg (determinizm)', async () => {
     const same = await page.evaluate(() => {
-      const run = () => { T.fresh(); for (let i = 0; i < 4; i++) { addUnit('piechota', 'player', 20.5 + i, 20.5); addUnit('desperado', 'enemy', 20.5 + i, 24.5); } T.run(15); return JSON.stringify(S.units.map(u => [u.type, +u.x.toFixed(3), +u.y.toFixed(3), +u.hp.toFixed(2), u.xp])); };
+      const run = () => { T.fresh(); for (let i = 0; i < 4; i++) { addUnit('infantryman', 'player', 20.5 + i, 20.5); addUnit('desperado', 'enemy', 20.5 + i, 24.5); } T.run(15); return JSON.stringify(S.units.map(u => [u.type, +u.x.toFixed(3), +u.y.toFixed(3), +u.hp.toFixed(2), u.xp])); };
       return run() === run();
     });
     ok(same, 'dwa przebiegi różnią się');
   });
-  await test('R7/R8: łucznik strzela na 6.4 kafla; wojownik broni się i wraca do pracy; squaw ucieka', async () => {
+  await test('R7/R8: łucznik strzela na 6.4 kafla; włócznik broni się i wraca do pracy; kobieta ucieka', async () => {
     const r = await page.evaluate(() => {
       const R = {};
-      T.fresh('sioux'); let a = addUnit('lucznik', 'player', 20.5, 20.5), t = addUnit('desperado', 'enemy', 26.9, 20.5); t.stance = 'hold'; const hp0 = t.hp;
+      T.fresh('sioux'); let a = addUnit('arrowShooter', 'player', 20.5, 20.5), t = addUnit('desperado', 'enemy', 26.9, 20.5); t.stance = 'hold'; const hp0 = t.hp;
       for (let i = 0; i < 300; i++) { update(1 / 60); t.x = 26.9; t.y = 20.5; } R.archer = t.hp < hp0;
       T.fresh('sioux'); S.terrain[idx(24, 20)] = T_FOREST; S.amt[idx(24, 20)] = 100;
-      const w = addUnit('wojownik', 'player', 23.5, 20.5); orderGather(w, 24, 20); T.run(2);
+      const w = addUnit('spearFighter', 'player', 23.5, 20.5); CFG.units.spearFighter.gather = ['forest']; orderGather(w, 24, 20); T.run(2);
       const e = addUnit('desperado', 'enemy', w.x - 3, w.y); e.hp = 18; e.stance = 'hold'; T.run(20);
       R.warriorKilledEnemy = !S.units.includes(e); R.warriorBackToWork = ['gather', 'toNode', 'toDeposit', 'deposit'].includes(w.state);
-      T.fresh('sioux'); const bandit = addUnit('desperado', 'enemy', 23.5, 20.5), sq = addUnit('squaw', 'player', 20.5, 20.5); bandit.stance = 'hold';
+      T.fresh('sioux'); const bandit = addUnit('desperado', 'enemy', 23.5, 20.5), sq = addUnit('woman', 'player', 20.5, 20.5); bandit.stance = 'hold';
       bandit.attackTarget = sq; bandit.state = 'attack'; bandit.ordered = true; const old = hitChance; hitChance = () => 1; let fled = false;
       for (let i = 0; i < 180; i++) { update(1 / 60); if (sq.state === 'flee') fled = true; } hitChance = old; R.squawFled = fled;
       return R;
@@ -161,7 +161,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     const r = await page.evaluate(() => {
       T.fresh(); S.res = { wood: 999, food: 999, gold: 999, guns: 99, horses: 9 };
       const hq = S.buildings.find(b => b.type === 'hq'), b1 = testPlace('player', 'barracks', 30, 28), b2 = testPlace('player', 'barracks', 36, 28);
-      for (let i = 0; i < 5; i++) { tryTrain(hq, 'worker'); tryTrain(b1, 'piechota'); tryTrain(b2, 'piechota'); }
+      for (let i = 0; i < 5; i++) { tryTrain(hq, 'worker'); tryTrain(b1, 'infantryman'); tryTrain(b2, 'infantryman'); }
       T.run(600); return [popUsed(), popCap()];
     });
     ok(r[0] <= r[1], 'populacja ' + r[0] + ' przekroczyła limit ' + r[1]);
@@ -187,7 +187,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await test('R9: zwrot kosztu kolejki po zburzeniu i brak chwytania koni ponad limit', async () => {
     const r = await page.evaluate(() => {
       T.fresh(); S.res = { wood: 300, food: 300, gold: 100, guns: 5, horses: 0 };
-      const br = testPlace('player', 'barracks', 28, 28); tryTrain(br, 'piechota'); tryTrain(br, 'piechota'); update(1 / 60);
+      const br = testPlace('player', 'barracks', 28, 28); tryTrain(br, 'infantryman'); tryTrain(br, 'infantryman'); update(1 / 60);
       const paidNow = S.res.food < 300; destroyBuilding(br);
       const refunded = [S.res.food, S.res.gold, S.res.guns];
       S.res.horses = CFG.resCap.horses; const h = addUnit('horse', 'neutral', 20.5, 20.5), u = addUnit('worker', 'player', 20.5, 21.5);
@@ -227,7 +227,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       const gatherState = w.state;
       T.fresh(); S.res.food = 999; S.res.gold = 999; S.res.guns = 9;
       const br = testPlace('player', 'barracks', 30, 28); queueCmd({ action: 'rally', building: br, x: 28, y: 30 }); update(1 / 60);
-      tryTrain(br, 'piechota'); br.queue[0].remaining = 0.01; update(1 / 30); const sol = S.units[S.units.length - 1]; T.run(15);
+      tryTrain(br, 'infantryman'); br.queue[0].remaining = 0.01; update(1 / 30); const sol = S.units[S.units.length - 1]; T.run(15);
       return { gatherState, soldierNearRally: Math.hypot(sol.x - 28.5, sol.y - 30.5) < 2 };
     });
     ok(['toNode', 'gather'].includes(r.gatherState), 'robotnik na surowcu: ' + r.gatherState);
@@ -240,21 +240,21 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       executeOrder({ units: [u], x: 20, y: 20, targetUnit: null, queue: true }); const wps = u.waypoints.length;
       T.run(40); const reached = Math.hypot(u.x - 20.5, u.y - 20.5) < 1.5;
       executeOrder({ units: [u], x: 12, y: 20, targetUnit: null }); T.run(1); stopUnits([u]); const stopped = u.state === 'idle' && u.path.length === 0;
-      T.fresh(); const a = addUnit('piechota', 'player', 12.5, 20.5), e = addUnit('desperado', 'enemy', 16.5, 20.5); e.hp = 10; e.stance = 'hold';
+      T.fresh(); const a = addUnit('infantryman', 'player', 12.5, 20.5), e = addUnit('desperado', 'enemy', 16.5, 20.5); e.hp = 10; e.stance = 'hold';
       executeAttackMove({ units: [a], x: 24, y: 20 }); T.run(30);
       return { wps, reached, stopped, enemyDead: !S.units.includes(e), arrived: Math.hypot(a.x - 24.5, a.y - 20.5) < 2 };
     });
     eq(r, { wps: 1, reached: true, stopped: true, enemyDead: true, arrived: true }, 'komendy');
   });
   await test('C1: podwójny klik zaznacza wszystkich z tego typu na ekranie (prawdziwe kliknięcia)', async () => {
-    await page.evaluate(() => { T.fresh(); centerCameraOn(20, 20); for (let i = 0; i < 3; i++) addUnit('worker', 'player', 19.5 + i, 20.5); addUnit('piechota', 'player', 21.5, 21.5); S.selected.units = []; });
+    await page.evaluate(() => { T.fresh(); centerCameraOn(20, 20); for (let i = 0; i < 3; i++) addUnit('worker', 'player', 19.5 + i, 20.5); addUnit('infantryman', 'player', 21.5, 21.5); S.selected.units = []; });
     const pos = await page.evaluate(() => { const u = S.units.find(x => x.type === 'worker'); const [sx, sy] = tileToScreen(u.x, u.y); return [sx * ZOOM, sy * ZOOM]; });
     await page.mouse.click(pos[0], pos[1]); await page.mouse.click(pos[0], pos[1]);
     eq(await page.evaluate(() => S.selected.units.map(u => u.type)), ['worker', 'worker', 'worker'], 'zaznaczenie');
   });
   await test('C1: kolejka czeka bez surowców, potem rusza; anulowanie zwraca tylko zapłacone', async () => {
     const r = await page.evaluate(() => {
-      T.fresh(); S.res = { wood: 0, food: 30, gold: 0, guns: 0, horses: 0 }; addUnit('piechota', 'player', 12.5, 12.5); // bez żadnej jednostki gra ogłasza kapitulację
+      T.fresh(); S.res = { wood: 0, food: 30, gold: 0, guns: 0, horses: 0 }; addUnit('infantryman', 'player', 12.5, 12.5); // bez żadnej jednostki gra ogłasza kapitulację
       const hq = S.buildings.find(b => b.type === 'hq');
       tryTrain(hq, 'worker'); tryTrain(hq, 'worker' ); // drugi: stać tylko na jeden (koszt 30)
       const secondQueued = hq.queue.length;
@@ -312,7 +312,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   });
   await test('F6: pasek zdolności ma styl i nie nachodzi na pasek postaw', async () => {
     const r = await page.evaluate(() => {
-      newGame(7, 'sioux'); S.menuOpen = false; document.getElementById('overlay').style.display = 'none'; setupTest('sioux'); S.selected.units = [S.units.find(u => u.type === 'medicine'), S.units.find(u => u.type === 'wodz')]; updatePanels();
+      newGame(7, 'sioux'); S.menuOpen = false; document.getElementById('overlay').style.display = 'none'; setupTest('sioux'); S.selected.units = [S.units.find(u => u.type === 'medicineMan'), S.units.find(u => u.type === 'chief')]; updatePanels();
       const a = document.getElementById('abilitybar').getBoundingClientRect(), s = document.getElementById('stancebar').getBoundingClientRect();
       return { placed: a.y > 0 && a.x > 0, noOverlap: a.bottom <= s.top, styled: getComputedStyle(document.querySelector('#abilitybar button')).backgroundImage.includes('parchment') };
     });
@@ -444,7 +444,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     const r = await page.evaluate(() => {
       const res = {};
       for (const d of [3, 5.5]) for (const st of ['hold', 'norm', 'aggr']) {
-        T.fresh(); const a = addUnit('piechota', 'player', 20.5, 20.5); a.stance = st;
+        T.fresh(); const a = addUnit('infantryman', 'player', 20.5, 20.5); a.stance = st;
         const e = addUnit('worker', 'enemy', 20.5, 20.5 + d); e.stance = 'hold';
         T.run(2); res[d + st] = !!a.attackTarget || e.hp < e.maxHp;
       }
@@ -487,22 +487,22 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     });
     eq(r, [500, 500, 650, 650], 'limit żywności');
   });
-  await test('C3: podział ról – frontierswoman rąbie i farmi, ale nie buduje; frontiersman buduje i kopie, ale nie rąbie', async () => {
+  await test('C3: podział ról – frontierswoman rąbie i farmi, ale nie buduje; frontiersman buduje, kopie i rąbie, ale nie farmi', async () => {
     const r = await page.evaluate(() => {
       const w = { type: 'frontierswoman' }, m = { type: 'frontiersman' };
       return { w: [canGatherRes(w, T_FOREST), canGatherRes(w, T_GOLD), unitRole(w, 'farmer'), unitRole(w, 'builder')],
         m: [canGatherRes(m, T_FOREST), canGatherRes(m, T_GOLD), unitRole(m, 'farmer'), unitRole(m, 'builder')] };
     });
-    eq(r.w, [true, false, true, false], 'frontierswoman'); eq(r.m, [false, true, false, true], 'frontiersman');
+    eq(r.w, [true, false, true, false], 'frontierswoman'); eq(r.m, [true, true, false, true], 'frontiersman');
   });
-  await test('C3: szeryf widzi dalej (wzrok 10) i podnosi morale jak przywódca', async () => {
+  await test('C3: szeryf widzi dalej (wzrok 10), a dowódca podnosi morale jak przywódca', async () => {
     const r = await page.evaluate(() => {
       T.fresh(); S.visible.fill(0);
-      const sh = addUnit('szeryf', 'player', 20.5, 20.5); computeFog();
+      const sh = addUnit('sheriff', 'player', 20.5, 20.5); computeFog(); const cm = addUnit('commander', 'player', 20.5, 20.5);
       const seen = (dx, dy) => !!S.visible[idx(20 + dx, 20 + dy)];
       const far = seen(9, 0), tooFar = seen(11, 0);
-      const f = addUnit('piechota', 'player', 22.5, 20.5); f.morale = 40; updateMorale(); const m1 = f.morale;
-      S.units = S.units.filter(u => u !== sh); f.morale = 40; updateMorale(); const m2 = f.morale;
+      const f = addUnit('infantryman', 'player', 22.5, 20.5); f.morale = 40; updateMorale(); const m1 = f.morale;
+      S.units = S.units.filter(u => u !== cm); f.morale = 40; updateMorale(); const m2 = f.morale;
       return { far, tooFar, gain: m1 - m2 };
     });
     ok(r.far && !r.tooFar, 'zasięg widzenia'); ok(r.gain > 0.4, 'aura morale: ' + r.gain);
@@ -510,8 +510,8 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await test('C3: armata bije obszarowo (r 1.5), bez friendly fire, a budynki niszczy szybciej niż piechota', async () => {
     const r = await page.evaluate(() => {
       T.fresh();
-      const c = addUnit('armata', 'player', 20.5, 20.5); c.stance = 'hold';   // po zabiciu rozkazanego celu armata nie wybiera sama kolejnego: test dotyczy tylko obszaru rażenia
-      const a = addUnit('desperado', 'enemy', 20.5, 29.5), b = addUnit('desperado', 'enemy', 21.5, 29.5), far = addUnit('desperado', 'enemy', 25.5, 29.5), own = addUnit('piechota', 'player', 20.5, 30);
+      const c = addUnit('cannon', 'player', 20.5, 20.5); c.stance = 'hold';   // po zabiciu rozkazanego celu armata nie wybiera sama kolejnego: test dotyczy tylko obszaru rażenia
+      const a = addUnit('desperado', 'enemy', 20.5, 29.5), b = addUnit('desperado', 'enemy', 21.5, 29.5), far = addUnit('desperado', 'enemy', 25.5, 29.5), own = addUnit('infantryman', 'player', 20.5, 30);
       for (const e of [a, b, far]) e.stance = 'hold';
       const hp = [a, b, far, own].map(u => u.hp);
       c.attackTarget = a; c.ordered = true; c.state = 'attack';
@@ -554,7 +554,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       for (const m of MAP_LIST()) {
         newGame(5, 'settler', { map: m.id }); S.menuOpen = false;
         const php = S.buildings.find(b => b.fac === 'player' && b.type === 'hq'), ehq = S.buildings.find(b => b.fac === 'enemy' && b.type === 'hq');
-        const foot = pathToBuilding(php.cx + 0.5, php.cy + 3.5, ehq, CFG.units.piechota).length, cav = pathToBuilding(php.cx + 0.5, php.cy + 3.5, ehq, CFG.units.jezdiec).length;
+        const foot = pathToBuilding(php.cx + 0.5, php.cy + 3.5, ehq, CFG.units.infantryman).length, cav = pathToBuilding(php.cx + 0.5, php.cy + 3.5, ehq, CFG.units.jezdiec).length;
         let cliffs = 0; for (let i = 0; i < MAP * MAP; i++) if (S.terrain[i] === T_CLIFF) cliffs++;
         out[m.id] = { size: MAP, foot: foot > 0, cav: cav > 0, cliffs, units: S.units.length > 20 };
       }
@@ -566,7 +566,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       newGame(5, 'settler', { map: 'canyon' }); S.menuOpen = false; S.explored.fill(1);
       let cx = -1, cy = -1; for (let i = 0; i < MAP * MAP && cx < 0; i++) if (S.terrain[i] === T_CLIFF) { cx = i % MAP; cy = Math.floor(i / MAP); }
       S.res = { wood: 999, food: 999, gold: 999, guns: 0, horses: 0 }; const w = addUnit('frontiersman', 'player', 20.5, 20.5); S.selected.units = [w]; const n0 = S.buildings.length; tryPlace('house', cx, cy);
-      return { blocked: isBlocked(cx, cy), passable: passableFor(CFG.units.piechota, cx, cy), swim: passableFor(CFG.units.wojownik, cx, cy), built: S.buildings.length > n0 };
+      return { blocked: isBlocked(cx, cy), passable: passableFor(CFG.units.infantryman, cx, cy), swim: passableFor(CFG.units.warrior, cx, cy), built: S.buildings.length > n0 };
     });
     eq(c, { blocked: true, passable: false, swim: false, built: false }, 'klif');
   });
@@ -574,7 +574,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     const r = await page.evaluate(() => {
       newGame(5, 'settler', { map: 'canyon' }); S.menuOpen = false;
       const php = S.buildings.find(b => b.fac === 'player' && b.type === 'hq'), ehq = S.buildings.find(b => b.fac === 'enemy' && b.type === 'hq');
-      const route = () => pathToBuilding(php.cx + 0.5, php.cy + 3.5, ehq, CFG.units.piechota).length, base = route();
+      const route = () => pathToBuilding(php.cx + 0.5, php.cy + 3.5, ehq, CFG.units.infantryman).length, base = route();
       // zablokowanie przełęczy zmusza do obejścia: ścieżka musi się wydłużyć, ale nadal istnieć
       for (let y = 14; y <= 26; y++) for (let x = 14; x <= 26; x++) if (Math.abs(x - y) <= 2) S.terrain[idx(x, y)] = T_CLIFF;
       const detour = route();
@@ -624,9 +624,9 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
         if (!(d.aggro > 0) || d.kind === 'art') continue;
         const sight = d.sight || CFG.fogRadius;
         if (Math.max(d.range, d.aggro) > sight) bad.push(k);
-        if (['wojownik', 'lucznik', 'wodz'].includes(k) && !(sight > Math.max(d.range, d.aggro))) sioux.push(k);
+        if (['warrior', 'arrowShooter', 'chief'].includes(k) && !(sight > Math.max(d.range, d.aggro))) sioux.push(k);
       }
-      return { bad, sioux, indianSight: CFG.units.wojownik.sight, settlerSight: CFG.units.piechota.sight || CFG.fogRadius };
+      return { bad, sioux, indianSight: CFG.units.warrior.sight, settlerSight: CFG.units.infantryman.sight || CFG.fogRadius };
     });
     eq(r.bad, [], 'wojsko z promieniem akcji większym niż pole widzenia'); eq(r.sioux, [], 'Sioux bez przewagi widzenia'); ok(r.indianSight > r.settlerSight, 'Indianie widzą dalej niż Osadnicy');
   });
@@ -634,7 +634,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     const r = await page.evaluate(() => {
       T.fresh('sioux');
       const D = addUnit('desperado', 'enemy', 20.5, 20.5); D.stance = 'aggr';
-      const W = addUnit('wojownik', 'player', 27.5, 20.5); W.stance = 'hold';
+      const W = addUnit('warrior', 'player', 27.5, 20.5); W.stance = 'hold';
       computeFog(); computeFogEnemy();
       const out = { playerSeesD: seenBy('player', D), enemySeesW: seenBy('enemy', W) };
       T.run(5); out.far = [D.state, D.attackTarget ? 1 : 0, W.hp];
@@ -643,12 +643,12 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       return out;
     });
     eq([r.playerSeesD, r.enemySeesW], [true, false], 'asymetria widzenia: Indianin widzi, wróg nie');
-    eq(r.far, ['idle', 0, 55], 'wróg bezczynny, gdy nie widzi'); ok(r.nearSees, 'w polu widzenia wroga'); eq(r.near, ['attack', true], 'atak po wejściu w pole widzenia i promień ataku');
+    eq(r.far, ['idle', 0, 30], 'wróg bezczynny, gdy nie widzi'); ok(r.nearSees, 'w polu widzenia wroga'); eq(r.near, ['attack', true], 'atak po wejściu w pole widzenia i promień ataku');
   });
   await test('F12.1: patrol A<->B chodzi tam i z powrotem, walczy po drodze i wraca na trasę, zapis w trakcie go zachowuje', async () => {
     const r = await page.evaluate(() => {
       T.fresh();
-      const P = addUnit('piechota', 'player', 15.5, 15.5);
+      const P = addUnit('infantryman', 'player', 15.5, 15.5);
       queueCmd({ action: 'patrol', units: [P], x: 23, y: 15 }); T.run(0.1);
       const out = { set: !!P.patrol, xs: [] };
       const D = addUnit('desperado', 'enemy', 19.5, 18.5); D.stance = 'hold'; D.hp = D.maxHp = 30;
@@ -661,7 +661,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await test('F12.1: rozkaz ruchu i stop kończą patrol; zwykła zbiórka Osadników bez zmian', async () => {
     const r = await page.evaluate(() => {
       T.fresh();
-      const P = addUnit('piechota', 'player', 15.5, 15.5);
+      const P = addUnit('infantryman', 'player', 15.5, 15.5);
       queueCmd({ action: 'patrol', units: [P], x: 23, y: 15 }); T.run(0.1); const a = !!P.patrol;
       queueCmd({ action: 'order', units: [P], x: 18, y: 16, targetUnit: null, targetHorse: null }); T.run(0.1); const b = !!P.patrol;
       queueCmd({ action: 'patrol', units: [P], x: 23, y: 15 }); T.run(0.1);
@@ -675,7 +675,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     const r = await page.evaluate(() => {
       T.fresh('sioux');
       const b = addBuilding('tepee', 20, 20, 'player'); b.built = true; b.hp = 60;
-      addUnit('squaw', 'player', 24.5, 24.5);
+      addUnit('woman', 'player', 24.5, 24.5);
       const out = { cap0: popCap(), used0: popUsed() };
       queueCmd({ action: 'pack', building: b }); T.run(1);
       out.packing = !!b.packing; out.capDuring = popCap();
@@ -688,7 +688,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       return out;
     });
     eq([r.cap0, r.used0], [15, 1], 'start'); ok(r.packing && r.capDuring === 15, 'w trakcie pakowania budynek jeszcze stoi');
-    ok(r.gone && !r.tile, 'budynek znika, kafle wolne'); eq(r.t, [60, 'tepee', 60], 'travois niesie HP tepee'); eq([r.cap1, r.used1], [10, 1], 'spakowane nie daje limitu, travois nie zajmuje populacji');
+    ok(r.gone && !r.tile, 'budynek znika, kafle wolne'); eq(r.t, [60, 'tepee', 60], 'travois niesie HP tepee'); eq([r.cap1, r.used1], [10, 2], 'spakowane nie daje limitu, travois zajmuje 1 miejsce populacji [Ź instrukcja]');
     eq(r.after, [27, 20, true, 60, 120], 'rozłożone w nowym miejscu z zachowanym HP'); eq([r.travoisLeft, r.cap2], [0, 15], 'travois znika, limit wraca');
   });
   await test('F12.2: pakowanie można przerwać, nie wolno rozłożyć na zajętym polu, a rozkaz ruchu zrywa rozkładanie; zapis w czasie jazdy działa', async () => {
@@ -718,7 +718,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   console.log('Faza 12.3: szkielet misji');
   await page.evaluate(() => {
     MISSIONS.t1 = { title: 'Test', race: 'sioux', enemy: 'outlaw', map: 'prairie', rules: { ai: false, hqWin: false },
-      start: { clear: { playerUnits: true, enemyUnits: true }, clearAreas: [[20, 20, 7]], units: [{ type: 'wojownik', x: 15, y: 20, tag: 'scout' }] },
+      start: { clear: { playerUnits: true, enemyUnits: true }, clearAreas: [[20, 20, 7]], units: [{ type: 'warrior', x: 15, y: 20, tag: 'scout' }] },
       failIf: [{ type: 'dead', tag: 'scout', text: 'Zwiadowca zginął' }],
       stages: [
         { id: 'a', title: 'Dojdź', objectives: [{ id: 'reach', text: 'Dojdź do strażnicy', type: 'reach', tag: 'scout', x: 20, y: 20, r: 2 }],
@@ -768,7 +768,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await page.evaluate(() => {
     const base = { race: 'settler', enemy: 'outlaw', map: 'prairie', rules: { ai: false, hqWin: false, surrender: false } };
     const escort = hostile => ({ title: 'Eskorta', ...base,
-      start: { clear: { playerUnits: true, enemyUnits: true }, clearAreas: [[20, 20, 9]], units: [{ type: 'wagon', x: 14, y: 20, tag: 'wagon' }].concat(hostile ? [{ type: 'desperado', fac: 'enemy', x: 16, y: 21, stance: 'aggr' }] : [{ type: 'piechota', x: 13, y: 20 }]) },   // bez eskorty wóz ginie, z piechotą jedzie bezpiecznie
+      start: { clear: { playerUnits: true, enemyUnits: true }, clearAreas: [[20, 20, 9]], units: [{ type: 'coveredWagon', x: 14, y: 20, tag: 'wagon' }].concat(hostile ? [{ type: 'desperado', fac: 'enemy', x: 16, y: 21, stance: 'aggr' }] : [{ type: 'infantryman', x: 13, y: 20 }]) },   // bez eskorty wóz ginie, z piechotą jedzie bezpiecznie
       failIf: [{ type: 'dead', tag: 'wagon', text: 'Wóz zniszczony' }],
       stages: [{ id: 'a', title: 'Dowieź wóz', objectives: [{ id: 'r', text: 'Wóz dojeżdża na miejsce', type: 'reach', tag: 'wagon', x: 25, y: 20, r: 2 }] }] });
     MISSIONS.t4 = escort(false); MISSIONS.t5 = escort(true);
@@ -776,7 +776,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       start: { clear: { enemyUnits: true }, clearAreas: [[20, 20, 6]], buildings: [{ type: 'storehouse', fac: 'enemy', x: 20, y: 20, tag: 'camp', loot: { gold: 50, wood: 30 } }] },
       stages: [{ id: 'a', title: 'Złupić obóz', objectives: [{ id: 'd', text: 'Zniszcz obóz', type: 'destroy', tag: 'camp' }, { id: 'l', text: 'Zdobądź 50 złota łupem', type: 'loot', res: 'gold', n: 50 }] }] };
   });
-  await test('F12.4: wóz kryty jest sterowany i nie zajmuje populacji; eskorta kończy się zwycięstwem po dojechaniu, a zniszczony wóz = porażka', async () => {
+  await test('F12.4: wóz kryty jest sterowany i zajmuje 1 miejsce populacji; eskorta kończy się zwycięstwem po dojechaniu, a zniszczony wóz = porażka', async () => {
     const r = await page.evaluate(() => {
       newMission('t4', 5); T.run(1);
       const w = taggedAll('wagon')[0], out = { pop: popUsed(), units: S.units.filter(u => u.fac === 'player').length, hp: w.hp };
@@ -784,7 +784,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       newMission('t5', 5); T.run(90); out.lose = S.gameOver; out.alive = taggedAll('wagon').length;
       return out;
     });
-    eq([r.pop, r.units], [1, 2], 'populacja bez wozu'); eq(r.win, 'win', 'wóz dojechał'); ok(r.speed >= 8.5, 'wóz jedzie: ' + r.speed); eq([r.lose, r.alive], ['lose', 0], 'wrogi desperado niszczy wóz');
+    eq([r.pop, r.units], [2, 2], 'wóz zajmuje 1 miejsce populacji [Ź instrukcja]'); eq(r.win, 'win', 'wóz dojechał'); ok(r.speed >= 8.5, 'wóz jedzie: ' + r.speed); eq([r.lose, r.alive], ['lose', 0], 'wrogi desperado niszczy wóz');
   });
   await test('F12.4: łup ze zniszczonego budynku wroga trafia do zasobów gracza (z limitem magazynu), liczy się do celu loot i kończy misję', async () => {
     const r = await page.evaluate(() => {

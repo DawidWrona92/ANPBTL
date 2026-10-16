@@ -218,28 +218,39 @@ const CFG = {
   },
   units: {
     worker:    { hp: 50,  dmg: 4,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 30 }, train: 12, aggro: 0, letter: 'W', color: '#3a7bd5', kind: 'melee', hunter: true, builder: true, farmer: true, gather: ['forest', 'gold', 'meat'] },
-    // Osadnicy [Ź role, P liczby 19.2]: frontiersman buduje, kopie, poluje i walczy wręcz, nie farmi i nie rąbi; frontierswoman farmi i rąbi, nie buduje; 'worker' zostaje ogólnym robotnikiem Desperado do C4
-    frontiersman:   { hp: 50, dmg: 4, range: 1, cd: 1.0, speed: 1.0, cost: { food: 30 }, train: 15, aggro: 0, letter: 'F', color: '#3a7bd5', kind: 'melee', hunter: true, builder: true, gather: ['gold', 'meat'] },
-    frontierswoman: { hp: 40, dmg: 2, range: 1, cd: 1.0, speed: 1.0, cost: { food: 25 }, train: 12, aggro: 0, letter: 'N', color: '#d58aa5', kind: 'melee', farmer: true, gather: ['forest'], fleesOnHit: true },
-    // szeryf: wzrok 10 [Ź fakt, P wartość], aura morale jak przywódca (leader); armata: wolna [Ź], obszar r 1.5, z fabryki (koszt z tabeli jednostek 19.2; wiersz fabryki podaje 50D+100Zł, sprzeczność w dokumentacji)
-    szeryf:         { hp: 70, dmg: 15, range: 6, cd: 1.2, speed: 1.0, cost: { food: 60, gold: 40, guns: 1 }, train: 30, aggro: 7, letter: 'Z', color: '#e0b030', kind: 'gun', leader: true, sight: 10 },
-    armata:         { hp: 150, dmg: 35, range: 12, cd: 3.0, speed: 0.6, cost: { gold: 150, wood: 100 }, train: 60, aggro: 12, letter: 'A', color: '#555560', kind: 'art', splash: 1.5 },
+    // ---- Osadnicy [Ź instrukcja: koszt, HP, atak, role z docs/podrecznik.md; P: czas szkolenia, prędkość, zasięg, cd, wzrok] ----
+    // art = klucz arkusza grafiki (do czasu własnych sprite'ów nowe jednostki używają istniejących); warianty konne (…H) tworzy addMounted niżej
+    commander:      { hp: 130, dmg: 15, range: 5, cd: 1.2, speed: 1.0, cost: { food: 60 }, train: 30, aggro: 6, letter: 'D', color: '#e0b030', kind: 'gun', leader: true, limit: 1, sight: 8, art: 'szeryf' },
+    frontiersman:   { hp: 30, dmg: 4, range: 1, cd: 1.0, speed: 1.0, cost: { food: 50 }, train: 15, aggro: 0, letter: 'F', color: '#3a7bd5', kind: 'melee', builder: true, gather: ['gold', 'forest'] },
+    frontierswoman: { hp: 30, dmg: 0, range: 1, cd: 1.0, speed: 1.0, cost: { food: 50 }, train: 12, aggro: 0, letter: 'N', color: '#d58aa5', kind: 'melee', farmer: true, gather: ['forest'], fleesOnHit: true },
+    cowboy:         { hp: 40, dmg: 7, range: 4, cd: 1.2, speed: 1.0, cost: { food: 80 }, train: 20, aggro: 5, letter: 'K', color: '#b8862e', kind: 'gun', art: 'desperado' },
+    trapper:        { hp: 45, dmg: 8, range: 6, cd: 1.2, speed: 1.0, cost: { food: 50, gold: 50, guns: 1 }, train: 20, aggro: 6, letter: 'T', color: '#7a6a3a', kind: 'gun', hunter: true, gather: ['meat'], detect: 4, art: 'desperado' },
+    // Sheriff: większy wzrok [Ź GiantBomb, Game Over; wartość 10 to P]; Cannon: wolna, rozrzut (splash) [Ź], obszar r 1.5 [P]
+    sheriff:        { hp: 100, dmg: 12, range: 6, cd: 1.2, speed: 1.0, cost: { food: 75, gold: 90 }, train: 30, aggro: 7, letter: 'Z', color: '#e0b030', kind: 'gun', sight: 10, art: 'szeryf' },
+    infantryman:    { hp: 70, dmg: 12, range: 5, cd: 1.0, speed: 1.0, cost: { food: 50, gold: 75, guns: 1 }, train: 20, aggro: 6, letter: 'P', color: '#2f5d8a', kind: 'gun', art: 'piechota' },
+    cavalryman:     { hp: 60, dmg: 10, range: 4, cd: 1.2, speed: 1.0, cost: { food: 50, gold: 85 }, train: 25, aggro: 6, letter: 'J', color: '#6a4a8a', kind: 'gun', art: 'piechota' },
+    nurse:          { hp: 30, dmg: 0, range: 0, cd: 1.0, speed: 1.0, cost: { food: 30, gold: 50 }, train: 20, aggro: 0, letter: 'U', color: '#e8c8d8', kind: 'heal', fleesOnHit: true, art: 'frontierswoman' },
+    cannon:         { hp: 100, dmg: 30, range: 12, cd: 3.0, speed: 0.6, cost: { gold: 150, wood: 100 }, train: 60, aggro: 12, letter: 'A', color: '#555560', kind: 'art', splash: 1.5, art: 'armata' },
+    // Covered Wagon i Stagecoach: transport zasobów [Ź], 1 pop [Ź]; prędkości [P]
+    coveredWagon:   { hp: 120, dmg: 0, range: 0, cd: 1.0, speed: 0.7, cost: { wood: 150, horses: 1 }, train: 30, aggro: 0, letter: 'Y', color: '#d8cfae', kind: 'cart', art: 'wagon' },
+    stagecoach:     { hp: 200, dmg: 0, range: 0, cd: 1.0, speed: 0.9, cost: { wood: 175, gold: 50, horses: 2 }, train: 40, aggro: 0, letter: 'Q', color: '#b09060', kind: 'cart', art: 'wagon' },
     // pole widzenia (sight, w kaflach) jest większe niż promień rozpoczęcia ataku (aggro): zasada z pamięci gracza [Ź], Indianie widzą dalej niż reszta [Ź pamięć gracza, P liczby]; bez 'sight' obowiązuje fogRadius
-    // frakcja Sioux, statystyki z 19.2 [Ź]: squaw buduje i farmi, nie rąbie; wojownik rąbie, kopie i poluje; łuk kosztuje drewno, nie broń palną
-    squaw:     { hp: 35,  dmg: 2,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 20 }, train: 10, aggro: 0, letter: 'S', color: '#c46a8a', kind: 'melee', builder: true, farmer: true, swim: true, fleesOnHit: true },
-    wojownik:  { hp: 55,  dmg: 7,  range: 1, cd: 1.0, speed: 1.0, cost: { food: 25 }, train: 10, aggro: 5, letter: 'I', color: '#a05a30', kind: 'melee', hunter: true, gather: ['forest', 'gold', 'meat'], swim: true, sight: 8 },
-    lucznik:   { hp: 45,  dmg: 9,  range: 7, cd: 1.1, speed: 1.0, cost: { food: 30, wood: 5 }, train: 12, aggro: 6, letter: 'Ł', color: '#7a9a4a', kind: 'bow', swim: true, sight: 8 },
-    medicine:  { hp: 50,  dmg: 3,  range: 6, cd: 1.5, speed: 1.0, cost: { food: 50, gold: 30 }, train: 25, aggro: 0, letter: 'M', color: '#4a8a6a', kind: 'bow', swim: true, sight: 8 },
-    wodz:      { hp: 100, dmg: 12, range: 1, cd: 1.0, speed: 1.1, cost: { food: 60, gold: 50 }, train: 30, aggro: 5, letter: 'C', color: '#d1a02f', kind: 'melee', limit: 1, leader: true, swim: true, sight: 9 },
-    piechota:  { hp: 60,  dmg: 12, range: 5, cd: 1.0, speed: 1.0, cost: { food: 40, gold: 10, guns: 1 }, train: 20, aggro: 6, letter: 'P', color: '#2f5d8a', kind: 'gun' },
+    // ---- Sioux [Ź instrukcja: koszt, HP, atak, role; P: reszta]. Warrior to pracownik, nie główna siła bojowa [Ź]; pływanie w tej wersji jeszcze stałe (ulepszenie Swim: faza 13.5) ----
+    chief:             { hp: 130, dmg: 15, range: 1, cd: 1.0, speed: 1.1, cost: { food: 50 }, train: 30, aggro: 5, letter: 'C', color: '#d1a02f', kind: 'melee', limit: 1, leader: true, swim: true, sight: 9, art: 'wodz' },
+    warrior:           { hp: 30, dmg: 4, range: 1, cd: 1.0, speed: 1.0, cost: { food: 50 }, train: 15, aggro: 0, letter: 'I', color: '#a05a30', kind: 'melee', gather: ['forest', 'gold'], swim: true, sight: 8, art: 'wojownik' },
+    woman:             { hp: 30, dmg: 4, range: 1, cd: 1.0, speed: 1.0, cost: { food: 50 }, train: 12, aggro: 0, letter: 'S', color: '#c46a8a', kind: 'melee', builder: true, farmer: true, swim: true, fleesOnHit: true, art: 'squaw' },
+    arrowShooter:      { hp: 35, dmg: 6, range: 7, cd: 1.1, speed: 1.0, cost: { food: 60, wood: 25 }, train: 15, aggro: 6, letter: 'Ł', color: '#7a9a4a', kind: 'bow', hunter: true, gather: ['meat'], detect: 4, swim: true, sight: 8, art: 'lucznik' },
+    flamingArrowShooter: { hp: 35, dmg: 12, range: 7, cd: 1.3, speed: 1.0, cost: { food: 50, wood: 50, gold: 50 }, train: 20, aggro: 6, letter: 'O', color: '#d05a2a', kind: 'bow', swim: true, sight: 8, art: 'lucznik' },
+    rifleman:          { hp: 40, dmg: 10, range: 5, cd: 1.0, speed: 1.0, cost: { food: 40, gold: 35, guns: 1 }, train: 20, aggro: 6, letter: 'R', color: '#6a7a4a', kind: 'gun', swim: true, sight: 8, art: 'lucznik' },
+    spearFighter:      { hp: 40, dmg: 10, range: 1, cd: 1.0, speed: 1.0, cost: { food: 40, wood: 50, gold: 30 }, train: 18, aggro: 5, letter: 'L', color: '#a07a3a', kind: 'melee', antiCav: 1.5, swim: true, sight: 8, art: 'wojownik' },
+    knifeThrower:      { hp: 110, dmg: 14, range: 3, cd: 1.0, speed: 1.0, cost: { food: 80, gold: 60 }, train: 25, aggro: 5, letter: 'N', color: '#8a5a3a', kind: 'bow', swim: true, sight: 8, art: 'wojownik' },
+    medicineMan:       { hp: 60, dmg: 3, range: 6, cd: 1.5, speed: 1.0, cost: { food: 100, gold: 100 }, train: 25, aggro: 0, letter: 'M', color: '#4a8a6a', kind: 'bow', swim: true, sight: 8, art: 'medicine' },
+    // Travois: kupowana jednostka [Ź: 75 drewna + koń], transport złota i zwijanie tipi (13.3/13.5)
+    travois:           { hp: 80, dmg: 0, range: 0, cd: 1.0, speed: 0.6, cost: { wood: 75, horses: 1 }, train: 25, aggro: 0, letter: 'V', color: '#9a6a3a', kind: 'cart' },
     desperado: { hp: 50,  dmg: 10, range: 4, cd: 1.2, speed: 1.1, cost: { food: 40, gold: 10 }, train: 15, aggro: 6, letter: 'D', color: '#a12f2f', kind: 'gun', hunter: true },
     bandleader:{ hp: 90,  dmg: 14, range: 5, cd: 1.0, speed: 1.1, cost: { food: 80, gold: 20 }, train: 25, aggro: 6, letter: 'B', color: '#d14a1e', kind: 'gun', leader: true },
     jezdiec:   { hp: 70,  dmg: 12, range: 4, cd: 1.2, speed: 1.8, cost: { food: 40, gold: 10, guns: 1, horses: 1 }, train: 25, aggro: 6, letter: 'J', color: '#6a4a8a', kind: 'gun', cav: true },
-    konnobanda:{ hp: 60,  dmg: 12, range: 1, cd: 0.9, speed: 1.7, cost: { food: 40, gold: 10, horses: 1 }, train: 20, aggro: 7, letter: 'J', color: '#c03a2a', kind: 'melee', cav: true, sight: 8 },
-    // wóz-travois: spakowane tepee [Ź: tepee można pakować i przenosić]; wolny, bez walki, nie zajmuje populacji [P], HP przejęte z tepee
-    travois:   { hp: 120, dmg: 0, range: 0, cd: 1.0, speed: 0.6, cost: {}, train: 0, aggro: 0, letter: 'V', color: '#9a6a3a', kind: 'cart', noPop: true },
-    // wóz kryty (eskorta, USA 1) [P liczby]: wolniejszy od pieszych, bez walki, poza populacją; sterowany przez gracza, ginie od ognia wroga jak każda jednostka
-    wagon:     { hp: 120, dmg: 0, range: 0, cd: 1.0, speed: 0.7, cost: {}, train: 0, aggro: 0, letter: 'Y', color: '#d8cfae', kind: 'cart', noPop: true },
+    konnobanda:{ hp: 60,  dmg: 12, range: 1, cd: 0.9, speed: 1.7, cost: { food: 40, gold: 10, horses: 1 }, train: 20, aggro: 7, letter: 'J', color: '#c03a2a', kind: 'melee', cav: true, mounted: true, sight: 8 },
     horse:     { hp: 40,  dmg: 0,  range: 0, cd: 1.0, speed: 0.7, cost: {}, train: 0, aggro: 0, letter: 'K', color: '#8a5a3a' },
     bizon:     { hp: 45,  dmg: 0,  range: 0, cd: 1.0, speed: 0.8, cost: {}, train: 0, aggro: 0, letter: 'B', color: '#5a4030', animal: true, meat: 150 },
     bydlo:     { hp: 25,  dmg: 0,  range: 0, cd: 1.0, speed: 0.5, cost: {}, train: 0, aggro: 0, letter: 'C', color: '#a89a85', animal: true, meat: 100 },
@@ -264,13 +275,20 @@ const CFG = {
     sztauga:  { bld: 'barracks', cost: { gold: 100 }, time: 45, name: 'Kowbojska sztauga', desc: 'jeźdźcy +10% HP' },
   },
 };
+// warianty konne [Ź instrukcja: koń w koszcie, wyższy atak]: ta sama jednostka z wierzchowcem, szybsza, z własnym ID (…H); po śmierci jeźdźca koń zostaje na mapie
+function addMounted(id, mountedDmg, art) {
+  const b = CFG.units[id];
+  CFG.units[id + 'H'] = { ...b, cost: { ...b.cost, horses: 1 }, dmg: mountedDmg, speed: Math.max(b.speed, 1.8), train: b.train + 5, cav: true, mounted: true, art: art || 'jezdiec' };
+}
+addMounted('commander', 15); addMounted('cowboy', 9); addMounted('cavalryman', 15);
+addMounted('chief', 15, 'konnobanda'); addMounted('arrowShooter', 8, 'konnobanda'); addMounted('flamingArrowShooter', 14, 'konnobanda'); addMounted('rifleman', 12, 'konnobanda');
 // ============================== FRAKCJE JAKO DANE (C2) ==============================
 // Cała różnica między frakcjami (jednostki startowe, menu budowy i produkcji, styl budynków, teren) leży w tej tabeli; kod gry nie porównuje nazw frakcji.
 // playable: false = dane są, ale frakcja nie ma jeszcze mechaniki (Desperado: C4, Meksykanie: C7); wróg gry to na razie zawsze Desperado.
 const RACES = {
   settler: {
     label: 'Osadnicy', nation: 'us', biome: 'prairie', playable: true,
-    desc: 'Frontiersmani budują i kopią, frontierswomen farmią i rąbią; piechota, jazda, szeryf i armata; bank i ranczo.',
+    desc: 'Frontiersmani budują i kopią, frontierswomen farmią i rąbią; Infantryman, Cavalryman, Sheriff i Cannon; Trapper i Cowboy; bank i ranczo.',
     startUnits: ['frontiersman', 'frontierswoman', 'frontierswoman', 'frontiersman'], startOrders: ['gold', 'forest', 'forest', null],
     build: [
       { type: 'house', key: 'H', name: 'Dom' }, { type: 'farm', key: 'F', name: 'Farma' },
@@ -278,26 +296,26 @@ const RACES = {
       { type: 'factory', key: 'B', name: 'Fabryka broni' }, { type: 'zagroda', key: 'Z', name: 'Zagroda koni' },
       { type: 'ranch', key: 'R', name: 'Ranczo' }, { type: 'bank', key: 'N', name: 'Bank' },
     ],
-    train: { hq: ['frontiersman', 'frontierswoman'], barracks: ['piechota', 'jezdiec', 'szeryf'], factory: ['armata'] },
+    train: { hq: ['commander', 'commanderH', 'frontiersman', 'frontierswoman'], barracks: ['infantryman', 'cavalryman', 'cavalrymanH', 'sheriff', 'trapper'], factory: ['cannon'], ranch: ['cowboy', 'cowboyH'], storehouse: ['coveredWagon'] },
     noTechs: [],
     test: { res: { wood: 500, food: 500, gold: 1000, guns: 50, horses: 20 },
       buildings: ['storehouse', 'farm', 'barracks', 'factory', 'zagroda', 'house', 'house', 'farm', 'ranch', 'bank'],
-      units: { frontiersman: 3, frontierswoman: 3, piechota: 8, jezdiec: 4, szeryf: 1, armata: 1 } },
+      units: { frontiersman: 3, frontierswoman: 3, infantryman: 8, cavalrymanH: 4, sheriff: 1, cannon: 1 } },
   },
   // Sioux: tepee zamiast domu (pop +5), bez fabryki broni (łuki z drewna) i bez zagrody (brak kawalerii); koszary produkują łuczników i medicine manów
   sioux: {
     label: 'Sioux', nation: 'sx', biome: 'grass', playable: true,
-    desc: 'Squawy budują i farmią, wojownicy rąbią i polują; łuki z drewna, tepee, medicine man.',
-    startUnits: ['squaw', 'squaw', 'wojownik', 'wojownik'], startOrders: [null, null, 'forest', 'forest'],
+    desc: 'Kobiety budują i farmią, wojownicy pracują; łucznicy, oszczepnicy, miotacze noży; tepee, Medicine Man, Travois.',
+    startUnits: ['woman', 'woman', 'warrior', 'warrior'], startOrders: [null, null, 'forest', 'forest'],
     build: [
       { type: 'tepee', key: 'E', name: 'Tepee' }, { type: 'farm', key: 'F', name: 'Farma' },
       { type: 'storehouse', key: 'M', name: 'Magazyn' }, { type: 'barracks', key: 'K', name: 'Koszary' },
     ],
-    train: { hq: ['squaw', 'wojownik', 'wodz'], barracks: ['lucznik', 'medicine'] },
+    train: { hq: ['woman', 'warrior', 'chief', 'chiefH'], barracks: ['arrowShooter', 'arrowShooterH', 'flamingArrowShooter', 'flamingArrowShooterH', 'rifleman', 'riflemanH', 'spearFighter', 'knifeThrower', 'medicineMan'], storehouse: ['travois'] },
     noTechs: ['sztauga'],   // kawaleryjna technologia bez sensu dla Sioux
     test: { res: { wood: 500, food: 500, gold: 1000, guns: 0, horses: 0 },
       buildings: ['storehouse', 'farm', 'barracks', 'tepee', 'tepee', 'farm'],
-      units: { squaw: 4, wojownik: 6, lucznik: 6, medicine: 1, wodz: 1 } },
+      units: { woman: 4, warrior: 6, arrowShooter: 6, medicineMan: 1, chief: 1 } },
   },
   outlaw:  { label: 'Desperado', nation: 'ban', biome: 'prairie', playable: false, aiReady: true, desc: 'Brak własnej produkcji: łupy, destylarnia (C4).', build: [], train: {}, noTechs: [] },
   mexican: { label: 'Meksykanie', nation: 'mx', biome: 'prairie', playable: false, desc: 'Leczenie i konwersja, mobilna armata (C7).', build: [], train: {}, noTechs: [] },
@@ -546,7 +564,7 @@ function addBuilding(type, tx, ty, fac) {
 }
 function addUnit(type, fac, tx, ty) {
   const def = CFG.units[type];
-  const hp = def.hp * (type === 'jezdiec' && hasTech(fac, 'sztauga') ? 1.1 : 1);
+  const hp = def.hp * (type === 'cavalrymanH' && hasTech(fac, 'sztauga') ? 1.1 : 1);
   const u = {
     id: S.nextId++, type, fac, x: tx, y: ty,
     hp, maxHp: hp, state: 'idle',
@@ -1054,7 +1072,7 @@ function stepSnd(u, dist) {
   // kroki liczone przebytym dystansem, nie czasem: jednostka stojąca nie hałasuje
   u.stepAcc = (u.stepAcc || 0) + dist;
   u.walkD = (u.walkD || 0) + dist;   // przebyty dystans: faza animacji chodu
-  const hoof = u.type === 'jezdiec' || u.type === 'konnobanda';
+  const hoof = !!CFG.units[u.type].mounted;
   if (u.stepAcc >= (hoof ? 0.4 : 0.5)) { u.stepAcc = 0; sfx(hoof ? 'hoof' : 'step', u.x, u.y); }
 }
 function followPath(u, dt) {
@@ -1424,7 +1442,7 @@ function farmRate(u) {
 // ============================== ZDOLNOŚCI MEDICINE MANA (formuły 19.4) ==============================
 // deszcz: wszystkie pola frakcji +100% plonów przez 60 s, cooldown 180 s; koszt: brak (rytualny taniec)
 function castRain(u) {
-  if (u.type !== 'medicine' || (u.rainCd || 0) > 0) return;
+  if (u.type !== 'medicineMan' || (u.rainCd || 0) > 0) return;
   u.rainCd = CFG.abilities.rain.cd;
   S.rainT[u.fac] = CFG.abilities.rain.dur;
   uiAlert('Taniec deszczu: pola dają podwójny plon przez ' + CFG.abilities.rain.dur + ' s');
@@ -1432,7 +1450,7 @@ function castRain(u) {
 }
 // burza: obszar promień 3 wokół szamana, 10 obrażeń/s przez 5 s, jednorazowo morale wrogów -20, cooldown 120 s
 function castStorm(u) {
-  if (u.type !== 'medicine' || (u.stormCd || 0) > 0) return;
+  if (u.type !== 'medicineMan' || (u.stormCd || 0) > 0) return;
   u.stormCd = CFG.abilities.storm.cd;
   S.storms.push({ x: u.x, y: u.y, fac: u.fac, t: CFG.abilities.storm.dur });
   for (const e of S.units) {
@@ -1445,7 +1463,7 @@ function castStorm(u) {
 // tick zdolności: cooldowny jednostek, czas deszczu, obrażenia i czas burz
 function updateAbilities(dt) {
   for (const u of S.units) {
-    if (u.type !== 'medicine') continue;
+    if (u.type !== 'medicineMan') continue;
     if (u.rainCd > 0) u.rainCd = Math.max(0, u.rainCd - dt);
     if (u.stormCd > 0) u.stormCd = Math.max(0, u.stormCd - dt);
   }
@@ -1570,9 +1588,9 @@ function killUnit(u) {
   S.selected.units = S.selected.units.filter(x => x !== u);
   for (const b of S.buildings) if (b.busy === u.id) b.busy = null;
   // śmierć wodza łamie morale całej armii [Ź 19.2], poza standardowym wstrząsem w promieniu śmierci
-  if (u.type === 'wodz') applyWodzDeath(u);
+  if (u.type === 'chief') applyWodzDeath(u);
   // zabity jeździec zostawia konia na mapie do schwytania [Ź: mechanika oryginału]
-  if (u.type === 'jezdiec' || u.type === 'konnobanda') addUnit('horse', 'neutral', u.x, u.y);
+  if (CFG.units[u.type] && CFG.units[u.type].mounted) addUnit('horse', 'neutral', u.x, u.y);
   // ubite zwierzę zostawia padlinę jako kafl żywności (19.5: bizon 150, bydło 100), tylko na trawie
   const ad = CFG.units[u.type];
   if (ad && ad.animal) {
@@ -2374,7 +2392,7 @@ document.addEventListener('keydown', e => {
   if (item && S.selected.units.some(u => unitRole(u, 'builder'))) { S.placing = item.type; S.unpackBy = null; }
   // zdolności medicine mana: R deszcz, B burza; B nie koliduje, bo fabrykę (B) stawiają tylko Osadnicy, a medicine man jest jednostką Sioux
   if (!e.ctrlKey && !e.altKey && !e.repeat && (k === 'R' || k === 'B')) {
-    const m = S.selected.units.find(u => u.fac === 'player' && u.type === 'medicine');
+    const m = S.selected.units.find(u => u.fac === 'player' && u.type === 'medicineMan');
     if (m && k === 'R') castRain(m);
     if (m && k === 'B') castStorm(m);
   }
@@ -2491,6 +2509,7 @@ const cmdSvg = n => '<svg viewBox="0 0 48 48" fill="none" stroke="#3a2b1c" strok
 function thumb(kind, key, size, fac) {
   const c = document.createElement('canvas'); c.width = c.height = size;
   const g = c.getContext('2d'); g.imageSmoothingEnabled = true;
+  if (kind === 'unit') key = artOf(key);
   const e = window.ASSETS && window.ASSETS[key]; if (!e) return c;
   const bb = e.bb || [0, 0, e.w || e.fw, e.h || e.fh], sw = bb[2] - bb[0], sh = bb[3] - bb[1], s = Math.min(size / sw, size / sh) * 0.94, dw = sw * s, dh = sh * s;
   if (kind === 'unit') {
@@ -2513,7 +2532,13 @@ function cmdBtn(o) {
 // na dotyku skróty klawiszowe w etykietach ([P], [X]) tylko zabierają miejsce
 function setLbl(b, html) { if (document.documentElement.classList.contains('compact')) html = html.replace(/\s*\[[A-Za-z0-9]\]/g, ''); const l = b.querySelector('.lbl'); if (l && l.innerHTML !== html) l.innerHTML = html; }
 
-const UNIT_NAMES = { worker: 'Robotnik', frontiersman: 'Frontiersman', frontierswoman: 'Frontierswoman', szeryf: 'Szeryf', armata: 'Armata', piechota: 'Piechota', jezdiec: 'Jeździec', squaw: 'Squaw', wojownik: 'Wojownik', wodz: 'Wódz', lucznik: 'Łucznik', medicine: 'Medicine man', desperado: 'Desperado', bandleader: 'Bandleader', konnobanda: 'Konna banda', horse: 'Dziki koń', bizon: 'Bizon', bydlo: 'Bydło', travois: 'Wóz-travois', wagon: 'Wóz kryty' };
+const UNIT_NAMES = { worker: 'Robotnik', desperado: 'Desperado', bandleader: 'Bandleader', konnobanda: 'Konna banda', horse: 'Dziki koń', bizon: 'Bizon', bydlo: 'Bydło',
+  commander: 'Dowódca', frontiersman: 'Osadnik', frontierswoman: 'Osadniczka', cowboy: 'Kowboj', trapper: 'Traper', sheriff: 'Szeryf', infantryman: 'Piechur', cavalryman: 'Kawalerzysta', nurse: 'Sanitariuszka', cannon: 'Armata',
+  coveredWagon: 'Wóz kryty', stagecoach: 'Dyliżans', riverboat: 'Statek rzeczny',
+  chief: 'Wódz', warrior: 'Wojownik', woman: 'Kobieta', arrowShooter: 'Łucznik', flamingArrowShooter: 'Łucznik ognisty', rifleman: 'Strzelec', spearFighter: 'Włócznik', knifeThrower: 'Miotacz noży', medicineMan: 'Szaman', canoe: 'Kanu', travois: 'Travois' };
+for (const k of Object.keys(CFG.units)) if (CFG.units[k].mounted && UNIT_NAMES[k.slice(0, -1)]) UNIT_NAMES[k] = UNIT_NAMES[k.slice(0, -1)] + ' (konny)';
+// klucz arkusza grafiki jednostki: nowe jednostki z poradnika dzielą istniejące arkusze (pole art), do czasu własnych
+const artOf = type => { const d = CFG.units[type]; return (d && d.art) || type; };
 const buildBtns = [];
 let buildBarRace = null;
 let bpanelBuilding = null, bpanelBuilt = null, bpanelSlotSig = null;
@@ -2613,12 +2638,12 @@ function updatePanels() {
     for (const sb of stanceBtns) sb.btn.classList.toggle('active', sb.id === cur);
   }
   // pasek zdolności: medicine man gracza (deszcz R, burza B), cooldown na przycisku, odświeżany z updatePanels
-  const medics = S.selected.units.filter(u => u.fac === 'player' && u.type === 'medicine');
+  const medics = S.selected.units.filter(u => u.fac === 'player' && u.type === 'medicineMan');
   const carts = S.selected.units.filter(u => u.fac === 'player' && u.packed);
   abilitybar.style.display = medics.length || carts.length ? 'flex' : 'none';
   if (!abilityBtns.length) {
     for (const ab of ABILITY_MENU) {
-      const btn = cmdBtn({ icon: cmdSvg(ab.id), cls: 'slot', title: ab.name + ' [' + ab.key + ']. ' + ab.desc, onclick: () => { const m = S.selected.units.find(u => u.fac === 'player' && u.type === 'medicine'); if (m) ab.id === 'rain' ? castRain(m) : castStorm(m); } });
+      const btn = cmdBtn({ icon: cmdSvg(ab.id), cls: 'slot', title: ab.name + ' [' + ab.key + ']. ' + ab.desc, onclick: () => { const m = S.selected.units.find(u => u.fac === 'player' && u.type === 'medicineMan'); if (m) ab.id === 'rain' ? castRain(m) : castStorm(m); } });
       abilitybar.appendChild(btn);
       abilityBtns.push({ btn, id: ab.id });
     }
@@ -2833,7 +2858,7 @@ function showFactionScreen() {
   const o = screen('scr-wood');
   o.append(el('div', 'scr-title', 'AMERICA'), el('div', 'scr-sub', 'Gra jednoosobowa'), el('div', 'scr-pill', 'Wybierz lud'));
   const circles = el('div', 'circles'), pos = { settler: [40, 120], sioux: [285, 0], mexican: [530, 120], outlaw: [285, 250] };
-  const face = { settler: ['unit', 'szeryf'], sioux: ['unit', 'wodz'], outlaw: ['unit', 'bandleader'], mexican: null };
+  const face = { settler: ['unit', 'sheriff'], sioux: ['unit', 'chief'], outlaw: ['unit', 'bandleader'], mexican: null };
   for (const k of ['settler', 'sioux', 'outlaw', 'mexican']) {
     const R = RACES[k], c = el('div', 'circ' + (R.playable ? '' : ' off')), [x, y] = pos[k];
     c.style.left = 'calc(var(--u) * ' + x + 'px)'; c.style.top = 'calc(var(--u) * ' + y + 'px)'; c.title = R.desc;
@@ -3677,7 +3702,7 @@ function unitHeading(u) {
   return u.hd;
 }
 function drawUnitPre(u, sx, sy) {
-  const e = window.ASSETS[u.type]; if (!e) return sy - 20;
+  const e = window.ASSETS[artOf(u.type)]; if (!e) return sy - 20;
   const row = unitHeading(u);
   const moving = u.path.length && ['move', 'toNode', 'toDeposit', 'toBuild', 'toFarm', 'toCapture', 'flee', 'attack', 'assault'].includes(u.state);
   const col = e.phases > 1 && moving ? Math.floor((u.walkD || 0) / 0.42) % e.phases : 0;

@@ -12,7 +12,7 @@ function loadPlaywright() { try { return require('playwright'); } catch (e) { re
   const page = await browser.newPage(); const errors = []; page.on('pageerror', e => errors.push(String(e).slice(0, 200)));
   await page.goto('file://' + FILE); await page.waitForTimeout(300);
   const res = await page.evaluate(({ N, VAL, SKIP }) => {
-    const UNITS = ['piechota', 'jezdiec', 'desperado', 'bandleader', 'konnobanda', 'wojownik', 'lucznik', 'wodz'];
+    const UNITS = ['infantryman', 'cavalrymanH', 'desperado', 'bandleader', 'konnobanda', 'warrior', 'arrowShooter', 'chief'];
     function arena(seed) {
       newGame(seed, 'settler'); S.testMode = true; S.menuOpen = false; S.units = []; S.buildings = S.buildings.filter(b => b.fac === 'player');
       for (let x = 8; x < 34; x++) for (let y = 8; y < 34; y++) { S.terrain[idx(x, y)] = T_GRASS; S.amt[idx(x, y)] = 0; }
@@ -44,7 +44,7 @@ function loadPlaywright() { try { return require('playwright'); } catch (e) { re
     const val = c => VAL === 'cheap' ? (c.food || 0) + (c.wood || 0) : (c.food || 0) + (c.wood || 0) + (c.gold || 0) + (c.guns || 0) * 15 + (c.horses || 0) * 30;
     const budget = 600, armies = {};
     function make(types) { const per = types.map(t => val(CFG.units[t].cost)); const out = []; let spent = 0, i = 0; while (spent + per[i % types.length] <= budget) { out.push(types[i % types.length]); spent += per[i % types.length]; i++; } return out; }
-    const compositions = { 'Sioux łucznicy+wojownicy': make(['lucznik', 'wojownik']), 'Sioux sami łucznicy': make(['lucznik']), 'Osadnicy piechota': make(['piechota']), 'Osadnicy piechota+jeźdźcy': make(['piechota', 'jezdiec']) };
+    const compositions = { 'Sioux łucznicy+wojownicy': make(['arrowShooter', 'warrior']), 'Sioux sami łucznicy': make(['arrowShooter']), 'Osadnicy piechota': make(['infantryman']), 'Osadnicy piechota+jeźdźcy': make(['infantryman', 'cavalrymanH']) };
     const battles = {};
     function battle(A, B, seed) {
       arena(seed);

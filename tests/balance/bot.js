@@ -4,7 +4,7 @@
   const P = { men: 3, women: 5, farmsMax: 3, armyToAttack: 10, attackAfter: 720, stepEvery: 1.0 };
   const bot = { P, next: 0, log: { infantry: [], res: {} }, attacked: false };
   const origAdd = addUnit;
-  addUnit = function (type, fac, x, y) { const u = origAdd(type, fac, x, y); if (fac === 'player' && type === 'piechota') bot.log.infantry.push(+S.time.toFixed(1)); return u; };
+  addUnit = function (type, fac, x, y) { const u = origAdd(type, fac, x, y); if (fac === 'player' && type === 'infantryman') bot.log.infantry.push(+S.time.toFixed(1)); return u; };
 
   // zgodność ze starszymi wersjami gry (porównania A/B): brak queuedCount przed poprawką limitu populacji
   const qcount = () => typeof queuedCount === 'function' ? queuedCount() : S.buildings.filter(b => b.fac === 'player').reduce((n, b) => n + b.queue.length, 0);
@@ -45,14 +45,14 @@
       else if (blds('barracks', true).length && !blds('factory').length) build('factory');
     }
     const barr = blds('barracks', true)[0];
-    if (barr && barr.queue.length < 2) tryTrain(barr, 'piechota');
+    if (barr && barr.queue.length < 2) tryTrain(barr, 'infantryman');
     for (const w of workers.filter(u => u.state === 'idle')) {
       if (w.type === 'frontiersman') { if (!unbuilt) orderGatherAuto(w, T_GOLD); continue; }   // mężczyźni zostają wolni, gdy trwa budowa
       const f = blds('farm', true).find(x => !x.busy);
       if (f) executeOrder({ units: [w], x: f.tx, y: f.ty, targetUnit: null, targetHorse: null, silent: true });
       else orderGatherAuto(w, T_FOREST);
     }
-    const army = mine(u => u.type === 'piechota' || u.type === 'jezdiec');
+    const army = mine(u => u.type === 'infantryman' || u.type === 'cavalrymanH');
     const ehq = S.buildings.find(b => b.fac === 'enemy' && b.type === 'hq');
     if (!bot.attacked && ehq && S.time >= P.attackAfter && army.length >= P.armyToAttack) {
       bot.attacked = true; executeOrder({ units: army, x: Math.floor(ehq.cx), y: Math.floor(ehq.cy), targetUnit: null, targetHorse: null, silent: true });
