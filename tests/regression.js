@@ -76,7 +76,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       const d = { train: bpanel.querySelectorAll('[data-role^="train_"]').length, top: topbar.querySelectorAll('.res[data-r]').length };
       return { a, b, c, d };
     });
-    eq(r.a, { build: true, stance: false, btns: 8 }, 'robotnik: budowa bez postaw'); eq(r.b, { build: false, stance: true, info: true }, 'szeryf: postawy bez budowy, info o jednostce');
+    eq(r.a, { build: true, stance: false, btns: 18 }, 'robotnik: budowa bez postaw (18 budynków Osadników)'); eq(r.b, { build: false, stance: true, info: true }, 'szeryf: postawy bez budowy, info o jednostce');
     eq(r.c, { grid: 2 }, 'zaznaczenie wielu jednostek: siatka miniatur'); eq(r.d, { train: 4, top: 6 }, 'obóz: cztery pozycje produkcji (dowódca i konny dowódca, osadnik, osadniczka); pasek zasobów ma 6 pól');
   });
   await test('F1: ścieżki jednostek nie zapętlają się', async () => {
@@ -94,7 +94,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       for (let i = 0; i < 300; i++) update(1 / 60); render();
       const man = window.ASSETS, broken = Object.keys(man).filter(k => man[k]._img && !(man[k]._img.complete && man[k]._img.naturalWidth > 0));
       const missU = Object.keys(CFG.units).filter(t => !man[artOf(t)]), missB = [];
-      for (const t of Object.keys(CFG.buildings)) for (const n of t === 'tepee' ? ['sx'] : (t === 'bank' || t === 'ranch') ? ['us'] : ['us', 'ban']) if (!man['bld_' + t + '_' + n]) missB.push(t + '_' + n);
+      for (const t of Object.keys(CFG.buildings)) { const art = CFG.buildings[t].art || t; if (!['us', 'sx', 'ban'].some(n => man['bld_' + art + '_' + n])) missB.push(t + ' (' + art + ')'); }
       return { layer: !!(S.gch && S.gch.cv.some(Boolean)), assets: Object.keys(man).length, broken, missU, missB };
     });
     await p2.close();
@@ -114,7 +114,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await test('F2: szturm wręcz na budynki 2x2 i 3x3 z ośmiu stron dochodzi do celu', async () => {
     const r = await page.evaluate(() => {
       let hit = 0, n = 0;
-      for (const type of ['storehouse', 'hq']) for (const [dx, dy] of [[-6,-6],[0,-6],[6,-6],[-6,0],[6,0],[-6,6],[0,6],[6,6]]) {
+      for (const type of ['sawmill', 'hq']) for (const [dx, dy] of [[-6,-6],[0,-6],[6,-6],[-6,0],[6,0],[-6,6],[0,6],[6,6]]) {
         T.fresh(); const bb = addBuilding(type, 20, 18, 'enemy'); bb.built = true; bb.hp = bb.maxHp = 1e6;
         const a = addUnit('konnobanda', 'player', 20 + bb.w / 2 + dx, 18 + bb.h / 2 + dy);
         executeOrder({ units: [a], x: 20, y: 18, targetUnit: null }); T.run(25);
@@ -160,7 +160,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await test('F3: limit populacji liczy kolejki wszystkich budynków', async () => {
     const r = await page.evaluate(() => {
       T.fresh(); S.res = { wood: 999, food: 999, gold: 999, guns: 99, horses: 9 };
-      const hq = S.buildings.find(b => b.type === 'hq'), b1 = testPlace('player', 'barracks', 30, 28), b2 = testPlace('player', 'barracks', 36, 28);
+      const hq = S.buildings.find(b => b.type === 'hq'), b1 = testPlace('player', 'trainingCamp', 30, 28), b2 = testPlace('player', 'trainingCamp', 36, 28);
       for (let i = 0; i < 5; i++) { tryTrain(hq, 'worker'); tryTrain(b1, 'infantryman'); tryTrain(b2, 'infantryman'); }
       T.run(600); return [popUsed(), popCap()];
     });
@@ -187,7 +187,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await test('R9: zwrot kosztu kolejki po zburzeniu i brak chwytania koni ponad limit', async () => {
     const r = await page.evaluate(() => {
       T.fresh(); S.res = { wood: 300, food: 300, gold: 100, guns: 5, horses: 0 };
-      const br = testPlace('player', 'barracks', 28, 28); tryTrain(br, 'infantryman'); tryTrain(br, 'infantryman'); update(1 / 60);
+      const br = testPlace('player', 'trainingCamp', 28, 28); tryTrain(br, 'infantryman'); tryTrain(br, 'infantryman'); update(1 / 60);
       const paidNow = S.res.food < 300; destroyBuilding(br);
       const refunded = [S.res.food, S.res.gold, S.res.guns];
       S.res.horses = CFG.resCap.horses; const h = addUnit('horse', 'neutral', 20.5, 20.5), u = addUnit('worker', 'player', 20.5, 21.5);
@@ -226,7 +226,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       tryTrain(hq, 'worker'); hq.queue[0].remaining = 0.01; update(1 / 30); const w = S.units[S.units.length - 1];
       const gatherState = w.state;
       T.fresh(); S.res.food = 999; S.res.gold = 999; S.res.guns = 9;
-      const br = testPlace('player', 'barracks', 30, 28); queueCmd({ action: 'rally', building: br, x: 28, y: 30 }); update(1 / 60);
+      const br = testPlace('player', 'trainingCamp', 30, 28); queueCmd({ action: 'rally', building: br, x: 28, y: 30 }); update(1 / 60);
       tryTrain(br, 'infantryman'); br.queue[0].remaining = 0.01; update(1 / 30); const sol = S.units[S.units.length - 1]; T.run(15);
       return { gatherState, soldierNearRally: Math.hypot(sol.x - 28.5, sol.y - 30.5) < 2 };
     });
@@ -359,7 +359,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
         for (const u of R.startUnits) if (!CFG.units[u]) bad.push(k + ': startowa jednostka ' + u);
         for (const m of R.build) if (!CFG.buildings[m.type]) bad.push(k + ': budynek ' + m.type);
         for (const b in R.train) for (const u of R.train[b]) if (!CFG.units[u]) bad.push(k + ': produkcja ' + u);
-        for (const t of R.noTechs) if (!CFG.techs[t]) bad.push(k + ': technologia ' + t);
+        for (const t of R.techs) if (!CFG.techs[t]) bad.push(k + ': technologia ' + t);
         for (const t in R.test.units) if (!CFG.units[t]) bad.push(k + ': testowa jednostka ' + t);
         for (const t of R.test.buildings) if (!CFG.buildings[t]) bad.push(k + ': testowy budynek ' + t);
         if (R.startOrders.length !== R.startUnits.length) bad.push(k + ': rozkazy startowe');
@@ -388,7 +388,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       }
       // armia, która ma nie atakować budynków: dociera, stoi, budynek nietknięty (z hitsBuildings=true ten sam układ burzy budynek)
       const hp = flag => {
-        T.fresh(); const b = addBuilding('barracks', 20, 18, 'player'); b.built = true; const hp0 = b.hp;
+        T.fresh(); const b = addBuilding('trainingCamp', 20, 18, 'player'); b.built = true; const hp0 = b.hp;
         for (let i = 0; i < 5; i++) addUnit('desperado', 'enemy', 20 + i * 0.3, 24).stance = 'norm';
         aiAttack(b, flag); T.run(60); return [hp0, b.hp];
       };
@@ -466,7 +466,8 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   console.log('C3a: Osadnicy');
   await test('C3: limit banków (5) liczy się od startu budowy, a bank daje złoto i podnosi limit', async () => {
     const r = await page.evaluate(() => {
-      T.fresh(); S.res = { wood: 5000, food: 500, gold: 5000, guns: 0, horses: 0 };
+      T.fresh(); S.res = { wood: 9000, food: 500, gold: 5000, guns: 0, horses: 0 };
+      addBuilding('generalStore', 24, 14, 'player').built = true;   // bank wymaga budynku handlowego
       const man = addUnit('frontiersman', 'player', 14.5, 14.5); S.selected.units = [man];
       let placed = 0; for (let i = 0; i < 7; i++) { const n = S.buildings.length; tryPlace('bank', 12 + (i % 4) * 3, 12 + Math.floor(i / 4) * 3); if (S.buildings.length > n) placed++; }
       // żaden bank nie jest ukończony, a limit już działa
@@ -674,7 +675,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
   await test('F12.2: tepee pakuje się w travois z tym samym HP (pop cap spada, populacja bez travois), rozkłada gdzie indziej z zachowanym HP; kafle zwalniają się i zajmują', async () => {
     const r = await page.evaluate(() => {
       T.fresh('sioux');
-      const b = addBuilding('tepee', 20, 20, 'player'); b.built = true; b.hp = 60;
+      const b = addBuilding('sleepingTepee', 20, 20, 'player'); b.built = true; b.hp = 60;
       addUnit('woman', 'player', 24.5, 24.5);
       const out = { cap0: popCap(), used0: popUsed() };
       queueCmd({ action: 'pack', building: b }); T.run(1);
@@ -683,18 +684,18 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       const t = S.units.find(u => u.type === 'travois');
       out.gone = !S.buildings.includes(b); out.tile = isBlocked(20, 20); out.t = t && [t.hp, t.packed.type, t.packed.hp]; out.cap1 = popCap(); out.used1 = popUsed();
       queueCmd({ action: 'unpack', unit: t, x: 27, y: 20 }); T.run(30);
-      const nb = S.buildings.find(x => x.type === 'tepee');
+      const nb = S.buildings.find(x => x.type === 'sleepingTepee');
       out.after = nb && [nb.tx, nb.ty, nb.built, nb.hp, nb.maxHp]; out.travoisLeft = S.units.filter(u => u.type === 'travois').length; out.cap2 = popCap();
       return out;
     });
-    eq([r.cap0, r.used0], [15, 1], 'start'); ok(r.packing && r.capDuring === 15, 'w trakcie pakowania budynek jeszcze stoi');
-    ok(r.gone && !r.tile, 'budynek znika, kafle wolne'); eq(r.t, [60, 'tepee', 60], 'travois niesie HP tepee'); eq([r.cap1, r.used1], [10, 2], 'spakowane nie daje limitu, travois zajmuje 1 miejsce populacji [Ź instrukcja]');
-    eq(r.after, [27, 20, true, 60, 120], 'rozłożone w nowym miejscu z zachowanym HP'); eq([r.travoisLeft, r.cap2], [0, 15], 'travois znika, limit wraca');
+    eq([r.cap0, r.used0], [20, 1], 'start (obóz 12 + tepee 8)'); ok(r.packing && r.capDuring === 20, 'w trakcie pakowania budynek jeszcze stoi');
+    ok(r.gone && !r.tile, 'budynek znika, kafle wolne'); eq(r.t, [60, 'sleepingTepee', 60], 'travois niesie HP tepee'); eq([r.cap1, r.used1], [12, 2], 'spakowane nie daje limitu, travois zajmuje 1 miejsce populacji [Ź instrukcja]');
+    eq(r.after, [27, 20, true, 60, 120], 'rozłożone w nowym miejscu z zachowanym HP'); eq([r.travoisLeft, r.cap2], [0, 20], 'travois znika, limit wraca');
   });
   await test('F12.2: pakowanie można przerwać, nie wolno rozłożyć na zajętym polu, a rozkaz ruchu zrywa rozkładanie; zapis w czasie jazdy działa', async () => {
     const r = await page.evaluate(() => {
       T.fresh('sioux');
-      const b = addBuilding('tepee', 20, 20, 'player'); b.built = true;
+      const b = addBuilding('sleepingTepee', 20, 20, 'player'); b.built = true;
       queueCmd({ action: 'pack', building: b }); T.run(2); queueCmd({ action: 'pack', building: b }); T.run(6);
       const out = { cancelled: S.buildings.includes(b) && !b.packing };
       queueCmd({ action: 'pack', building: b }); T.run(6);
@@ -705,14 +706,14 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       const copy = JSON.parse(JSON.stringify(serializeGame()));
       restoreGame(copy);
       const t2 = S.units.find(u => u.type === 'travois'); out.saved = [t2.state, t2.packed.type, t2.unpackAt];
-      T.run(25); out.built = !!S.buildings.find(x => x.type === 'tepee' && x.tx === 25);
-      queueCmd({ action: 'pack', building: S.buildings.find(x => x.type === 'tepee') }); T.run(6);
+      T.run(25); out.built = !!S.buildings.find(x => x.type === 'sleepingTepee' && x.tx === 25);
+      queueCmd({ action: 'pack', building: S.buildings.find(x => x.type === 'sleepingTepee') }); T.run(6);
       const t3 = S.units.find(u => u.type === 'travois');
       queueCmd({ action: 'unpack', unit: t3, x: 24, y: 24 }); T.run(1); queueCmd({ action: 'order', units: [t3], x: 22, y: 22, targetUnit: null, targetHorse: null }); T.run(0.2);
-      out.interrupted = [t3.state, t3.unpackAt]; T.run(20); out.noBuild = !S.buildings.some(x => x.type === 'tepee');
+      out.interrupted = [t3.state, t3.unpackAt]; T.run(20); out.noBuild = !S.buildings.some(x => x.type === 'sleepingTepee');
       return out;
     });
-    ok(r.cancelled, 'ponowne polecenie przerywa pakowanie'); eq(r.blocked, 'idle', 'rozkład na lesie odrzucony'); eq([r.saved[0], r.saved[1]], ['toUnpack', 'tepee'], 'zapis w czasie jazdy'); ok(r.built, 'po wczytaniu travois dojeżdża i rozkłada');
+    ok(r.cancelled, 'ponowne polecenie przerywa pakowanie'); eq(r.blocked, 'idle', 'rozkład na lesie odrzucony'); eq([r.saved[0], r.saved[1]], ['toUnpack', 'sleepingTepee'], 'zapis w czasie jazdy'); ok(r.built, 'po wczytaniu travois dojeżdża i rozkłada');
     eq(r.interrupted, ['move', null], 'rozkaz ruchu zrywa rozkładanie'); ok(r.noBuild, 'nic nie rozłożone po przerwaniu');
   });
   console.log('Faza 12.3: szkielet misji');
@@ -773,7 +774,7 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       stages: [{ id: 'a', title: 'Dowieź wóz', objectives: [{ id: 'r', text: 'Wóz dojeżdża na miejsce', type: 'reach', tag: 'wagon', x: 25, y: 20, r: 2 }] }] });
     MISSIONS.t4 = escort(false); MISSIONS.t5 = escort(true);
     MISSIONS.t6 = { title: 'Rabunek', ...base,
-      start: { clear: { enemyUnits: true }, clearAreas: [[20, 20, 6]], buildings: [{ type: 'storehouse', fac: 'enemy', x: 20, y: 20, tag: 'camp', loot: { gold: 50, wood: 30 } }] },
+      start: { clear: { enemyUnits: true }, clearAreas: [[20, 20, 6]], buildings: [{ type: 'dStorehouse', fac: 'enemy', x: 20, y: 20, tag: 'camp', loot: { gold: 50, wood: 30 } }] },
       stages: [{ id: 'a', title: 'Złupić obóz', objectives: [{ id: 'd', text: 'Zniszcz obóz', type: 'destroy', tag: 'camp' }, { id: 'l', text: 'Zdobądź 50 złota łupem', type: 'loot', res: 'gold', n: 50 }] }] };
   });
   await test('F12.4: wóz kryty jest sterowany i zajmuje 1 miejsce populacji; eskorta kończy się zwycięstwem po dojechaniu, a zniszczony wóz = porażka', async () => {
@@ -793,6 +794,62 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
       return { gold: S.res.gold, wood: S.res.wood, loot: S.mission.loot, over: S.gameOver };
     });
     eq([r.gold, r.wood], [2000, 130], 'zasoby po łupie (złoto przy limicie 2000)'); eq(r.loot, { gold: 50, wood: 30 }, 'licznik łupu'); eq(r.over, 'win', 'cel loot + destroy = zwycięstwo');
+  });
+  console.log('Faza 13.3: dane i ekonomia z poradnika');
+  await test('F13.3: wymagania budynków i ulepszeń: Fort dopiero po Sheriff\'s Office, bank po sklepie, Siekiera 2 po Siekierze 1; przyciski pokazują brak wymagań', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); S.res = { wood: 9000, food: 2000, gold: 5000, guns: 0, horses: 0 };
+      const w = addUnit('frontiersman', 'player', 20.5, 20.5); S.selected.units = [w];
+      const n0 = S.buildings.length; tryPlace('fort', 14, 14); const noFort = S.buildings.length === n0;
+      addBuilding('sheriffsOffice', 20, 14, 'player').built = true; tryPlace('fort', 14, 14); const fort = S.buildings.length === n0 + 2;
+      const m0 = S.buildings.length; tryPlace('bank', 24, 14); const noBank = S.buildings.length === m0;
+      const sm = addBuilding('sawmill', 28, 14, 'player'); sm.built = true; queueCmd({ action: 'research', building: sm, techId: 'axe2' }); T.run(0.1); const noAxe2 = !sm.research;
+      queueCmd({ action: 'research', building: sm, techId: 'axe1' }); T.run(31); const axe1 = hasTech('player', 'axe1');
+      queueCmd({ action: 'research', building: sm, techId: 'axe2' }); T.run(0.1); const axe2Started = !!sm.research;
+      S.selected.units = [w]; updatePanels();
+      const btn = [...document.querySelectorAll('#buildbar .cmd')].find(b => b.dataset.miss);
+      return { noFort, fort, noBank, noAxe2, axe1, axe2Started, mult: techMult('player', 'wood'), missBtn: !!btn };
+    });
+    eq([r.noFort, r.fort, r.noBank, r.noAxe2, r.axe1, r.axe2Started], [true, true, true, true, true, true], 'wymagania budynków i ulepszeń'); eq(r.mult, 1.1, 'Siekiera 1: wycinka +10%'); ok(r.missBtn, 'przycisk bez spełnionych wymagań ma dataset.miss');
+  });
+  await test('F13.3: złoto trafia do Magazynu złota (nie do obozu) i jest dostępne dopiero po dowozie wozem do bazy; pojemność kursu ogranicza przewóz', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); S.res = { wood: 500, food: 500, gold: 0, guns: 0, horses: 5 };
+      const hq = S.buildings.find(b => b.type === 'hq' && b.fac === 'player');
+      for (let x = 22; x < 28; x++) for (let y = 12; y < 22; y++) { S.terrain[idx(x, y)] = T_GRASS; S.amt[idx(x, y)] = 0; }
+      S.terrain[idx(26, 14)] = T_GOLD; S.amt[idx(26, 14)] = 800;
+      const miner = addUnit('frontiersman', 'player', 24.5, 14.5); orderGather(miner, 26, 14);
+      T.run(40); const noWh = [Math.floor(S.res.gold), miner.state, miner.carry > 0];
+      const wh = addBuilding('goldWarehouse', 23, 16, 'player'); wh.built = true; orderGather(miner, 26, 14);   // górnik czekał z ładunkiem: gracz zleca ponownie
+      T.run(60); const stock1 = Math.floor(wh.stock.gold), res1 = Math.floor(S.res.gold);
+      const cart = addUnit('coveredWagon', 'player', 24.5, 18.5); queueCmd({ action: 'order', units: [cart], x: wh.tx, y: wh.ty, targetUnit: null, targetHorse: null }); T.run(0.2);
+      const st0 = cart.state; let maxCarry = 0;
+      for (let i = 0; i < 60 * 150; i++) { update(1 / 60); maxCarry = Math.max(maxCarry, cart.carry || 0); }
+      return { noWh, stock1, res1, st0, res2: Math.floor(S.res.gold), stock2: Math.floor(wh.stock.gold), maxCarry };
+    });
+    eq([r.noWh[0], r.noWh[2]], [0, true], 'bez magazynu górnik stoi z ładunkiem, nic nie wpada do zasobów'); ok(r.stock1 > 0 && r.res1 === 0, 'złoto w magazynie, zasoby bez zmian: ' + r.stock1 + '/' + r.res1);
+    ok(['toWh', 'loading'].includes(r.st0), 'PPM wozem na magazynie rozpoczyna dowóz: ' + r.st0); ok(r.res2 > 0 && r.res2 <= 150 * 20, 'złoto dowiezione do bazy: ' + r.res2); ok(r.maxCarry <= 150, 'pojemność wozu 150: ' + r.maxCarry); ok(r.stock2 < r.stock1 + 200, 'magazyn się opróżnia');
+  });
+  await test('F13.3: pole to osobny budynek przy Farmie lub Spichlerzu (maks. 5 pól na magazyn), uprawia je kobieta i daje żywność; bez magazynu ziarna pole nie powstaje', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); S.res = { wood: 9000, food: 0, gold: 0, guns: 0, horses: 0 };
+      const w = addUnit('frontiersman', 'player', 14.5, 14.5); S.selected.units = [w];
+      const n0 = S.buildings.length; tryPlace('field', 16, 14); const noStore = S.buildings.length === n0;
+      const farm = addBuilding('farm', 20, 20, 'player'); farm.built = true;
+      let placed = 0; for (let i = 0; i < 7; i++) { const n = S.buildings.length; tryPlace('field', 12 + (i % 4) * 3, 14 + Math.floor(i / 4) * 3); if (S.buildings.length > n) placed++; }
+      const fields = S.buildings.filter(b => b.type === 'field');
+      for (const f of fields) { f.built = true; f.progress = 1; }
+      const ow = addUnit('frontierswoman', 'player', 18.5, 18.5); executeOrder({ units: [ow], x: fields[0].tx, y: fields[0].ty, targetUnit: null, targetHorse: null }); T.run(30);
+      return { noStore, placed, linked: fields.every(f => f.store === farm.id), food: Math.floor(S.res.food), state: ow.state };
+    });
+    ok(r.noStore, 'pole bez Farmy/Spichlerza odrzucone'); eq(r.placed, 5, 'maks. 5 pól na Farmę'); ok(r.linked, 'pola powiązane z magazynem ziarna'); ok(r.food > 5 && r.state === 'farming', 'kobieta uprawia pole: ' + r.food + ' ' + r.state);
+  });
+  await test('F13.3: Desperado (AI) nadal buduje własną gospodarkę na dawnych budynkach (dHouse, dFarm, dStorehouse, dBarracks)', async () => {
+    const r = await page.evaluate(() => {
+      newGame(11, 'settler'); T.fresh(); S.testMode = false; S.buildings = S.buildings.concat([]); 
+      return { types: ['dHouse', 'dFarm', 'dStorehouse', 'dBarracks'].every(t => CFG.buildings[t]), hqGold: raceOf('enemy').hqGold };
+    });
+    ok(r.types && r.hqGold, 'dane Desperado');
   });
   console.log('Faza 11: dotyk i małe ekrany');
   {
