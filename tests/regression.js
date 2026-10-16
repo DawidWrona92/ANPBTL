@@ -945,13 +945,13 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     const r = await page.evaluate(() => {
       newMission('usa2', 3); T.run(2);
       const h = taggedAll('houston')[0], out = { stronger: h.maxHp > CFG.units.commander.hp * 2.5 && CFG.units.houston.dmg > CFG.units.commander.dmg, hq: S.buildings.filter(b => b.type === 'hq').length, ai: missionRule('ai', true) };
-      T.run(125); out.stage = S.mission.stage; out.raiders = S.units.filter(u => u.fac === 'enemy' && u.state !== 'idle').length;
+      T.run(125); out.stage = S.mission.stage; out.raiders = S.units.filter(u => u.fac === 'enemy' && !u.keep && u.state !== 'idle').length; out.keepers = S.units.filter(u => u.keep).length; out.camp = taggedAll('outcamp').length;
       S.mission.stage = 3; S.mission.t0 = S.time;
       destroyBuilding(S.buildings.find(b => b.type === 'hq' && b.fac === 'enemy')); out.win = S.gameOver;
       newMission('usa2', 3); T.run(1); killUnit(taggedAll('houston')[0]); T.run(1); out.lose = S.gameOver;
       return out;
     });
-    ok(r.stronger, 'Houston silniejszy'); eq([r.hq, r.ai, r.win, r.lose], [2, true, 'win', 'lose'], 'baza gracza i Meksykan, AI włączone, wynik'); ok(r.stage >= 1 && r.raiders > 0, 'napad Outlawsów: etap ' + r.stage);
+    ok(r.stronger, 'Houston silniejszy'); eq([r.hq, r.ai, r.win, r.lose], [2, true, 'win', 'lose'], 'baza gracza i Meksykan, AI włączone, wynik'); ok(r.stage >= 1 && r.raiders > 0, 'napad Outlawsów: etap ' + r.stage); eq([r.keepers, r.camp], [4, 2], 'statyczny obóz Outlawsów: 4 jednostki, 2 budynki'); 
   });
   console.log('Faza 11: dotyk i małe ekrany');
   {

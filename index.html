@@ -249,6 +249,8 @@ const CFG = {
     medicineMan:       { hp: 60, dmg: 3, range: 6, cd: 1.5, speed: 1.0, cost: { food: 100, gold: 100 }, train: 25, aggro: 0, letter: 'M', color: '#4a8a6a', kind: 'bow', swimTech: true, regen: 0.2, sight: 8, art: 'medicine' },
     // Travois: kupowana jednostka [Ź: 75 drewna + koń], transport złota i zwijanie tipi (13.3/13.5)
     travois:           { hp: 80, dmg: 0, range: 0, cd: 1.0, speed: 0.6, cost: { wood: 75, horses: 1 }, train: 25, aggro: 0, letter: 'V', color: '#9a6a3a', kind: 'cart' },
+    // Outlawsi z misji USA 2: statyczny obóz, robotnicy tylko zbierają surowce (AI Meksykan ich nie rusza: flaga keep)
+    outlawWorker: { hp: 50, dmg: 4, range: 1, cd: 1.0, speed: 1.0, cost: { food: 30 }, train: 12, aggro: 0, letter: 'W', color: '#a12f2f', kind: 'melee', gather: ['forest', 'gold'], art: 'worker' },
     desperado: { hp: 50,  dmg: 10, range: 4, cd: 1.2, speed: 1.1, cost: { food: 40, gold: 10 }, train: 15, aggro: 6, letter: 'D', color: '#a12f2f', kind: 'gun', hunter: true },
     bandleader:{ hp: 90,  dmg: 14, range: 5, cd: 1.0, speed: 1.1, cost: { food: 80, gold: 20 }, train: 25, aggro: 6, letter: 'B', color: '#d14a1e', kind: 'gun', leader: true },
     jezdiec:   { hp: 70,  dmg: 12, range: 4, cd: 1.2, speed: 1.8, cost: { food: 40, gold: 10, guns: 1, horses: 1 }, train: 25, aggro: 6, letter: 'J', color: '#6a4a8a', kind: 'gun', cav: true },
@@ -2046,18 +2048,21 @@ MISSIONS.usa1 = { title: 'The Trek West', race: 'settler', enemy: 'outlaw', map:
         { type: 'bandleader', fac: 'enemy', x: 17, y: 17, order: { kind: 'attackmove', x: 7, y: 7 } }] }, { type: 'setRes', res: { wood: 300, food: 200 } }] },
     { id: 'militia', title: 'Zniszcz meksykańską milicję', objectives: [{ id: 'k', text: 'Zniszcz wszystkich wrogów', type: 'destroy', fac: 'enemy' }] }] };
 MISSIONS.usa2 = { title: 'Remember the Alamo', race: 'settler', enemy: 'outlaw', map: 'ford',
-  desc: 'Bitwa nad San Jacinto 1836, dowodzi Houston [Ź pamięć gracza]. Rozwiń bazę: Outlawsi (mniejsza frakcja) przeszkadzają na początku napadami, a potem rozbij Meksykan (większa frakcja). Houston jest dużo silniejszy od zwykłego dowódcy, ale jego śmierć kończy misję.',
+  desc: 'Bitwa nad San Jacinto 1836, dowodzi Houston [Ź pamięć gracza]. Outlawsi mają własny obóz, którego nie rozbudowują: zbierają surowce i wysyłają małe grupy na rajdy. Meksykanie to większa frakcja z prawdziwą bazą. Houston jest dużo silniejszy od zwykłego dowódcy, ale jego śmierć kończy misję.',
   rules: { surrender: false },
-  start: { res: { wood: 700, food: 250, gold: 0, guns: 0, horses: 0 },
-    units: [{ type: 'houston', x: 31, y: 31, tag: 'houston' }] },
+  start: { res: { wood: 700, food: 250, gold: 0, guns: 0, horses: 0 }, clearAreas: [[20, 5, 4]],
+    buildings: [{ type: 'dStorehouse', fac: 'enemy', x: 19, y: 4, tag: 'outcamp' }, { type: 'dBarracks', fac: 'enemy', x: 22, y: 4, tag: 'outcamp' }],
+    units: [{ type: 'houston', x: 31, y: 31, tag: 'houston' }, { type: 'outlawWorker', fac: 'enemy', x: 21, y: 6, keep: true, order: { kind: 'gather' } }, { type: 'outlawWorker', fac: 'enemy', x: 20, y: 6, keep: true, order: { kind: 'gather' } },
+      { type: 'desperado', fac: 'enemy', x: 20, y: 7, keep: true, stance: 'hold' }, { type: 'desperado', fac: 'enemy', x: 22, y: 7, keep: true, stance: 'hold' }] },
   failIf: [{ type: 'dead', tag: 'houston', text: 'Houston poległ.' }],
   stages: [
-    { id: 'build', title: 'Rozwijaj bazę (Outlawsi nachodzą)', objectives: [{ id: 't', text: 'Utrzymaj osadę do pierwszych napadów', type: 'survive', t: 120 }],
-      onComplete: [{ type: 'message', text: 'Outlawsi z północy!' }, { type: 'spawn', units: [0, 1, 2].map(i => ({ type: 'desperado', fac: 'enemy', x: 30 + i, y: 3, order: { kind: 'attackmove', x: 33, y: 33 } })) }] },
-    { id: 'raid2', title: 'Odpieraj napady Outlawsów', objectives: [{ id: 't', text: 'Utrzymaj się 150 s', type: 'survive', t: 150 }],
-      onComplete: [{ type: 'message', text: 'Druga fala Outlawsów.' }, { type: 'spawn', units: [0, 1, 2, 3].map(i => ({ type: 'desperado', fac: 'enemy', x: 36, y: 8 + i, order: { kind: 'attackmove', x: 33, y: 33 } })) }] },
-    { id: 'raid3', title: 'Ostatnia fala Outlawsów', objectives: [{ id: 't', text: 'Utrzymaj się 150 s', type: 'survive', t: 150 }] },
-    { id: 'mexico', title: 'Rozbij Meksykan', objectives: [{ id: 'hq', text: 'Zniszcz obóz Meksykan', type: 'destroy', fac: 'enemy', unit: 'hq' }] }] };
+    { id: 'build', title: 'Rozwijaj bazę (Outlawsi szukają okazji)', objectives: [{ id: 't', text: 'Utrzymaj osadę do pierwszego rajdu', type: 'survive', t: 120 }],
+      onComplete: [{ type: 'message', text: 'Rajd Outlawsów z północnego obozu!' }, { type: 'spawn', units: [0, 1, 2].map(i => ({ type: 'desperado', fac: 'enemy', x: 20 + i, y: 8, order: { kind: 'attackmove', x: 33, y: 33 } })) }] },
+    { id: 'raid2', title: 'Odpieraj rajdy Outlawsów', objectives: [{ id: 't', text: 'Utrzymaj się 150 s', type: 'survive', t: 150 }],
+      onComplete: [{ type: 'message', text: 'Kolejna grupa Outlawsów.' }, { type: 'spawn', units: [0, 1].map(i => ({ type: 'desperado', fac: 'enemy', x: 20 + i, y: 8, order: { kind: 'attackmove', x: 33, y: 33 } })) }] },
+    { id: 'raid3', title: 'Odpieraj rajdy Outlawsów', objectives: [{ id: 't', text: 'Utrzymaj się 150 s', type: 'survive', t: 150 }],
+      onComplete: [{ type: 'spawn', units: [0, 1, 2, 3].map(i => ({ type: 'desperado', fac: 'enemy', x: 20 + i, y: 8, order: { kind: 'attackmove', x: 33, y: 33 } })) }] },
+    { id: 'mexico', title: 'Rozbij Meksykan', objectives: [{ id: 'hq', text: 'Zniszcz obóz Meksykan', type: 'destroy', fac: 'enemy', unit: 'hq' }, { id: 'oc', text: 'Zniszcz obóz Outlawsów (dodatkowy)', type: 'destroy', tag: 'outcamp', optional: true }] }] };
 MISSIONS.sx1 = { title: 'The Santee Sioux Uprising', race: 'sioux', enemy: 'outlaw', map: 'prairie', rules: NO_AI,
   desc: 'Powstanie Santee Sioux 1862: mały oddział przekrada się przez patrole traperów, którzy wykrywają kamuflaż. Zna się trasę albo ginie [Ź tytuł i charakter; cele P].',
   start: { clear: { playerUnits: true, playerBuildings: true, enemyUnits: true, enemyBuildings: true, neutral: true }, camera: [30, 30], techs: { player: ['camouflage'] },
@@ -2085,6 +2090,7 @@ function taggedAll(tag) {
 function missionOrder(u, od) {
   if (!od) return;
   const c = { units: [u], x: od.x, y: od.y, targetUnit: null, targetHorse: null, silent: true };
+  if (od.kind === 'gather') { orderGatherAuto(u, T_FOREST); return; }
   if (od.kind === 'patrol') executePatrol(c); else if (od.kind === 'attackmove') executeAttackMove(c); else executeOrder(c);
 }
 function spawnMissionUnit(o) {
@@ -2092,6 +2098,7 @@ function spawnMissionUnit(o) {
   u.x += 0.5; u.y += 0.5;
   if (o.tag) u.tag = o.tag;
   if (o.stance) u.stance = o.stance;
+  if (o.keep) u.keep = true;
   if (o.hp) { u.hp = o.hp; u.maxHp = Math.max(u.maxHp, o.hp); }
   missionOrder(u, o.order);
   return u;
@@ -2303,7 +2310,7 @@ function aiTrain(b, unitType) {
 function aiAttack(target, hitsBuildings = true) {
   let sent = 0;
   for (const u of S.units) {
-    if (u.fac !== 'enemy' || u.type === 'worker' || u.type === 'horse') continue;
+    if (u.fac !== 'enemy' || u.type === 'worker' || u.type === 'horse' || u.keep) continue;
     if (u.state === 'assault' || u.state === 'flee') continue;
     u.attackTarget = null; u.node = null; releaseFarm(u); u.buildTarget = null;
     u.path = pathToBuildingU(u, target); u.pathI = 0;
@@ -2324,7 +2331,7 @@ function updateAI(dt) {
   const ehq = S.buildings.find(b => b.fac === 'enemy' && b.type === 'hq' && b.built);
   if (!ehq) return;
   const myWorkers = S.units.filter(u => u.fac === 'enemy' && u.type === 'worker');
-  const myArmy = S.units.filter(u => u.fac === 'enemy' && u.type !== 'worker' && u.type !== 'horse' && u.state !== 'assault');
+  const myArmy = S.units.filter(u => u.fac === 'enemy' && u.type !== 'worker' && u.type !== 'horse' && !u.keep && u.state !== 'assault');
   const barr = S.buildings.find(b => b.fac === 'enemy' && b.type === 'dBarracks' && b.built);
   // 1. robotnicy (trening w obozie)
   const queuedW = ehq.queue.filter(q => q.type === 'worker').length;
