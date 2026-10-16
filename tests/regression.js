@@ -879,6 +879,19 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     });
     ok(r.types && r.hqGold, 'dane Desperado');
   });
+  await test('F13.3b: handel: Sklep kupuje i sprzedaje żywność, drewno i broń z marżą, ceny rosną i wracają, zapis zachowuje ceny', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); S.res = { wood: 100, food: 100, gold: 100, guns: 0, horses: 0 };
+      const st = addBuilding('generalStore', 14, 14, 'player'); st.built = true;
+      queueCmd({ action: 'trade', building: st, res: 'guns', dir: 'buy' }); T.run(0.1); const buy = [S.res.guns, S.res.gold, +S.prices.guns.toFixed(2)];
+      queueCmd({ action: 'trade', building: st, res: 'wood', dir: 'sell' }); T.run(0.1); const sell = [S.res.wood, S.res.gold, +S.prices.wood.toFixed(3)];
+      T.run(300); const rec = S.prices.guns < buy[2];
+      const copy = JSON.parse(JSON.stringify(serializeGame())); restoreGame(copy);
+      return { buy, sell, rec, saved: !!S.prices && S.prices.food === 1 };
+    });
+    eq(r.buy[0], 1, 'kupiona broń'); ok(r.buy[1] === 100 - Math.ceil(8 * 1.2), 'cena zakupu z marżą: ' + r.buy[1]); ok(r.buy[2] > 8, 'cena rośnie po zakupie');
+    eq(r.sell[0], 90, 'sprzedano 10 drewna'); ok(r.sell[1] > r.buy[1] && r.sell[2] < 1, 'sprzedaż obniża cenę'); ok(r.rec && r.saved, 'cena wraca do bazy, zapis ma ceny');
+  });
   console.log('Faza 13.4: Osadnicy – ulepszenia i Sanitariuszka');
   await test('F13.4: Karabin i Odzież ochronna zwiększają atak i życie (także nowych i istniejących jednostek), Dłuższa lufa zasięg armat, Dyliżans wymaga ulepszenia', async () => {
     const r = await page.evaluate(() => {

@@ -160,3 +160,9 @@ Prototyp ma 4 technologie (Ostrzone siekiery, Pług, Selekcja koni, Kowbojska sz
 
 ### Brak w poradniku (zostaje `[P]`)
 Czasy budowy i szkolenia, prędkości jednostek, zasięgi (poza „zasięg armaty +10% Longer Barrel”), wzrok (poza „Sheriff większy”), plon bazowy pola, ładowność i pojemność pojazdów, ceny handlu i ich zmiana, odsetki banku, tempo wzrostu wartości bydła (maks. 25 zł), regeneracja Indian, energia Medicine Mana, promień wykrywania kamuflażu, limit populacji (u mnie 200), czas pakowania tipi, dane Meksykan i Desperado.
+
+## Faza 13: strojenie i handel (2026-10-17) `[P]`
+- Wycinka `CFG.chop` 2.5 → 3.5/s, zasoby startowe skirmishu 700 drewna i 250 żywności (poradnik nie podaje liczb; poprzednia ekonomia nie dawała złota przed 600. sekundą).
+- Hodowla koni za samą żywność (30), bo koń przed wozem, a wóz przed złotem tworzył zamknięty łańcuch.
+- Handel (Sklep / Punkt handlowy): cena w złocie za sztukę (żywność 1, drewno 1, broń 8), marża 20%, każda transakcja przesuwa cenę o 3% (granice 0.5×–2× bazy), powrót 0.2%/s; partia 10 sztuk (broń 1).
+- **Wynik modelu (4 seedy, bot):** Magazyn złota ok. 240 s, złoto dopiero po wozie (ok. 190 w 600. s), Fort i Piechur w 20 minut wciąż nieosiągalne, a pierwsze wyprawy Desperado (480 s) niszczą osadę bota; ekonomia i obrona (Kowboje) wymagają dalszego strojenia z Twoją oceną tempa.

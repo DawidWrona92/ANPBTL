@@ -190,10 +190,10 @@
 // ============================== CONFIG ==============================
 const CFG = {
   map: 40, tileW: 64, tileH: 32,
-  startRes: { wood: 500, food: 200, gold: 0, guns: 0, horses: 0 },   // [P]: poradnik nie podaje zasobów startowych skirmishu
+  startRes: { wood: 700, food: 250, gold: 0, guns: 0, horses: 0 },   // [P]: poradnik nie podaje zasobów startowych skirmishu
   resCap: { wood: 500, food: 500, gold: 2000, guns: 200, horses: 20 },
   popMax: 200,   // twardy limit populacji [Ź 19.1]
-  carry: 10, chop: 2.5, mine: 1.5, butcher: 3,
+  carry: 10, chop: 3.5, mine: 1.5, butcher: 3,
   fogRadius: 6, fogHq: 8,
   packTime: 5,   // sekundy pakowania i rozkładania tepee [P]
   morale: { tick: 1.0, deathR: 6, deathPenalty: 2, hitPenalty: 1, regen: 0.2, restR: 10, restRegen: 1.0, hqAuraR: 8, hqAura: 0.5, leaderAuraR: 6, leaderAura: 0.5, fleeAt: 30, fleeTime: 5, fleeBreak: 30, fleeDist: 4, wodzDeath: 30 },
@@ -341,6 +341,8 @@ const CFG = {
   lightningDance: { bld: 'medicineTepee', cost: { food: 300, gold: 400 }, time: 60, name: 'Taniec błyskawic', desc: 'odblokowuje zdolność szamana: burza (B), wymaga Totemu', ability: 'storm', breq: ['totem'] },
   },
   // pojemność pojazdów transportowych (złoto za jeden kurs) [P]; poradnik podaje tylko, że Stagecoach jest pojemniejszy od Covered Wagon
+  // handel [Ź instrukcja: kupno i sprzedaż żywności, drewna i broni, ceny zależą od podaży i popytu]; liczby [P]: cena w złocie za sztukę, marża 20%, każda transakcja przesuwa cenę o 3%, powrót do bazy 0.2%/s
+  trade: { base: { food: 1, wood: 1, guns: 8 }, spread: 0.2, step: 0.03, recover: 0.002, lot: { food: 10, wood: 10, guns: 1 } },
   cargo: { travois: 100, coveredWagon: 150, stagecoach: 300 },
 };
 // warianty konne [Ź instrukcja: koń w koszcie, wyższy atak]: ta sama jednostka z wierzchowcem, szybsza, z własnym ID (…H); po śmierci jeźdźca koń zostaje na mapie
@@ -501,6 +503,7 @@ function newGame(seed, race, opts) {
   S.pending = [];
   S.woodAlertT = 0;
   S.moraleT = 0;
+  S.prices = { ...CFG.trade.base };
   S.rainT = {};   // pozostały czas deszczu per frakcja (aktywny tylko dla frakcji z medicine manem)
   S.storms = [];  // aktywne burze: { x, y, fac, t }
   S.shots = [];
@@ -912,6 +915,7 @@ function processCmds() {
     else if (c.action === 'stop') stopUnits(c.units);
     else if (c.action === 'attackmove') executeAttackMove(c);
     else if (c.action === 'patrol') executePatrol(c);
+    else if (c.action === 'trade') tryTrade(c.building, c.res, c.dir);
     else if (c.action === 'pack') startPack(c.unit, c.building);
     else if (c.action === 'unpack') startUnpack(c.unit, c.x, c.y);
     else if (c.action === 'resume') {
@@ -1158,6 +1162,20 @@ function ejectUnitsFrom(b) {
     if (u.state === 'move') u.state = 'idle';
   }
 }
+function tryTrade(b, res, dir) {
+  const d = b && CFG.buildings[b.type];
+  if (!S.buildings.includes(b) || !b.built || !d.trade || !CFG.trade.base[res]) return;
+  const T = CFG.trade, n = T.lot[res], p = S.prices[res], R = facRes(b.fac);
+  if (dir === 'buy') {
+    const cost = Math.ceil(p * (1 + T.spread) * n);
+    if (R.gold < cost) { if (b.fac === 'player') uiAlert('Brak złota na zakup'); return; }
+    R.gold -= cost; addRes(res, n, b.fac); S.prices[res] = Math.min(T.base[res] * 2, p * (1 + T.step));
+  } else {
+    if (R[res] < n) { if (b.fac === 'player') uiAlert('Za mało towaru do sprzedaży'); return; }
+    R[res] -= n; addRes('gold', Math.floor(p * (1 - T.spread) * n), b.fac); S.prices[res] = Math.max(T.base[res] * 0.5, p * (1 - T.step));
+  }
+  if (b.fac === 'player') sfx('ok');
+}
 function tryTrain(b, unitType) {
   if (!b.built || b.queue.length >= 5) return;
   const def = CFG.units[unitType];
@@ -1188,6 +1206,7 @@ function update(dt) {
   if (S.gameOver) return;
   if (S.menuOpen || S.paused) return; // menu startowe i pomoc w grze: symulacja stoi, kamera i render żyją
   S.time += dt;
+  for (const k in S.prices) S.prices[k] += (CFG.trade.base[k] - S.prices[k]) * CFG.trade.recover * dt;
   processCmds();
   S.fogET -= dt; if (S.fogET <= 0) { S.fogET = 0.25; computeFogEnemy(); }
   for (const u of S.units) updateUnit(u, dt);
@@ -2930,6 +2949,12 @@ function updatePanels() {
         row.appendChild(cmdBtn({ icon: cmdSvg('tech'), role: 'tech_' + tid, title: td.desc, onclick: () => queueCmd({ action: 'research', building: b, techId: tid }) }));
       }
     }
+    if (b.built && CFG.buildings[b.type].trade) {
+      for (const [res, nm] of [['food', 'żywność'], ['wood', 'drewno'], ['guns', 'broń']]) for (const dir of ['buy', 'sell']) {
+        const lot = CFG.trade.lot[res];
+        row.appendChild(cmdBtn({ icon: costHtml({ [res]: lot }), label: dir === 'buy' ? 'Kup' : 'Sprzedaj', role: 'trade_' + dir + '_' + res, title: '', onclick: () => queueCmd({ action: 'trade', building: b, res, dir }) }));
+      }
+    }
     const slots = document.createElement('div');
     slots.className = 'row slots';
     bpanel.appendChild(slots);
@@ -2952,6 +2977,12 @@ function updatePanels() {
       setLbl(sb, i === 0 ? (q.paid ? Math.ceil(q.remaining) + ' s' : '⏸') : '');
       sb.title = (UNIT_NAMES[q.type] || q.type) + '. Kliknij, aby anulować' + (q.paid ? ' (zwrot kosztu)' : ' (nic jeszcze nie zapłacono)') + (i === 0 && !q.paid ? '; czeka na surowce lub miejsce' : '');
     });
+  }
+  if (CFG.buildings[b.type].trade) for (const res of ['food', 'wood', 'guns']) for (const dir of ['buy', 'sell']) {
+    const tb = bpanel.querySelector('[data-role="trade_' + dir + '_' + res + '"]'); if (!tb) continue;
+    const p = S.prices[res], n = CFG.trade.lot[res], g = dir === 'buy' ? Math.ceil(p * (1 + CFG.trade.spread) * n) : Math.floor(p * (1 - CFG.trade.spread) * n);
+    tb.title = (dir === 'buy' ? 'Kup ' : 'Sprzedaj ') + n + ' za ' + g + ' złota (cena rynkowa zależy od podaży i popytu)';
+    setLbl(tb, (dir === 'buy' ? 'Kup ' : 'Sprzedaj ') + g + mi('gold'));
   }
   const rbtn = bpanel.querySelector('[data-role="rally"]');
   if (rbtn) { setLbl(rbtn, 'Zbiórka [P]' + (b.rally ? ' ✓' : '')); rbtn.classList.toggle('active', !!b.rally); }
@@ -3241,7 +3272,7 @@ function serializeGame() {
     version: SAVE_VERSION,
     playerRace: S.playerRace, enemyRace: S.enemyRace, difficulty: S.difficulty, biome: S.biome, biomeChoice: S.biomeChoice, mapId: S.mapId, mapSize: MAP, mapSeed: S.mapSeed, testMode: S.testMode,
     time: S.time, nextId: S.nextId, res: S.res, resE: S.resE, techs: S.techs, ai: S.ai, rainT: S.rainT, storms: S.storms,
-    moraleT: S.moraleT, woodAlertT: S.woodAlertT, groups, mission: S.mission,
+    moraleT: S.moraleT, woodAlertT: S.woodAlertT, groups, mission: S.mission, prices: S.prices,
     terrain: b64Of(S.terrain), amt: b64Of(S.amt), explored: b64Of(S.explored),
     units: S.units.map(ser), buildings: S.buildings.map(ser),
     rng: rng.getState(), rngCombat: rngCombat.getState(),
@@ -3251,7 +3282,7 @@ function restoreGame(d) {
   if (!d || d.version !== SAVE_VERSION) return false;
   S.playerRace = d.playerRace; S.enemyRace = d.enemyRace; S.difficulty = d.difficulty; S.mapId = d.mapId || 'prairie'; MAP = d.mapSize || 40; S.fogC = null; S.gch = null; S.biomeChoice = d.biomeChoice || 'auto'; S.biome = BIOMES[d.biome] ? d.biome : 'prairie'; S.mapSeed = d.mapSeed || 0; S.testMode = !!d.testMode;
   S.time = d.time; S.nextId = d.nextId; S.res = d.res; S.resE = d.resE; S.techs = d.techs; S.ai = d.ai; S.rainT = d.rainT || {}; S.storms = d.storms || [];
-  S.moraleT = d.moraleT || 0; S.woodAlertT = d.woodAlertT || 0; S.mission = d.mission || null;
+  S.moraleT = d.moraleT || 0; S.woodAlertT = d.woodAlertT || 0; S.mission = d.mission || null; S.prices = d.prices || { ...CFG.trade.base };
   S.terrain = fromB64(d.terrain, Uint8Array); S.amt = fromB64(d.amt, Float32Array); S.explored = fromB64(d.explored, Uint8Array);
   S.visible = new Uint8Array(MAP * MAP); S.visibleE = new Uint8Array(MAP * MAP); S.fogET = 0; computeCliffLevels();
   S.units = d.units; S.buildings = d.buildings;
