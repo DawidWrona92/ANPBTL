@@ -1752,7 +1752,7 @@ function updateBuilding(b, dt) {
 
 // ============================== MISJE (12.3) ==============================
 // Misja to dane: etapy z celami (warunki), akcje przy starcie i zakończeniu etapu, warunki porażki; bez eval. Skirmish ma S.mission == null i działa jak dotąd.
-// Definicje leżą w MISSIONS[id] (faza 13 dodaje prawdziwe misje); w stanie gry (i w zapisie) jest tylko { id, stage, flags, tags, done, kills, base, t0 }.
+// Definicje leżą w MISSIONS[id] (faza 14 dodaje prawdziwe misje); w stanie gry (i w zapisie) jest tylko { id, stage, flags, tags, done, kills, base, t0 }.
 // Definicja: { title, race, enemy, map, biome, difficulty, rules: { ai, hqWin, hqLose, surrender (domyślnie true; false wyłącza regułę skirmishu) },
 //   start: { clear: {playerUnits, enemyUnits, enemyBuildings, playerBuildings, neutral}, clearAreas: [[x, y, r]], res, camera: [x, y], units: [...], buildings: [...] },
 //   failIf: [warunek + text], stages: [{ id, title, objectives: [{ id, text, optional, ...warunek }], onStart: [akcje], onComplete: [akcje], failIf }] }

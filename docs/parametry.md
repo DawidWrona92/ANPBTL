@@ -104,3 +104,59 @@ Jednostka `worker` zostaje jako ogólny robotnik Desperado (AI) do fazy 11.
 | Pakowanie i rozkładanie tepee | 5 s (`CFG.packTime`) | `[P]` |
 | Travois | HP z tepee, prędkość 0,6, poza populacją | `[P]` |
 | Wóz kryty | HP 120, prędkość 0,7, poza populacją | `[P]` |
+
+
+## Prototyp kontra poradnik (2026-10-16) `[Ź instrukcja]` do wdrożenia w fazie 13
+Kolumna „poradnik” to koszty i statystyki z manuala; to, czego poradnik nie podaje (czasy, prędkości, zasięgi, wzrok), zostaje `[P]`. Stan „prototyp” to `CFG` z fazy 12.
+
+### Osadnicy: jednostki
+| Prototyp | Koszt / HP / atak | Poradnik | Koszt / HP / atak |
+|---|---|---|---|
+| frontiersman | 30 ż, 50 HP, 4 | Frontiersman | 50 ż, 30 HP, 4; zbiera drewno i złoto, buduje; Rob |
+| frontierswoman | 25 ż, 40 HP, 2 | Frontierswoman | 50 ż, 30 HP, bez ataku; pola i drewno |
+| szeryf | 60 ż 40 zł 1 broń, 70 HP, 15 | Sheriff | 75 ż 90 zł, 100 HP, 12; większy wzrok `[Ź]` |
+| piechota | 40 ż 10 zł 1 broń, 60 HP, 12 | Infantryman | 50 ż 75 zł 1 karabin, 70 HP, 12 |
+| jezdiec | 40 ż 10 zł 1 broń 1 koń, 70 HP, 12 | Cavalryman | 50 ż 85 zł, 60 HP, 10 pieszo / 15 konno (koń jako wariant) |
+| armata | 100 d 150 zł, 150 HP, 35 | Cannon | 100 d 150 zł, 100 HP, 30; rozrzut, Longer Barrel |
+| wagon (12.4) | 120 HP | Covered Wagon | 150 d + koń, 120 HP; transport zasobów, Rob |
+| (brak) | | Commander | 60 ż (+koń), 130 HP, 15; jeden, morale |
+| (brak) | | Cowboy | 80 ż, 40 HP, 7 / 9 konno; bydło, Steal |
+| (brak) | | Trapper | 50 ż 50 zł 1 karabin, 45 HP, 8; polowanie, wykrywa pułapki i kamuflaż |
+| (brak) | | Nurse | 30 ż 50 zł, 30 HP; leczenie |
+| (brak) | | Riverboat | 200 d 100 zł, 250 HP, 3 pop; do 10 jednostek |
+| (brak) | | Stagecoach | 175 d 2 konie 50 zł, 200 HP; szybszy transport (ulepszenie w Sawmill) |
+
+### Sioux: jednostki
+| Prototyp | Koszt / HP / atak | Poradnik | Koszt / HP / atak |
+|---|---|---|---|
+| squaw | 20 ż, 35 HP, 2 | Woman | 50 ż, 30 HP, 4; buduje, naprawia, pola, Pitfall |
+| wojownik | 25 ż, 55 HP, 7; walczy | Warrior | 50 ż, 30 HP, 4; **pracownik** (drewno, złoto), Rob |
+| łucznik | 30 ż 5 d, 45 HP, 9, zasięg 7 | Arrow Shooter | 60 ż 25 d, 35 HP, 6 / 8 konno; poluje, wykrywa, kradnie bydło i wozy |
+| medicine | 50 ż 30 zł, 50 HP | Medicine Man | 100 ż 100 zł, 60 HP; Eagle Eye, Rain/Hail Dance, Magic Energy, Lightning/Protective Dance |
+| wódz | 60 ż 50 zł, 100 HP, 12 | Chief | 50 ż (+koń), 130 HP, 15; jeden |
+| travois (12.2) | z tepee, 120 HP, darmowy | Travois | 75 d + koń, 80 HP; transport złota, zwija tipi |
+| (brak) | | Flaming Arrow Shooter | 50 ż 50 d 50 zł, 35 HP, 12 / 14 konno |
+| (brak) | | Rifleman | 40 ż 35 zł 1 karabin, 40 HP, 10 / 12 konno |
+| (brak) | | Spear Fighter | 40 ż 50 d 30 zł, 40 HP, 10; kontra na konnych |
+| (brak) | | Knife Thrower | 80 ż 60 zł, 110 HP, 14 |
+| (brak) | | Canoe | 125 d 50 zł, 125 HP, 10, 2 pop |
+
+### Budynki (Osadnicy / Sioux)
+| Prototyp | Poradnik |
+|---|---|
+| obóz (od startu, 1200 HP, pop 10) | Headquarters / Chief's Tepee: 500 d, pop 12, jeden |
+| dom 60 d 20 zł, pop 10; tepee 30 d, pop 5 | House 150 d, pop 8; Sleeping Tepee 150 d, pop 8 |
+| farma 40 d (jeden rolnik, upkeep drewna) | Farm 250 d / Granary 100 d + **Field 150 d** (do 5 pól na budynek) |
+| magazyn 50 d (wszystko) | Sawmill 300 d / Wood-Processing Facility 150 d (drewno); **Gold Warehouse** 150 / 100 d (złoto, wymaga transportu) |
+| koszary 100 d 40 zł | Training Camp 250 d 250 zł (wymaga Fortu) / Training Tepee 400 d |
+| fabryka 120 d 80 zł | Weapons Factory 500 d 300 zł (wymaga Fortu) |
+| zagroda 70 d 40 zł; ranczo 80 d 50 zł (+150 żywności) | Ranch 300 d (konie, Cowboy, bydło) / Corral 200 d (konie) |
+| bank 150 d 100 zł, limit 5, +1 zł/s | Bank 400 d (wymaga budynku handlowego), limit 5, odsetki |
+| (brak) | Sheriff's Office 300 d 200 zł; Fort 800 d 500 zł; Stockade 15 d; Watchtower 200 d; Church 350 d 200 zł; Wharf 250 d; General Store (koszt nieznany); Trapper's Cabin 300 d; Slaughterhouse 350 d |
+| (brak) | Tepee of the Elders 400 d 350 zł; Campfire 100 d; Medicine Man's Tepee 300 d 500 zł; Camouflage School 300 d 400 zł; Totem Pole 500 d 500 zł; Pitfall 150 d; Corral 200 d; Animal-Processing 200 d; Trading Post 100 d |
+
+### Ulepszenia
+Prototyp ma 4 technologie (Ostrzone siekiery, Pług, Selekcja koni, Kowbojska sztauga). Poradnik: ok. 20 po stronie Osadników (Rifle 1–2, Pistol 1–2, Protective Clothing 1–3, Longer Barrel, Stagecoach, Healing Energy, Axe 1–2, Pickaxe 1–2, Shovel 1–2, Rob, Steal, Sight 1–2) i ok. 25 po stronie Sioux (Hardened Arrowhead 1–3, Protective Clothing 1–3, Hardened Leather, Hardened Flaming Arrow, Axe, Pickaxe, Shovel, Swim, Camouflage, Rob, Eagle Eye, Rain Dance, Hail Dance, Magic Energy, Lightning Dance, Protective Dance); koszty w tabelach 2.4 i 3.4 poradnika.
+
+### Brak w poradniku (zostaje `[P]`)
+Czasy budowy i szkolenia, prędkości jednostek, zasięgi (poza „zasięg armaty +10% Longer Barrel”), wzrok (poza „Sheriff większy”), plon bazowy pola, ładowność i pojemność pojazdów, ceny handlu i ich zmiana, odsetki banku, tempo wzrostu wartości bydła (maks. 25 zł), regeneracja Indian, energia Medicine Mana, promień wykrywania kamuflażu, limit populacji (u mnie 200), czas pakowania tipi, dane Meksykan i Desperado.
