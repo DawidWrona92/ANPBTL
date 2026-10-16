@@ -101,3 +101,5 @@ Pliki: [podrecznik.md](podrecznik.md) (jednostki, budynki, ulepszenia, drzewka I
 - **USA 1 „The Trek West”:** karawana, co najmniej dwa wozy, osadnik i osadniczka na zachód do Teksasu, założenie obozu, potem zniszczenie meksykańskiej milicji `[Ź Gameswelt, potwierdzone przez poradnik]`.
 - **Sioux 1:** „traperzy wykrywający kamuflaż, znajomość ścieżek” `[Ź r/RealTimeStrategy]`.
 - Otwarte: Tepee of the Elders (sprzeczne wymagania w podstawce i dodatku), nazwa i koszt General Store/Trading Post Osadników, „Gatling Gun” z prasy.
+
+- **USA 2 „Remember the Alamo” (pamięć gracza, 2026-10-17):** misja nie dotyczy samego fortu Alamo, tylko bitwy nad rzeką **San Jacinto (1836), dowodzi Houston**. Trzy strony: gracz (Osadnicy), **Outlawsi** (mniejsza frakcja, przeszkadza na początku rozwoju) i **Meksykanie** (większa frakcja). Przebieg: rozwój bazy, potem rozbicie Meksykan. **Houston** to specjalny dowódca z dużą ilością HP i mocnym atakiem; jego śmierć oznacza porażkę. `[Ź pamięć gracza]`; prototyp: Houston 400 HP / atak 25 `[P]`, Outlawsi jako trzy skryptowane fale, Meksykanie jako baza AI (Desperado jako zastępnik).

@@ -227,6 +227,8 @@ const CFG = {
     trapper:        { hp: 45, dmg: 8, range: 6, cd: 1.2, speed: 1.0, cost: { food: 50, gold: 50, guns: 1 }, train: 20, aggro: 6, letter: 'T', color: '#7a6a3a', kind: 'gun', hunter: true, gather: ['meat'], detect: 4, art: 'desperado' },
     // Sheriff: większy wzrok [Ź GiantBomb, Game Over; wartość 10 to P]; Cannon: wolna, rozrzut (splash) [Ź], obszar r 1.5 [P]
     sheriff:        { hp: 100, dmg: 12, range: 6, cd: 1.2, speed: 1.0, cost: { food: 75, gold: 90 }, train: 30, aggro: 7, letter: 'Z', color: '#e0b030', kind: 'gun', sight: 10, art: 'szeryf' },
+    // Houston (USA 2, San Jacinto) [Ź pamięć gracza: dużo HP i mocny atak, śmierć = porażka misji; liczby P]
+    houston:        { hp: 400, dmg: 25, range: 5, cd: 1.0, speed: 1.1, cost: { food: 999 }, train: 99, aggro: 7, letter: 'H', color: '#e8c020', kind: 'gun', leader: true, limit: 1, sight: 9, art: 'szeryf' },
     infantryman:    { hp: 70, dmg: 12, range: 5, cd: 1.0, speed: 1.0, cost: { food: 50, gold: 75, guns: 1 }, train: 20, aggro: 6, letter: 'P', color: '#2f5d8a', kind: 'gun', art: 'piechota' },
     cavalryman:     { hp: 60, dmg: 10, range: 4, cd: 1.2, speed: 1.0, cost: { food: 50, gold: 85 }, train: 25, aggro: 6, letter: 'J', color: '#6a4a8a', kind: 'gun', art: 'piechota' },
     nurse:          { hp: 30, dmg: 0, range: 0, cd: 1.0, speed: 1.0, cost: { food: 30, gold: 50 }, train: 20, aggro: 0, letter: 'U', color: '#e8c8d8', kind: 'heal', fleesOnHit: true, art: 'frontierswoman' },
@@ -2043,14 +2045,19 @@ MISSIONS.usa1 = { title: 'The Trek West', race: 'settler', enemy: 'outlaw', map:
         { type: 'desperado', fac: 'enemy', x: 16, y: 16, order: { kind: 'attackmove', x: 7, y: 7 } }, { type: 'desperado', fac: 'enemy', x: 17, y: 16, order: { kind: 'attackmove', x: 7, y: 7 } }, { type: 'desperado', fac: 'enemy', x: 16, y: 17, order: { kind: 'attackmove', x: 7, y: 7 } },
         { type: 'bandleader', fac: 'enemy', x: 17, y: 17, order: { kind: 'attackmove', x: 7, y: 7 } }] }, { type: 'setRes', res: { wood: 300, food: 200 } }] },
     { id: 'militia', title: 'Zniszcz meksykańską milicję', objectives: [{ id: 'k', text: 'Zniszcz wszystkich wrogów', type: 'destroy', fac: 'enemy' }] }] };
-MISSIONS.usa2 = { title: 'Remember the Alamo', race: 'settler', enemy: 'outlaw', map: 'plateau', rules: NO_AI,
-  desc: 'Obrona fortu przed liczniejszym wrogiem [Ź tytuł i Fort Alamo 1836; przebieg P: nie wiadomo, czy obrona, czy odbicie].',
-  start: { clear: { playerUnits: true, enemyUnits: true, enemyBuildings: true, neutral: true }, res: { wood: 400, food: 300, gold: 300, guns: 10, horses: 0 },
-    units: [{ type: 'commander', x: 44, y: 41, tag: 'cmd' }, { type: 'infantryman', x: 42, y: 40 }, { type: 'infantryman', x: 43, y: 40 }, { type: 'infantryman', x: 44, y: 40 }, { type: 'cowboy', x: 45, y: 40 }, { type: 'cowboy', x: 46, y: 41 }, { type: 'cannon', x: 42, y: 42 }, { type: 'frontiersman', x: 41, y: 43 }] },
-  stages: [{ id: 'hold', title: 'Utrzymaj obóz', objectives: [{ id: 's', text: 'Przetrwaj 6 minut', type: 'survive', t: 360 }],
-    onStart: [{ type: 'spawn', units: [10, 11, 12, 13].map(i => ({ type: 'desperado', fac: 'enemy', x: i, y: 9, order: { kind: 'attackmove', x: 44, y: 44 } })) }, { type: 'message', text: 'Wrogowie szturmują z północnego zachodu.' }],
-    failIf: [] }],
-  failIf: [{ type: 'dead', tag: 'cmd', text: 'Dowódca poległ.' }] };
+MISSIONS.usa2 = { title: 'Remember the Alamo', race: 'settler', enemy: 'outlaw', map: 'ford',
+  desc: 'Bitwa nad San Jacinto 1836, dowodzi Houston [Ź pamięć gracza]. Rozwiń bazę: Outlawsi (mniejsza frakcja) przeszkadzają na początku napadami, a potem rozbij Meksykan (większa frakcja). Houston jest dużo silniejszy od zwykłego dowódcy, ale jego śmierć kończy misję.',
+  rules: { surrender: false },
+  start: { res: { wood: 700, food: 250, gold: 0, guns: 0, horses: 0 },
+    units: [{ type: 'houston', x: 31, y: 31, tag: 'houston' }] },
+  failIf: [{ type: 'dead', tag: 'houston', text: 'Houston poległ.' }],
+  stages: [
+    { id: 'build', title: 'Rozwijaj bazę (Outlawsi nachodzą)', objectives: [{ id: 't', text: 'Utrzymaj osadę do pierwszych napadów', type: 'survive', t: 120 }],
+      onComplete: [{ type: 'message', text: 'Outlawsi z północy!' }, { type: 'spawn', units: [0, 1, 2].map(i => ({ type: 'desperado', fac: 'enemy', x: 30 + i, y: 3, order: { kind: 'attackmove', x: 33, y: 33 } })) }] },
+    { id: 'raid2', title: 'Odpieraj napady Outlawsów', objectives: [{ id: 't', text: 'Utrzymaj się 150 s', type: 'survive', t: 150 }],
+      onComplete: [{ type: 'message', text: 'Druga fala Outlawsów.' }, { type: 'spawn', units: [0, 1, 2, 3].map(i => ({ type: 'desperado', fac: 'enemy', x: 36, y: 8 + i, order: { kind: 'attackmove', x: 33, y: 33 } })) }] },
+    { id: 'raid3', title: 'Ostatnia fala Outlawsów', objectives: [{ id: 't', text: 'Utrzymaj się 150 s', type: 'survive', t: 150 }] },
+    { id: 'mexico', title: 'Rozbij Meksykan', objectives: [{ id: 'hq', text: 'Zniszcz obóz Meksykan', type: 'destroy', fac: 'enemy', unit: 'hq' }] }] };
 MISSIONS.sx1 = { title: 'The Santee Sioux Uprising', race: 'sioux', enemy: 'outlaw', map: 'prairie', rules: NO_AI,
   desc: 'Powstanie Santee Sioux 1862: mały oddział przekrada się przez patrole traperów, którzy wykrywają kamuflaż. Zna się trasę albo ginie [Ź tytuł i charakter; cele P].',
   start: { clear: { playerUnits: true, playerBuildings: true, enemyUnits: true, enemyBuildings: true, neutral: true }, camera: [30, 30], techs: { player: ['camouflage'] },

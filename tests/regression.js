@@ -941,6 +941,18 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     });
     eq([r.stage, r.hq, r.lost, r.raid], [1, true, 'lose', 'win'], 'przebieg misji'); ok(r.enemies >= 4, 'milicja: ' + r.enemies);
   });
+  await test('F14.4: San Jacinto: Houston jest wyraźnie silniejszy od Commandera, jego śmierć = porażka, Outlawsi nachodzą falami, wygrana po zniszczeniu obozu Meksykan', async () => {
+    const r = await page.evaluate(() => {
+      newMission('usa2', 3); T.run(2);
+      const h = taggedAll('houston')[0], out = { stronger: h.maxHp > CFG.units.commander.hp * 2.5 && CFG.units.houston.dmg > CFG.units.commander.dmg, hq: S.buildings.filter(b => b.type === 'hq').length, ai: missionRule('ai', true) };
+      T.run(125); out.stage = S.mission.stage; out.raiders = S.units.filter(u => u.fac === 'enemy' && u.state !== 'idle').length;
+      S.mission.stage = 3; S.mission.t0 = S.time;
+      destroyBuilding(S.buildings.find(b => b.type === 'hq' && b.fac === 'enemy')); out.win = S.gameOver;
+      newMission('usa2', 3); T.run(1); killUnit(taggedAll('houston')[0]); T.run(1); out.lose = S.gameOver;
+      return out;
+    });
+    ok(r.stronger, 'Houston silniejszy'); eq([r.hq, r.ai, r.win, r.lose], [2, true, 'win', 'lose'], 'baza gracza i Meksykan, AI włączone, wynik'); ok(r.stage >= 1 && r.raiders > 0, 'napad Outlawsów: etap ' + r.stage);
+  });
   console.log('Faza 11: dotyk i małe ekrany');
   {
     const gameUrl = 'file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html'));
