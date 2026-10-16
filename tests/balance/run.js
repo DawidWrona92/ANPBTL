@@ -32,7 +32,7 @@ const summ = a => ({ n: a.length, min: q(a, 0), median: q(a, 0.5), p90: q(a, 0.9
         if (S.gameOver) { outcome = S.gameOver; break; }
       }
       const inf = BOT.log.infantry;
-      return { seed, outcome, endTime: +S.time.toFixed(1), tFirstInf: inf[0] ?? null, tThirdInf: inf[2] ?? null, infantryBuilt: inf.length, res: BOT.log.res, playerUnits: S.units.filter(u => u.fac === 'player').length, attacks: S.ai.attacks };
+      return { seed, mil: BOT.log.milestones, outcome, endTime: +S.time.toFixed(1), tFirstInf: inf[0] ?? null, tThirdInf: inf[2] ?? null, infantryBuilt: inf.length, res: BOT.log.res, playerUnits: S.units.filter(u => u.fac === 'player').length, attacks: S.ai.attacks };
     }, { seed, minutes: MINUTES, botSrc });
     runs.push(r); process.stdout.write('.');
   }
@@ -51,6 +51,9 @@ const summ = a => ({ n: a.length, min: q(a, 0), median: q(a, 0.5), p90: q(a, 0.9
   const show = o => JSON.stringify(o);
   console.log('plik:', out.file, '| seedy:', SEEDS, '| minut:', MINUTES, '| błędy strony:', errors.length);
   console.log('zakończenia:', show(tally), '| czas końca:', show(out.endTime));
+  const milKeys = [...new Set(runs.flatMap(r => Object.keys(r.mil || {})))];
+  out.milestones = Object.fromEntries(milKeys.map(k => [k, summ(runs.map(r => (r.mil || {})[k]).filter(x => x != null))]));
+  console.log('kamienie milowe (mediana s, liczba seedów):', milKeys.map(k => k + ' ' + out.milestones[k].median + ' (' + out.milestones[k].n + ')').join(', '));
   console.log('pierwsza piechota [s]:', show(out.tFirstInfantry)); console.log('trzecia piechota [s]:', show(out.tThirdInfantry));
   for (const t of ['at300s', 'at600s', 'at1200s']) if (out[t]) console.log(t, 'n=' + out[t].n, 'drewno', out[t].wood.median, 'żywność', out[t].food.median, 'złoto', out[t].gold.median, 'broń', out[t].guns.median, 'armia', out[t].army.median, 'robotnicy', out[t].workers.median);
   await browser.close();
