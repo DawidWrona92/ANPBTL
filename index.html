@@ -233,7 +233,7 @@ const CFG = {
     cannon:         { hp: 100, dmg: 30, range: 12, cd: 3.0, speed: 0.6, cost: { gold: 150, wood: 100 }, train: 60, aggro: 12, letter: 'A', color: '#555560', kind: 'art', splash: 1.5, art: 'armata' },
     // Covered Wagon i Stagecoach: transport zasobów [Ź], 1 pop [Ź]; prędkości [P]
     coveredWagon:   { hp: 120, dmg: 0, range: 0, cd: 1.0, speed: 0.7, cost: { wood: 150, horses: 1 }, train: 30, aggro: 0, letter: 'Y', color: '#d8cfae', kind: 'cart', art: 'wagon' },
-    stagecoach:     { hp: 200, dmg: 0, range: 0, cd: 1.0, speed: 0.9, cost: { wood: 175, gold: 50, horses: 2 }, train: 40, aggro: 0, letter: 'Q', color: '#b09060', kind: 'cart', art: 'wagon' },
+    stagecoach:     { hp: 200, dmg: 0, range: 0, cd: 1.0, speed: 0.9, treq: ['stagecoachTech'], cost: { wood: 175, gold: 50, horses: 2 }, train: 40, aggro: 0, letter: 'Q', color: '#b09060', kind: 'cart', art: 'wagon' },
     // pole widzenia (sight, w kaflach) jest większe niż promień rozpoczęcia ataku (aggro): zasada z pamięci gracza [Ź], Indianie widzą dalej niż reszta [Ź pamięć gracza, P liczby]; bez 'sight' obowiązuje fogRadius
     // ---- Sioux [Ź instrukcja: koszt, HP, atak, role; P: reszta]. Warrior to pracownik, nie główna siła bojowa [Ź]; pływanie w tej wersji jeszcze stałe (ulepszenie Swim: faza 13.5) ----
     chief:             { hp: 130, dmg: 15, range: 1, cd: 1.0, speed: 1.1, cost: { food: 50 }, train: 30, aggro: 5, letter: 'C', color: '#d1a02f', kind: 'melee', limit: 1, leader: true, swim: true, sight: 9, art: 'wodz' },
@@ -313,6 +313,19 @@ const CFG = {
     pickaxe2I: { bld: 'goldWarehouseI', cost: { food: 150, wood: 250 }, time: 40, name: 'Kilof 2', desc: 'wydobycie złota +10%', fx: { gold: 0.1 }, req: ['pickaxe1I'] },
     shovel1I: { bld: 'granary', cost: { food: 50, wood: 150 }, time: 30, name: 'Łopata 1', desc: 'plon nowych pól +25%', fx: { field: 0.25 } },
     shovel2I: { bld: 'granary', cost: { food: 150, wood: 300 }, time: 40, name: 'Łopata 2', desc: 'plon nowych pól +25%', fx: { field: 0.25 }, req: ['shovel1I'] },
+  // ulepszenia bojowe Osadników [Ź instrukcja: koszty i efekty]; dmg: +atak jednostkom z listy (warianty konne wliczone), hp: +% życia, rangeMul: zasięg, heal: skuteczność leczenia, ability: odblokowanie zdolności
+  rifle1: { bld: 'weaponsFactory', cost: { food: 100, gold: 100 }, time: 40, name: 'Karabin 1', desc: '+1 atak Infantryman i Trapper', dmg: { units: ['infantryman', 'trapper'], v: 1 } },
+  rifle2: { bld: 'weaponsFactory', cost: { food: 200, gold: 200 }, time: 50, name: 'Karabin 2', desc: '+1 atak Infantryman i Trapper', dmg: { units: ['infantryman', 'trapper'], v: 1 }, req: ['rifle1'] },
+  pistol1: { bld: 'weaponsFactory', cost: { food: 100, gold: 100 }, time: 40, name: 'Pistolet 1', desc: '+1 atak Cowboy, Sheriff, Cavalryman', dmg: { units: ['cowboy', 'sheriff', 'cavalryman'], v: 1 } },
+  pistol2: { bld: 'weaponsFactory', cost: { food: 200, gold: 200 }, time: 50, name: 'Pistolet 2', desc: '+1 atak Cowboy, Sheriff, Cavalryman', dmg: { units: ['cowboy', 'sheriff', 'cavalryman'], v: 1 }, req: ['pistol1'] },
+  clothing1: { bld: 'weaponsFactory', cost: { food: 100, gold: 100 }, time: 40, name: 'Odzież ochronna 1', desc: '+10% życia wojska', hp: { units: ['commander', 'cowboy', 'trapper', 'sheriff', 'infantryman', 'cavalryman'], v: 0.1 } },
+  clothing2: { bld: 'weaponsFactory', cost: { food: 200, gold: 200 }, time: 50, name: 'Odzież ochronna 2', desc: '+10% życia wojska', hp: { units: ['commander', 'cowboy', 'trapper', 'sheriff', 'infantryman', 'cavalryman'], v: 0.1 }, req: ['clothing1'] },
+  clothing3: { bld: 'weaponsFactory', cost: { food: 300, gold: 300 }, time: 60, name: 'Odzież ochronna 3', desc: '+10% życia wojska', hp: { units: ['commander', 'cowboy', 'trapper', 'sheriff', 'infantryman', 'cavalryman'], v: 0.1 }, req: ['clothing2'] },
+  longBarrel: { bld: 'weaponsFactory', cost: { wood: 300, gold: 300 }, time: 60, name: 'Dłuższa lufa', desc: 'zasięg armat +10%', rangeMul: { units: ['cannon'], v: 0.1 } },
+  stagecoachTech: { bld: 'sawmill', cost: { food: 150, wood: 150, gold: 250 }, time: 50, name: 'Dyliżans', desc: 'odblokowuje produkcję dyliżansu' },
+  healingEnergy: { bld: 'church', cost: { gold: 400 }, time: 60, name: 'Energia leczenia', desc: 'leczenie Sanitariuszki +50%', fx: { heal: 0.5 } },
+  rob: { bld: 'sheriffsOffice', cost: { food: 200, gold: 100 }, time: 50, name: 'Napad (Rob)', desc: 'osadnicy i wozy mogą napadać na banki, misje i magazyny złota (efekt w misjach)', ability: 'rob' },
+  steal: { bld: 'sheriffsOffice', cost: { food: 100, gold: 200 }, time: 50, name: 'Kradzież (Steal)', desc: 'kowboje przejmują wrogie pojazdy transportowe (efekt w misjach)', ability: 'steal' },
   },
   // pojemność pojazdów transportowych (złoto za jeden kurs) [P]; poradnik podaje tylko, że Stagecoach jest pojemniejszy od Covered Wagon
   cargo: { travois: 100, coveredWagon: 150, stagecoach: 300 },
@@ -342,7 +355,7 @@ const RACES = {
     ],
     train: { hq: ['commander', 'commanderH', 'frontiersman', 'frontierswoman'], ranch: ['cowboy', 'cowboyH'], trappersCabin: ['trapper'], sheriffsOffice: ['sheriff'],
       trainingCamp: ['infantryman', 'cavalryman', 'cavalrymanH'], weaponsFactory: ['cannon'], church: ['nurse'], sawmill: ['coveredWagon', 'stagecoach'] },
-    techs: ['axe1', 'axe2', 'pickaxe1', 'pickaxe2', 'shovel1', 'shovel2'],
+    techs: ['axe1', 'axe2', 'pickaxe1', 'pickaxe2', 'shovel1', 'shovel2', 'rifle1', 'rifle2', 'pistol1', 'pistol2', 'clothing1', 'clothing2', 'clothing3', 'longBarrel', 'stagecoachTech', 'healingEnergy', 'rob', 'steal'],
     test: { res: { wood: 800, food: 500, gold: 1000, guns: 50, horses: 20 },
       buildings: ['sawmill', 'farm', 'goldWarehouse', 'ranch', 'sheriffsOffice', 'fort', 'trainingCamp', 'weaponsFactory', 'house', 'house', 'generalStore', 'bank'],
       units: { frontiersman: 3, frontierswoman: 3, infantryman: 8, cavalrymanH: 4, sheriff: 1, cannon: 1 } },
@@ -613,7 +626,7 @@ function addBuilding(type, tx, ty, fac) {
 }
 function addUnit(type, fac, tx, ty) {
   const def = CFG.units[type];
-  const hp = def.hp * (type === 'cavalrymanH' && hasTech(fac, 'sztauga') ? 1.1 : 1);
+  const hp = def.hp * (1 + techSum(fac, type, 'hp')) * (type === 'cavalrymanH' && hasTech(fac, 'sztauga') ? 1.1 : 1);
   const u = {
     id: S.nextId++, type, fac, x: tx, y: ty,
     hp, maxHp: hp, state: 'idle',
@@ -798,6 +811,22 @@ function reqMissing(req, fac) {
     if (!alts.some(t => hasBuilt(fac, t))) return alts.map(t => CFG.buildings[t] ? CFG.buildings[t].label : t).join(' lub ');
   }
   return null;
+}
+// jednostka konna (…H) korzysta z ulepszeń swojej bazowej wersji
+function baseOf(type) { const d = CFG.units[type]; return d && d.mounted && type.endsWith('H') && CFG.units[type.slice(0, -1)] ? type.slice(0, -1) : type; }
+function techSum(fac, type, key) {
+  let v = 0; const T = S.techs && S.techs[fac || 'player']; if (!T) return 0; const bt = baseOf(type);
+  for (const id in T) { const td = CFG.techs[id]; if (T[id] && td && td[key] && td[key].units.includes(bt)) v += td[key].v; }
+  return v;
+}
+const techDmg = u => techSum(u.fac, u.type, 'dmg');
+// po ukończeniu ulepszenia życia: istniejące jednostki dostają różnicę w maksymalnym życiu
+function applyTechHp(fac) {
+  for (const u of S.units) {
+    if (u.fac !== fac) continue;
+    const want = CFG.units[u.type].hp * (1 + techSum(fac, u.type, 'hp')) * (u.type === 'cavalrymanH' && hasTech(fac, 'sztauga') ? 1.1 : 1);
+    if (Math.abs(want - u.maxHp) > 0.01) { u.hp += want - u.maxHp; u.maxHp = want; }
+  }
 }
 // mnożnik z ulepszeń: suma fx.<klucz> ukończonych technologii frakcji (1 + suma)
 function techMult(fac, key) {
@@ -1119,6 +1148,8 @@ function tryTrain(b, unitType) {
     const cnt = S.units.filter(u => u.fac === b.fac && u.type === unitType).length + b.queue.filter(q => q.type === unitType).length;
     if (cnt >= def.limit) { uiAlert('Limit: maksymalnie ' + def.limit); return; }
   }
+  const tt = (def.treq || []).find(t => !hasTech(b.fac, t));
+  if (tt) { if (b.fac === 'player') uiAlert('Najpierw ulepszenie: ' + CFG.techs[tt].name); return; }
   const tmiss = reqMissing(def.req, b.fac);
   if (tmiss) { if (b.fac === 'player') uiAlert('Wymaga: ' + tmiss); return; }
   if (popUsed(b.fac) + queuedCount(b.fac) >= popCap(b.fac)) { uiAlert('Brak miejsc (zbuduj dom)'); return; }
@@ -1203,7 +1234,7 @@ function followPath(u, dt) {
 }
 
 // zasięg wręcz 1 to cios z sąsiedniego kafla, także po skosie: środki kafli dzieli tam 1.41, a cel stoi gdziekolwiek na swoim kaflu
-function reachOf(def) { return def.range <= 1 ? 1.5 : def.range; }
+function reachOf(def, u) { return def.range <= 1 ? 1.5 : def.range * (1 + (u ? techSum(u.fac, u.type, 'rangeMul') : 0)); }
 // odległość punktu od prostokąta budynku (0 w środku)
 function rectDist(x, y, b) {
   const dx = Math.max(b.tx - x, 0, x - (b.tx + b.w)), dy = Math.max(b.ty - y, 0, y - (b.ty + b.h));
@@ -1241,6 +1272,13 @@ function updateUnit(u, dt) {
       if (d < bd) { bd = d; best = e; }
     }
     if (best) { u.attackTarget = best; u.ordered = false; u.state = 'attack'; }
+  }
+  // Sanitariuszka: leczy ranną jednostkę swojej frakcji w promieniu 3.5 (2 HP/s [P], Energia leczenia +50% [Ź]); bezczynna podchodzi do rannego w promieniu 7
+  if (def.kind === 'heal') {
+    let tgt = null, bd = 1e9;
+    for (const a of S.units) { if (a === u || a.fac !== u.fac || a.hp >= a.maxHp) continue; const d = Math.hypot(a.x - u.x, a.y - u.y); if (d < bd) { bd = d; tgt = a; } }
+    if (tgt && bd <= 3.5) tgt.hp = Math.min(tgt.maxHp, tgt.hp + 2 * techMult(u.fac, 'heal') * dt);
+    else if (tgt && bd <= 7 && u.state === 'idle') { u.path = uPath(u, Math.floor(tgt.x), Math.floor(tgt.y)); u.pathI = 0; if (u.path.length) u.state = 'move'; }
   }
   switch (u.state) {
     case 'flee': {
@@ -1419,7 +1457,7 @@ function updateUnit(u, dt) {
       const d = Math.hypot(t.x - u.x, t.y - u.y);
       // postawa decyduje o pościgu: cel z rozkazu goni zawsze, automatyczny słucha postawy
       if (stanceDropsTarget(u, def, d, !!u.ordered)) { resumeAfterInterrupt(u); break; }
-      if (d > reachOf(def)) {
+      if (d > reachOf(def, u)) {
         u.repathT -= dt;
         if (u.repathT <= 0) { u.path = uPath(u, Math.floor(t.x), Math.floor(t.y)); u.pathI = 0; u.repathT = 0.8; u.state = 'attack'; }
         // pusta ścieżka przy celu poza zasięgiem = BFS uznał jednostkę za "na miejscu" (promień stopu 1 kafla), więc dochodzimy wprost
@@ -1434,7 +1472,7 @@ function updateUnit(u, dt) {
         if (def.range > 1) scareAnimals(t.x, t.y, 5); else if (tdef && tdef.animal) scareAnimal(t, u.x, u.y);
         if (rngCombat() < hitChance(u.lvl, t.lvl, flankBonus(t))) {
           addHitFx(t.x, t.y, { melee: def.range <= 1 });
-          t.hp -= rollDamage(def.dmg, u.lvl, typeMult(def, tdef, false), 0);
+          t.hp -= rollDamage(def.dmg + techDmg(u), u.lvl, typeMult(def, tdef, false), 0);
           t.morale = Math.max(0, t.morale - CFG.morale.hitPenalty);
           t.lastThreat = u;
           gainXp(u, CFG.xp.hit);
@@ -1470,7 +1508,7 @@ function updateUnit(u, dt) {
         if (b.fac === 'player' && u.fac === 'enemy') notifyAttack(b.cx, b.cy, u.x, u.y);
         if (def.range > 1) addShot(u, b.cx, b.cy);
         addHitFx(b.cx, b.cy, { melee: def.range <= 1 });
-        b.hp -= rollDamage(def.dmg, u.lvl, typeMult(def, null, true), 0);
+        b.hp -= rollDamage(def.dmg + techDmg(u), u.lvl, typeMult(def, null, true), 0);
         if (b.hp <= 0) {
           // łupy: część mienia zniszczonego obozu trafia do magazynów napastnika [Ź: klimat łupieżczy]
           addRes('wood', 25, u.fac); addRes('food', 25, u.fac); addRes('gold', 8, u.fac);
@@ -1855,7 +1893,7 @@ function updateBuilding(b, dt) {
   if (b.research) {
     b.research.remaining -= dt;
     if (b.research.remaining <= 0) {
-      S.techs[b.fac][b.research.id] = true;
+      S.techs[b.fac][b.research.id] = true; applyTechHp(b.fac);
       if (b.fac === 'player') { uiAlert('Opracowano: ' + CFG.techs[b.research.id].name); sfx('ok'); }
       b.research = null;
     }
@@ -2873,7 +2911,8 @@ function updatePanels() {
     const limHit = ud.limit && S.units.filter(u => u.fac === 'player' && u.type === ut).length + b.queue.filter(q => q.type === ut).length >= ud.limit;
     setLbl(btn, limHit ? 'limit ' + ud.limit : costHtml(ud.cost));
     btn.title = (UNIT_NAMES[ut] || ut) + ': ' + costText(ud.cost) + '. Czas ' + ud.train + ' s, HP ' + ud.hp + ', obrażenia ' + ud.dmg;
-    const miss = reqMissing(ud.req, 'player');
+    const ttm = (ud.treq || []).find(t => !hasTech('player', t));
+    const miss = reqMissing(ud.req, 'player') || (ttm ? CFG.techs[ttm].name : null);
     if (miss) btn.title += '. Wymaga: ' + miss;
     btn.disabled = !canAfford(ud.cost) || !!limHit || !!miss;
   }

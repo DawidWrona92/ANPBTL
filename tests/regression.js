@@ -851,6 +851,32 @@ function ok(cond, what) { if (!cond) throw new Error(what); }
     });
     ok(r.types && r.hqGold, 'dane Desperado');
   });
+  console.log('Faza 13.4: Osadnicy – ulepszenia i Sanitariuszka');
+  await test('F13.4: Karabin i Odzież ochronna zwiększają atak i życie (także nowych i istniejących jednostek), Dłuższa lufa zasięg armat, Dyliżans wymaga ulepszenia', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); S.res = { wood: 9000, food: 9000, gold: 9000, guns: 0, horses: 9 };
+      const inf = addUnit('infantryman', 'player', 20.5, 20.5), cav = addUnit('cavalrymanH', 'player', 21.5, 20.5), cn = addUnit('cannon', 'player', 22.5, 20.5);
+      const wf = addBuilding('weaponsFactory', 12, 12, 'player'); wf.built = true;
+      const out = { d0: techDmg(inf), hp0: inf.maxHp, r0: reachOf(CFG.units.cannon, cn) };
+      for (const id of ['rifle1', 'rifle2', 'clothing1', 'longBarrel']) { queueCmd({ action: 'research', building: wf, techId: id }); T.run(0.1); T.run(CFG.techs[id].time + 1); }
+      out.d1 = techDmg(inf); out.hp1 = inf.maxHp; out.cavD = techDmg(cav); out.r1 = reachOf(CFG.units.cannon, cn); out.newHp = addUnit('infantryman', 'player', 23.5, 20.5).maxHp;
+      queueCmd({ action: 'research', building: wf, techId: 'rifle2' }); T.run(0.1); out.dupe = !wf.research;
+      const sm = addBuilding('sawmill', 14, 12, 'player'); sm.built = true; const q0 = sm.queue.length; tryTrain(sm, 'stagecoach'); out.noCoach = sm.queue.length === q0;
+      queueCmd({ action: 'research', building: sm, techId: 'stagecoachTech' }); T.run(0.1); T.run(51); tryTrain(sm, 'stagecoach'); out.coach = sm.queue.length === q0 + 1;
+      return out;
+    });
+    eq([r.d0, r.d1, r.cavD], [0, 2, 0], 'Karabin 1+2: +2 dla Infantryman, nie dla Cavalryman'); ok(Math.abs(r.hp1 - r.hp0 * 1.1) < 0.01 && Math.abs(r.newHp - r.hp0 * 1.1) < 0.01, 'życie +10%: ' + r.hp0 + ' -> ' + r.hp1 + ' / ' + r.newHp);
+    ok(Math.abs(r.r1 - r.r0 * 1.1) < 0.01, 'zasięg armaty +10%'); ok(r.dupe, 'kolejna technologia po ukończeniu bez wymagań nie ruszy'); ok(r.noCoach && r.coach, 'Dyliżans dopiero po ulepszeniu');
+  });
+  await test('F13.4: Sanitariuszka leczy ranne jednostki wokół siebie, a Energia leczenia przyspiesza leczenie o 50%', async () => {
+    const r = await page.evaluate(() => {
+      T.fresh(); const n = addUnit('nurse', 'player', 20.5, 20.5), a = addUnit('infantryman', 'player', 22.5, 20.5), far = addUnit('infantryman', 'player', 30.5, 26.5);
+      a.hp = 10; far.hp = 10; T.run(5); const h1 = a.hp - 10;
+      a.hp = 10; S.techs.player.healingEnergy = true; T.run(5); const h2 = a.hp - 10;
+      return { h1, h2, far: far.hp };
+    });
+    ok(r.h1 > 8 && r.h1 < 12, 'leczenie ok. 2 HP/s: ' + r.h1); ok(r.h2 > r.h1 * 1.4, 'Energia leczenia: ' + r.h2); ok(r.far < 12 || r.far >= 10, 'daleka jednostka');
+  });
   console.log('Faza 11: dotyk i małe ekrany');
   {
     const gameUrl = 'file://' + path.resolve(process.env.GAME_FILE || path.join(__dirname, '..', 'index.html'));
